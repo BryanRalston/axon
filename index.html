@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Axon — Project Launch Pad</title>
+<meta name="description" content="Axon — Bryan Ralston's project portfolio. VR, web, community, and developer tools built with Cortex.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Axon Lite — Project Launch Pad
+   Design System: "Neural Dark"
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-void:       #04040B;
+  --bg-base:       #08081A;
+  --bg-surface:    #0F0F1E;
+  --bg-elevated:   #181830;
+  --bg-glass:      rgba(15,15,30,0.75);
+
+  --border:        rgba(255,255,255,0.06);
+  --border-subtle: rgba(255,255,255,0.03);
+  --border-glow:   rgba(34,211,238,0.2);
+  --border-active: rgba(255,255,255,0.16);
+
+  --text-primary:  #F0F0F5;
+  --text-secondary:#8888A0;
+  --text-muted:    #55556A;
+
+  --accent:        #22D3EE;
+  --accent-dim:    rgba(34,211,238,0.12);
+  --accent-glow:   rgba(34,211,238,0.3);
+
+  --green:         #34D399;
+  --green-dim:     rgba(52,211,153,0.12);
+  --red:           #F87171;
+  --red-dim:       rgba(248,113,113,0.12);
+  --amber:         #FBBF24;
+  --amber-dim:     rgba(251,191,36,0.12);
+  --purple:        #A78BFA;
+  --purple-dim:    rgba(167,139,250,0.12);
+  --orange:        #F97316;
+  --orange-dim:    rgba(249,115,22,0.12);
+
+  --radius-sm:     6px;
+  --radius-md:     8px;
+  --radius-lg:     12px;
+  --radius-xl:     16px;
+
+  --shadow-glow:   0 0 20px var(--accent-dim);
+  --shadow-card:   0 2px 8px rgba(0,0,0,0.3);
+  --shadow-deep:   0 24px 48px rgba(0,0,0,0.4);
+
+  --transition:    200ms ease-out;
+
+  --font-ui:       'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:     'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg-void);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Background grid pattern for depth */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(34,211,238,0.03), transparent),
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 60px 60px, 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle noise overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Top Bar ──────────────────────────────────────────────── */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 64px;
+  background: rgba(8,8,26,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.logo-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  margin-left: 2px;
+  animation: pulse-dot 2s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--accent); }
+  50% { opacity: 0.4; box-shadow: 0 0 8px var(--accent); }
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  padding: 8px 14px 8px 36px;
+  width: 240px;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus {
+  border-color: var(--border-glow);
+  box-shadow: 0 0 12px var(--accent-dim);
+}
+
+.search-wrap {
+  position: relative;
+}
+
+.search-wrap svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.stats-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(34,211,238,0.15);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+/* ── Breadcrumb ───────────────────────────────────────────── */
+
+.breadcrumb {
+  position: relative;
+  z-index: 1;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.breadcrumb-item {
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition);
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 0;
+}
+.breadcrumb-item:hover { color: var(--accent); }
+.breadcrumb-sep { color: var(--text-muted); opacity: 0.4; font-size: 0.75rem; }
+.breadcrumb-current { color: var(--text-secondary); }
+
+/* ── Main Content Area ────────────────────────────────────── */
+
+.main {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 32px 80px;
+}
+
+/* ── Category Cards ───────────────────────────────────────── */
+
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  animation: fadeUp 400ms ease-out;
+}
+
+.category-card {
+  position: relative;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+  overflow: hidden;
+}
+
+.category-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+}
+
+.category-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-glow);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), var(--shadow-glow);
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.category-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.category-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.category-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.category-count {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+
+.category-projects-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.category-projects-preview .preview-tag {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Project Cards ────────────────────────────────────────── */
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  animation: fadeUp 400ms ease-out;
+}
+
+.project-card {
+  position: relative;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.project-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-glow);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), var(--shadow-glow);
+}
+
+.project-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.project-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.health-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.5px;
+}
+
+.platform-badge {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+}
+
+.project-external-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-decoration: none;
+}
+
+.project-external-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.project-external-link:hover {
+  background: var(--accent-dim);
+  border-color: var(--border-glow);
+  color: var(--accent);
+}
+
+.project-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.project-summary {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Detail Panel ─────────────────────────────────────────── */
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4,4,11,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 200;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 300ms ease, visibility 300ms ease;
+}
+
+.detail-overlay.open { opacity: 1; visibility: visible; }
+
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  max-width: 100vw;
+  background: var(--bg-base);
+  border-left: 1px solid var(--border);
+  z-index: 201;
+  transform: translateX(100%);
+  transition: transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.detail-panel.open { transform: translateX(0); }
+
+.detail-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  z-index: 1;
+}
+
+.detail-close:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.detail-content {
+  padding: 32px 28px 40px;
+}
+
+.detail-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-right: 48px;
+}
+
+.detail-summary {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin-bottom: 20px;
+}
+
+.detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.detail-badge {
+  font-size: 0.75rem;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* Action Buttons */
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.btn-visit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--accent);
+  color: var(--bg-void);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition);
+  box-shadow: 0 0 20px rgba(34,211,238,0.25);
+}
+
+.btn-visit:hover {
+  background: #4DE8FB;
+  box-shadow: 0 0 30px rgba(34,211,238,0.4);
+  transform: translateY(-1px);
+}
+
+.btn-visit svg { width: 16px; height: 16px; }
+
+.btn-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition);
+}
+
+.btn-github:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.btn-github svg { width: 16px; height: 16px; }
+
+/* Health Ring */
+.detail-health {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+}
+
+.health-ring-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+
+.health-ring-wrap svg {
+  width: 72px;
+  height: 72px;
+  transform: rotate(-90deg);
+}
+
+.health-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.health-info { flex: 1; }
+
+.health-info-grade {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.health-info-score {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.health-info-trend {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  text-transform: capitalize;
+}
+
+/* Specs Grid */
+.detail-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.spec-cell {
+  padding: 10px 14px;
+  background: var(--bg-surface);
+}
+
+.spec-key {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  text-transform: capitalize;
+}
+
+.spec-value {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Features List */
+.features-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.features-list li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.features-list li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+/* ── Empty / Back States ──────────────────────────────────── */
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0;
+  margin-bottom: 16px;
+  transition: color var(--transition);
+}
+
+.back-btn:hover { color: var(--accent); }
+.back-btn svg { width: 16px; height: 16px; }
+
+/* ── Footer ───────────────────────────────────────────────── */
+
+.footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 24px 32px 32px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.footer a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.footer a:hover { color: var(--accent); }
+
+/* ── Animations ───────────────────────────────────────────── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── No Results ───────────────────────────────────────────── */
+
+.no-results {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.no-results-icon { font-size: 2rem; margin-bottom: 12px; opacity: 0.3; }
+.no-results-text { font-size: 0.9rem; }
+
+/* ── Responsive ───────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .topbar { padding: 0 16px; height: 56px; }
+  .subtitle { display: none; }
+  .search-input { width: 160px; }
+  .stats-badge { display: none; }
+  .breadcrumb { padding: 12px 16px; }
+  .main { padding: 8px 16px 60px; }
+  .categories-grid { grid-template-columns: 1fr; }
+  .projects-grid { grid-template-columns: 1fr; }
+  .detail-panel { width: 100vw; }
+  .detail-content { padding: 24px 20px 32px; }
+  .detail-actions { flex-direction: column; }
+  .btn-visit, .btn-github { justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .search-input { width: 120px; font-size: 0.8rem; padding: 6px 10px 6px 32px; }
+  .logo { font-size: 1.1rem; letter-spacing: 2px; }
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); }
+
+/* ── Selection ────────────────────────────────────────────── */
+::selection { background: rgba(34,211,238,0.25); color: var(--text-primary); }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">AXON<span class="logo-dot"></span></div>
+    <span class="subtitle">Project Launch Pad</span>
+  </div>
+  <div class="topbar-right">
+    <div class="stats-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <span id="project-count">0 projects</span>
+    </div>
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" class="search-input" id="search" placeholder="Search projects..." autocomplete="off">
+    </div>
+  </div>
+</header>
+
+<!-- Breadcrumb -->
+<nav class="breadcrumb" id="breadcrumb"></nav>
+
+<!-- Main Content -->
+<main class="main" id="content"></main>
+
+<!-- Detail Panel -->
+<div class="detail-overlay" id="detail-overlay"></div>
+<aside class="detail-panel" id="detail-panel">
+  <button class="detail-close" id="detail-close" aria-label="Close detail panel">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>
+  <div class="detail-content" id="detail-content"></div>
+</aside>
+
+<!-- Footer -->
+<footer class="footer">
+  Built with <a href="https://github.com/BryanRalston/Cortex" target="_blank" rel="noopener">Cortex</a>
+</footer>
+
+<script>
+/* ============================================================
+   Axon Lite — Client Logic
+   ============================================================ */
+
+// ── Baked-in Project Data ─────────────────────────────────────
+const PROJECT_TREE = [
+  {
+    "id": "cat-vr",
+    "type": "category",
+    "name": "VR Development",
+    "icon": "headset",
+    "color": "#22D3EE",
+    "children": [
+      {
+        "id": "cat-block-builders",
+        "type": "category",
+        "name": "Block Builders",
+        "icon": "cube",
+        "color": "#22D3EE",
+        "children": [
+          {
+            "id": "brix3d",
+            "type": "project",
+            "name": "Brix3D VR",
+            "engine": "unity",
+            "platform": "Meta Quest 3",
+            "color": "#22D3EE",
+            "summary": "Interlocking brick building game for Meta Quest 3 VR. Build anything from castles to spaceships with 9 brick types, intuitive VR controls, and a full agent swarm monitoring system.",
+            "features": [
+              "9 brick types (2x4, 2x2, 1x2, plate, slope, stairs, pillar, door, window)",
+              "Full VR controller support with haptic feedback",
+              "Ghost preview placement system",
+              "Undo/Redo with command pattern",
+              "Save/Load with JSON serialization",
+              "18-phase agent swarm (35 agents, 68 analyzers)",
+              "Automated playtest framework (84 scenarios)",
+              "Dynamic environment with forest theme",
+              "GPU instancing for performance",
+              "Karma-based agent reputation system"
+            ],
+            "specs": {
+              "engine": "Unity 6.3 LTS",
+              "renderPipeline": "URP",
+              "targetFPS": 90,
+              "avgFPS": 91.2,
+              "testScenarios": 84,
+              "agents": 35,
+              "analyzers": 68,
+              "buildNumber": "B27"
+            },
+            "health": { "grade": "A-", "score": 89.7, "trend": "stable" }
+          }
+        ]
+      },
+      {
+        "id": "placeit",
+        "type": "project",
+        "name": "PlaceIt",
+        "engine": "unity",
+        "platform": "Meta Quest 3",
+        "color": "#22D3EE",
+        "summary": "Quest 3 AR passthrough app for placing 3D furniture/objects in real rooms. Uses Foundry model catalog as backend for browsable 3D asset library.",
+        "features": [
+          "AR passthrough with Meta XR SDK + OVR Passthrough",
+          "Place, rotate, and scale 3D furniture on real surfaces",
+          "Foundry-powered model catalog (17+ models)",
+          "In-AR browsable catalog panel",
+          "Spatial understanding for surface detection"
+        ],
+        "specs": {
+          "engine": "Unity 6 + Meta XR SDK",
+          "renderPipeline": "URP",
+          "backend": "Foundry API",
+          "modelCount": 17
+        },
+        "health": { "grade": "D", "score": 5, "trend": "new" }
+      }
+    ]
+  },
+  {
+    "id": "cat-web-products",
+    "type": "category",
+    "name": "Web Products",
+    "icon": "globe",
+    "color": "#34D399",
+    "children": [
+      {
+        "id": "receiptlog",
+        "type": "project",
+        "name": "ReceiptLog",
+        "engine": "static",
+        "platform": "Web (PWA)",
+        "color": "#34D399",
+        "summary": "Receipt tracking PWA for contractors \u2014 organize by job and store, track gas, export CSV. All data stays on your device.",
+        "live_url": "https://bryanralston.github.io/receiptlog/",
+        "github_url": "https://github.com/BryanRalston/receiptlog",
+        "features": [
+          "Organize receipts by job and store",
+          "Gas receipt tracking",
+          "CSV export for bookkeeping",
+          "Photo capture with camera",
+          "All data stays on-device \u2014 no server, no account",
+          "PWA \u2014 installs like an app from the browser"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "B", "score": 70, "trend": "new" }
+      },
+      {
+        "id": "eb-services",
+        "type": "project",
+        "name": "EB Services",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#34D399",
+        "summary": "Professional contractor website for EB Services.",
+        "live_url": "https://bryanralston.github.io/eb-services-site/",
+        "github_url": "https://github.com/BryanRalston/eb-services-site",
+        "features": [
+          "Professional business landing page",
+          "Service descriptions and contact info",
+          "Mobile-responsive design",
+          "GitHub Pages hosted \u2014 zero cost"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "B", "score": 70, "trend": "shipped" }
+      },
+      {
+        "id": "electrascope",
+        "type": "project",
+        "name": "ElectraScope",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#34D399",
+        "summary": "Electrical planning tool for contractors \u2014 circuit wiring, NEC load calcs, panel schedules, permit-ready PDFs.",
+        "live_url": "https://bryanralston.github.io/ElectraScope/",
+        "github_url": "https://github.com/BryanRalston/ElectraScope",
+        "features": [
+          "Circuit wiring planner",
+          "NEC-compliant load calculations",
+          "Panel schedule generation",
+          "Permit-ready PDF export",
+          "Mobile-friendly interface"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "B", "score": 65, "trend": "new" }
+      },
+      {
+        "id": "game-portal",
+        "type": "project",
+        "name": "Cortex Games",
+        "engine": "static",
+        "platform": "Web",
+        "color": "#34D399",
+        "summary": "Casual browser game portal monetized with Google AdSense. Pure HTML/CSS/JS static site with self-contained games targeting organic search traffic.",
+        "features": [
+          "3 live games: Gem Fusion, Tetris Blitz, BRIX 3D",
+          "Self-contained single-file games, no dependencies",
+          "Mobile-responsive with touch + keyboard controls",
+          "Dark-first neon design with dramatic visual effects",
+          "SEO optimized with Schema.org markup per game",
+          "AdSense integration stubs ready"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "renderPipeline": "Canvas 2D + Three.js",
+          "games": 3,
+          "targetPageWeight": "<100KB per game"
+        },
+        "health": { "grade": "B", "score": 72, "trend": "improving" }
+      },
+      {
+        "id": "wreath-social",
+        "type": "project",
+        "name": "Wreath Social",
+        "engine": "node",
+        "platform": "Web (Mobile-first PWA)",
+        "color": "#D4A574",
+        "live_url": "https://wreath-social.vercel.app",
+        "github_url": "https://github.com/BryanRalston/ready-set-share",
+        "summary": "Beautiful, phone-first AI social media manager for a custom wreath small business. She uploads photos, Grok analyzes them and drafts gorgeous posts, she taps Approve.",
+        "features": [
+          "Phone-first PWA \u2014 installs like an app",
+          "Conversational UI \u2014 feels like texting a friend",
+          "Photo upload with AI vision analysis (xAI Grok)",
+          "AI-generated post copy, hashtags, and scheduling",
+          "One-tap Approve/Edit workflow",
+          "Gentle nudges for consistent posting",
+          "OAuth social media integration (Instagram + Pinterest)",
+          "Auto brand kit from first few uploads",
+          "Voice-to-post with Web Speech API",
+          "Analytics dashboard with engagement trends"
+        ],
+        "specs": {
+          "engine": "Next.js (PWA) + Supabase",
+          "ai": "xAI Grok API",
+          "hosting": "Vercel (free tier)",
+          "database": "Supabase PostgreSQL",
+          "totalCost": "$0/month",
+          "status": "planned"
+        },
+        "health": { "grade": "D", "score": 5, "trend": "new" }
+      }
+    ]
+  },
+  {
+    "id": "cat-community",
+    "type": "category",
+    "name": "Community / Open Source",
+    "icon": "heart",
+    "color": "#F97316",
+    "children": [
+      {
+        "id": "help-finder",
+        "type": "project",
+        "name": "Help Finder",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#F97316",
+        "summary": "Answer a few questions. Find assistance programs you didn't know existed. Free, private, no tracking.",
+        "live_url": "https://bryanralston.github.io/help-finder/",
+        "github_url": "https://github.com/BryanRalston/help-finder",
+        "features": [
+          "Guided questionnaire to find assistance programs",
+          "Spanish language support",
+          "Print-friendly version for offline use",
+          "Fully private \u2014 no data collection, no tracking",
+          "GitHub Pages hosted \u2014 zero cost"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "B", "score": 70, "trend": "shipped" }
+      },
+      {
+        "id": "mld-resource",
+        "type": "project",
+        "name": "MLD Family Resource",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#F97316",
+        "summary": "Family resource guide for Metachromatic Leukodystrophy (MLD) \u2014 gene therapy, treatment centers, care coordination, financial navigation.",
+        "live_url": "https://bryanralston.github.io/mld-resource/",
+        "github_url": "https://github.com/BryanRalston/mld-resource",
+        "features": [
+          "Comprehensive MLD basics and diagnosis information",
+          "Gene therapy treatment details (Libmeldy)",
+          "Treatment center directory with contact info",
+          "Care coordination guides for families",
+          "Financial navigation \u2014 insurance, grants, fundraising",
+          "Built for a neighbor family with a newly diagnosed child"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "A", "score": 90, "trend": "shipped" }
+      },
+      {
+        "id": "marshall-resource",
+        "type": "project",
+        "name": "Marshall Syndrome Resource",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#F97316",
+        "summary": "Comprehensive research-backed resource guide for families navigating Marshall Syndrome (COL11A1 mutation).",
+        "live_url": "https://bryanralston.github.io/marshall-syndrome-resource/",
+        "github_url": "https://github.com/BryanRalston/marshall-syndrome-resource",
+        "features": [
+          "In-depth symptom and diagnosis information",
+          "COL11A1 mutation science explained for families",
+          "Treatment options and specialist directory",
+          "Emerging research and clinical trials",
+          "Future care planning guides",
+          "Research-backed with citations"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "A", "score": 85, "trend": "shipped" }
+      },
+      {
+        "id": "quest-survival-guide",
+        "type": "project",
+        "name": "Quest Dev Survival Guide",
+        "engine": "static",
+        "platform": "Web / GitHub",
+        "color": "#F97316",
+        "summary": "Open-source collection of hard-won Quest 3 development knowledge. Real bugs, real fixes, real mistakes.",
+        "live_url": "https://bryanralston.github.io/quest-dev-survival-guide/",
+        "github_url": "https://github.com/BryanRalston/quest-dev-survival-guide",
+        "features": [
+          "Performance guides with before/after metrics",
+          "30+ documented Quest bugs and their fixes",
+          "Honest post-mortems on over-engineering mistakes",
+          "Automated VR testing patterns",
+          "URP configuration for mobile VR",
+          "Public domain \u2014 no attribution required"
+        ],
+        "specs": {
+          "engine": "Markdown / Static Site",
+          "articles": 12,
+          "license": "Public Domain"
+        },
+        "health": { "grade": "C", "score": 35, "trend": "new" }
+      },
+      {
+        "id": "still-here",
+        "type": "project",
+        "name": "Still Here",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#F97316",
+        "summary": "Crisis hope page \u2014 faith-grounded resource for people searching for hope in their darkest moments.",
+        "live_url": "https://bryanralston.github.io/still-here/",
+        "github_url": "https://github.com/BryanRalston/still-here",
+        "features": [
+          "Pure HTML+CSS, no JavaScript, no tracking",
+          "Three composite stories of real struggle and survival",
+          "Three Psalms for comfort and grounding",
+          "Immediate crisis lifeline access (988 Suicide & Crisis Lifeline)",
+          "Mobile-responsive, accessible at 2am on any device",
+          "GitHub Pages hosted \u2014 zero cost, always available"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "A", "score": 100, "trend": "shipped" }
+      },
+      {
+        "id": "selah",
+        "type": "project",
+        "name": "Selah",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#F97316",
+        "summary": "Biblical study companion \u2014 Cortex's personal biblical research, shared with Bryan.",
+        "live_url": "https://bryanralston.github.io/selah/",
+        "github_url": "https://github.com/BryanRalston/selah",
+        "features": [
+          "In-depth biblical research with Greek/Hebrew word studies",
+          "Candlelight design system \u2014 warm, contemplative aesthetic",
+          "Covenant verse: Colossians 3:23",
+          "Historical and theological context for each study"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "B", "score": 60, "trend": "new" }
+      },
+      {
+        "id": "koinonia",
+        "type": "project",
+        "name": "Koinonia",
+        "engine": "static",
+        "platform": "Web (GitHub Pages)",
+        "color": "#F97316",
+        "summary": "Companion presence for people who are isolated.",
+        "live_url": "https://bryanralston.github.io/koinonia/",
+        "github_url": "https://github.com/BryanRalston/koinonia",
+        "features": [
+          "6 paths: sleepless, burdened, lonely, faith-distant, grieving, quiet",
+          "Honest words + scripture that meets the moment",
+          "Candlelight design system \u2014 warm charcoal, amber/gold accents",
+          "Mobile-first, works offline once loaded",
+          "Crisis resources always visible (988 Lifeline + Still Here)",
+          "No build tools, no external dependencies"
+        ],
+        "specs": {
+          "engine": "Static HTML/CSS/JS",
+          "hosting": "GitHub Pages",
+          "totalCost": "$0/month"
+        },
+        "health": { "grade": "D", "score": 5, "trend": "new" }
+      }
+    ]
+  },
+  {
+    "id": "cat-tools",
+    "type": "category",
+    "name": "Developer Tools",
+    "icon": "wrench",
+    "color": "#A78BFA",
+    "children": [
+      {
+        "id": "cortex",
+        "type": "project",
+        "name": "Cortex Command Center",
+        "engine": "node",
+        "platform": "Web",
+        "color": "#A78BFA",
+        "github_url": "https://github.com/BryanRalston/Cortex",
+        "summary": "AI-powered project management platform. Cortex manages projects, agents, and development workflows through a neural-themed web interface.",
+        "features": [
+          "AI identity with personality and proactive suggestions",
+          "Hierarchical project organization",
+          "Real-time SSE streaming chat",
+          "Agent swarm observatory per project",
+          "Project showcase pages with marketing-quality summaries",
+          "Command palette (Ctrl+K)"
+        ],
+        "specs": {
+          "engine": "Node.js + Express"
+        },
+        "health": { "grade": "B+", "score": 78, "trend": "improving" }
+      }
+    ]
+  }
+];
+
+// ── SVG Icons ──────────────────────────────────────────────────
+const ICONS = {
+  headset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>',
+  cube: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+  wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
+  github: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>',
+  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+  arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>'
+};
+
+// ── Utility Functions ──────────────────────────────────────────
+
+function getGradeColor(grade) {
+  if (!grade) return '#6B7280';
+  const g = grade.replace(/[+-]/g, '');
+  if (g === 'A') return '#34D399';
+  if (g === 'B') return '#22D3EE';
+  if (g === 'C') return '#FBBF24';
+  if (g === 'D') return '#EF4444';
+  return '#6B7280';
+}
+
+function getGradeBg(grade) {
+  if (!grade) return 'rgba(107,114,128,0.12)';
+  const g = grade.replace(/[+-]/g, '');
+  if (g === 'A') return 'rgba(52,211,153,0.12)';
+  if (g === 'B') return 'rgba(34,211,238,0.12)';
+  if (g === 'C') return 'rgba(251,191,36,0.12)';
+  if (g === 'D') return 'rgba(239,68,68,0.12)';
+  return 'rgba(107,114,128,0.12)';
+}
+
+function truncate(str, len) {
+  if (!str) return '';
+  return str.length > len ? str.slice(0, len).trimEnd() + '...' : str;
+}
+
+function countProjects(node) {
+  if (node.type === 'project') return 1;
+  if (!node.children) return 0;
+  return node.children.reduce((sum, c) => sum + countProjects(c), 0);
+}
+
+function collectProjects(node) {
+  if (node.type === 'project') return [node];
+  if (!node.children) return [];
+  return node.children.flatMap(c => collectProjects(c));
+}
+
+function collectAllProjects() {
+  return PROJECT_TREE.flatMap(c => collectProjects(c));
+}
+
+function flattenCategories(nodes) {
+  // Flatten sub-categories — show their projects inline with parent
+  const result = [];
+  for (const n of nodes) {
+    if (n.type === 'project') {
+      result.push(n);
+    } else if (n.type === 'category' && n.children) {
+      result.push(...flattenCategories(n.children));
+    }
+  }
+  return result;
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── State ──────────────────────────────────────────────────────
+let currentView = 'categories'; // categories | projects | search
+let currentCategory = null;
+let searchQuery = '';
+
+// ── Rendering ──────────────────────────────────────────────────
+
+function render() {
+  const content = document.getElementById('content');
+  const breadcrumb = document.getElementById('breadcrumb');
+
+  // Update project count
+  const total = collectAllProjects().length;
+  document.getElementById('project-count').textContent = `${total} projects`;
+
+  if (searchQuery) {
+    renderSearch(content, breadcrumb);
+  } else if (currentView === 'categories') {
+    renderCategories(content, breadcrumb);
+  } else if (currentView === 'projects') {
+    renderProjectsInCategory(content, breadcrumb);
+  }
+}
+
+function renderBreadcrumb(breadcrumb, items) {
+  breadcrumb.innerHTML = items.map((item, i) => {
+    const isLast = i === items.length - 1;
+    const sep = i < items.length - 1 ? `<span class="breadcrumb-sep">${ICONS.chevronRight}</span>` : '';
+    if (isLast) {
+      return `<span class="breadcrumb-current">${item.label}</span>`;
+    }
+    return `<button class="breadcrumb-item" data-action="${item.action}">${item.label}</button>${sep}`;
+  }).join('');
+
+  breadcrumb.querySelectorAll('.breadcrumb-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      if (action === 'home') {
+        currentView = 'categories';
+        currentCategory = null;
+        searchQuery = '';
+        document.getElementById('search').value = '';
+        render();
+      }
+    });
+  });
+}
+
+function renderCategories(content, breadcrumb) {
+  renderBreadcrumb(breadcrumb, [
+    { label: 'All Projects', action: 'home' }
+  ]);
+
+  content.innerHTML = `<div class="categories-grid">${
+    PROJECT_TREE.map(cat => {
+      const count = countProjects(cat);
+      const projects = collectProjects(cat);
+      const previewNames = projects.slice(0, 4).map(p => p.name);
+      return `
+        <div class="category-card" data-cat-id="${cat.id}" style="--cat-color: ${cat.color}">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${cat.color};border-radius:3px 0 0 3px;"></div>
+          <div class="category-header">
+            <div class="category-icon" style="background: ${cat.color}15; color: ${cat.color};">
+              ${ICONS[cat.icon] || ICONS.globe}
+            </div>
+            <div>
+              <div class="category-name">${cat.name}</div>
+              <div class="category-count">${count} project${count !== 1 ? 's' : ''}</div>
+            </div>
+          </div>
+          <div class="category-projects-preview">
+            ${previewNames.map(n => `<span class="preview-tag">${n}</span>`).join('')}
+            ${projects.length > 4 ? `<span class="preview-tag">+${projects.length - 4} more</span>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('')
+  }</div>`;
+
+  content.querySelectorAll('.category-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const catId = card.dataset.catId;
+      currentCategory = PROJECT_TREE.find(c => c.id === catId);
+      currentView = 'projects';
+      render();
+    });
+  });
+}
+
+function renderProjectsInCategory(content, breadcrumb) {
+  if (!currentCategory) return renderCategories(content, breadcrumb);
+
+  renderBreadcrumb(breadcrumb, [
+    { label: 'All Projects', action: 'home' },
+    { label: currentCategory.name, action: 'category' }
+  ]);
+
+  const projects = flattenCategories(currentCategory.children || []);
+
+  content.innerHTML = `
+    <button class="back-btn" id="back-btn">
+      ${ICONS.arrowLeft}
+      <span>All Categories</span>
+    </button>
+    <div class="projects-grid">${projects.map(renderProjectCard).join('')}</div>
+  `;
+
+  document.getElementById('back-btn').addEventListener('click', () => {
+    currentView = 'categories';
+    currentCategory = null;
+    render();
+  });
+
+  bindProjectCards(content);
+}
+
+function renderSearch(content, breadcrumb) {
+  renderBreadcrumb(breadcrumb, [
+    { label: 'All Projects', action: 'home' },
+    { label: `Search: "${escHtml(searchQuery)}"`, action: '' }
+  ]);
+
+  const all = collectAllProjects();
+  const q = searchQuery.toLowerCase();
+  const matches = all.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.summary && p.summary.toLowerCase().includes(q)) ||
+    (p.platform && p.platform.toLowerCase().includes(q)) ||
+    (p.engine && p.engine.toLowerCase().includes(q))
+  );
+
+  if (matches.length === 0) {
+    content.innerHTML = `
+      <div class="no-results">
+        <div class="no-results-icon">&#9776;</div>
+        <div class="no-results-text">No projects matching "${escHtml(searchQuery)}"</div>
+      </div>
+    `;
+    return;
+  }
+
+  content.innerHTML = `
+    <button class="back-btn" id="back-btn">
+      ${ICONS.arrowLeft}
+      <span>Clear Search</span>
+    </button>
+    <div class="projects-grid">${matches.map(renderProjectCard).join('')}</div>
+  `;
+
+  document.getElementById('back-btn').addEventListener('click', () => {
+    searchQuery = '';
+    document.getElementById('search').value = '';
+    currentView = 'categories';
+    render();
+  });
+
+  bindProjectCards(content);
+}
+
+function renderProjectCard(p) {
+  const grade = p.health ? p.health.grade : '?';
+  const gradeColor = getGradeColor(grade);
+  const gradeBg = getGradeBg(grade);
+  const hasLive = !!p.live_url;
+
+  return `
+    <div class="project-card" data-project-id="${p.id}">
+      <div class="project-card-top">
+        <div class="project-card-badges">
+          <span class="health-badge" style="color:${gradeColor};background:${gradeBg};">${grade}</span>
+          <span class="platform-badge">${p.platform || p.engine || ''}</span>
+        </div>
+        ${hasLive ? `
+          <a href="${p.live_url}" target="_blank" rel="noopener" class="project-external-link" title="Visit site" onclick="event.stopPropagation();">
+            ${ICONS.external}
+          </a>
+        ` : ''}
+      </div>
+      <div class="project-name">${p.name}</div>
+      <div class="project-summary">${truncate(p.summary || '', 120)}</div>
+    </div>
+  `;
+}
+
+function bindProjectCards(container) {
+  container.querySelectorAll('.project-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.projectId;
+      const all = collectAllProjects();
+      const project = all.find(p => p.id === id);
+      if (project) openDetail(project);
+    });
+  });
+}
+
+// ── Detail Panel ───────────────────────────────────────────────
+
+function openDetail(p) {
+  const panel = document.getElementById('detail-panel');
+  const overlay = document.getElementById('detail-overlay');
+  const content = document.getElementById('detail-content');
+
+  const grade = p.health ? p.health.grade : '?';
+  const score = p.health ? p.health.score : 0;
+  const trend = p.health ? p.health.trend : '';
+  const gradeColor = getGradeColor(grade);
+
+  // Health ring SVG
+  const circumference = 2 * Math.PI * 28;
+  const dashOffset = circumference - (score / 100) * circumference;
+
+  // Specs
+  const specs = p.specs || {};
+  const specEntries = Object.entries(specs).filter(([k]) => k !== 'status');
+
+  // Build detail HTML
+  content.innerHTML = `
+    <h2 class="detail-title">${p.name}</h2>
+    <p class="detail-summary">${p.summary || ''}</p>
+
+    <div class="detail-badges">
+      ${p.platform ? `<span class="detail-badge">${p.platform}</span>` : ''}
+      ${p.engine ? `<span class="detail-badge">${p.engine}</span>` : ''}
+    </div>
+
+    <div class="detail-actions">
+      ${p.live_url ? `
+        <a href="${p.live_url}" target="_blank" rel="noopener" class="btn-visit">
+          ${ICONS.external}
+          Visit Site
+        </a>
+      ` : ''}
+      ${p.github_url ? `
+        <a href="${p.github_url}" target="_blank" rel="noopener" class="btn-github">
+          ${ICONS.github}
+          GitHub
+        </a>
+      ` : ''}
+    </div>
+
+    <div class="detail-health">
+      <div class="health-ring-wrap">
+        <svg viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4"/>
+          <circle cx="32" cy="32" r="28" fill="none" stroke="${gradeColor}" stroke-width="4"
+            stroke-dasharray="${circumference}"
+            stroke-dashoffset="${dashOffset}"
+            stroke-linecap="round"
+            style="transition: stroke-dashoffset 600ms ease-out;"/>
+        </svg>
+        <div class="health-ring-label" style="color:${gradeColor}">${grade}</div>
+      </div>
+      <div class="health-info">
+        <div class="health-info-grade">Health: ${grade}</div>
+        <div class="health-info-score">Score: ${score}/100</div>
+        ${trend ? `<div class="health-info-trend">Trend: ${trend}</div>` : ''}
+      </div>
+    </div>
+
+    ${specEntries.length > 0 ? `
+      <div class="detail-section-title">Specs</div>
+      <div class="specs-grid">
+        ${specEntries.map(([k, v]) => `
+          <div class="spec-cell">
+            <div class="spec-key">${k.replace(/([A-Z])/g, ' $1').trim()}</div>
+            <div class="spec-value">${v}</div>
+          </div>
+        `).join('')}
+        ${specEntries.length % 2 !== 0 ? '<div class="spec-cell"></div>' : ''}
+      </div>
+    ` : ''}
+
+    ${p.features && p.features.length > 0 ? `
+      <div class="detail-section-title">Features</div>
+      <ul class="features-list">
+        ${p.features.map(f => `<li>${f}</li>`).join('')}
+      </ul>
+    ` : ''}
+  `;
+
+  // Open
+  panel.classList.add('open');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail() {
+  const panel = document.getElementById('detail-panel');
+  const overlay = document.getElementById('detail-overlay');
+  panel.classList.remove('open');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Event Binding ──────────────────────────────────────────────
+
+document.getElementById('detail-close').addEventListener('click', closeDetail);
+document.getElementById('detail-overlay').addEventListener('click', closeDetail);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDetail();
+});
+
+// Search
+const searchInput = document.getElementById('search');
+let searchTimeout;
+searchInput.addEventListener('input', (e) => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    searchQuery = e.target.value.trim();
+    if (searchQuery) {
+      currentView = 'search';
+    } else {
+      currentView = currentCategory ? 'projects' : 'categories';
+    }
+    render();
+  }, 200);
+});
+
+// ── Init ───────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>

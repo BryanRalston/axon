@@ -308,6 +308,8 @@ function initParticles(thoughts) {
 
 // ─── Load data ──────────────────────────────────────────────
 async function loadThoughts() {
+  if (window.EMBEDDED_THOUGHTS) { return window.EMBEDDED_THOUGHTS.slice(0, 500); }
+
   try {
     const res = await fetch('http://localhost:3142/api/cortex/thoughtstream?limit=500');
     if (!res.ok) throw new Error('fail');

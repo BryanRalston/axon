@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Void Keeper</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #050508; }
+  canvas { display: block; cursor: none; }
+  #overlay {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 10;
+    background: rgba(5,5,8,0.92); opacity: 1; transition: opacity 0.8s;
+    font-family: 'Inter', system-ui, sans-serif; color: #c8ccd0;
+    pointer-events: auto; cursor: pointer;
+  }
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  #overlay h1 {
+    font-size: 2.4rem; font-weight: 300; letter-spacing: 0.15em;
+    color: #e0e4e8; margin-bottom: 0.6rem;
+  }
+  #overlay .sub {
+    font-size: 0.85rem; opacity: 0.5; letter-spacing: 0.08em; margin-bottom: 2rem;
+  }
+  #overlay .final-score {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 3rem; color: #22D3EE; margin-bottom: 0.4rem; display: none;
+  }
+  #overlay .final-label {
+    font-size: 0.75rem; opacity: 0.4; letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 2rem; display: none;
+  }
+  #overlay .prompt {
+    font-size: 0.7rem; opacity: 0.3; letter-spacing: 0.1em;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 0.2; } 50% { opacity: 0.5; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <h1>Void Keeper</h1>
+  <div class="sub">catch light, release noise</div>
+  <div class="final-score" id="finalScore">0</div>
+  <div class="final-label" id="finalLabel">thoughts kept</div>
+  <div class="prompt">click to begin</div>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const finalScoreEl = document.getElementById('finalScore');
+  const finalLabel = document.getElementById('finalLabel');
+
+  // --- Audio ---
+  let audioCtx = null;
+  function initAudio() {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  function playTone(freq, dur, vol) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + dur);
+  }
+
+  // --- Types ---
+  const TYPES = {
+    reflection: { color: '#C8CCD0', glow: 'rgba(200,204,208,', points: 3, freq: 660, label: 'reflection' },
+    synthesis:  { color: '#D4A056', glow: 'rgba(212,160,86,',  points: 2, freq: 520, label: 'synthesis' },
+    insight:    { color: '#E8C840', glow: 'rgba(232,200,64,',  points: 3, freq: 780, label: 'insight' },
+    idea:       { color: '#4ADE80', glow: 'rgba(74,222,128,',  points: 2, freq: 600, label: 'idea' },
+    noise:      { color: '#333333', glow: 'rgba(51,51,51,',    points: -1, freq: 180, label: 'noise' },
+  };
+  const TYPE_KEYS = Object.keys(TYPES);
+  const GOOD_KEYS = TYPE_KEYS.filter(k => k !== 'noise');
+
+  // --- State ---
+  let W, H;
+  let mx, my;
+  let score = 0, noiseCount = 0, gameOver = false, gameStarted = false, gameTime = 0;
+  let particles = [], orbiting = [], bursts = [], trails = [], edgeFlash = 0;
+  let breathPhase = 0;
+  let spawnTimer = 0, spawnInterval = 60;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    if (!gameStarted) { mx = W / 2; my = H / 2; }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // --- Input ---
+  function onMove(x, y) { mx = x; my = y; }
+  canvas.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  // --- Spawn ---
+  function spawnParticle() {
+    // weighted: ~30% noise, 70% good
+    const isNoise = Math.random() < 0.3;
+    const key = isNoise ? 'noise' : GOOD_KEYS[Math.floor(Math.random() * GOOD_KEYS.length)];
+    const type = TYPES[key];
+
+    // pick a random edge
+    const edge = Math.floor(Math.random() * 4);
+    let x, y, vx, vy;
+    const baseSpeed = 0.4 + gameTime * 0.003; // gradually faster
+    const speed = baseSpeed * (0.7 + Math.random() * 0.6);
+
+    if (edge === 0) { x = -10; y = Math.random() * H; vx = speed; vy = (Math.random() - 0.5) * speed * 0.6; }
+    else if (edge === 1) { x = W + 10; y = Math.random() * H; vx = -speed; vy = (Math.random() - 0.5) * speed * 0.6; }
+    else if (edge === 2) { x = Math.random() * W; y = -10; vy = speed; vx = (Math.random() - 0.5) * speed * 0.6; }
+    else { x = Math.random() * W; y = H + 10; vy = -speed; vx = (Math.random() - 0.5) * speed * 0.6; }
+
+    particles.push({
+      x, y, vx, vy, key, type,
+      radius: key === 'noise' ? 3 : 4 + Math.random() * 2,
+      alpha: key === 'noise' ? 0.35 : 0.7 + Math.random() * 0.3,
+      wobble: Math.random() * Math.PI * 2,
+      wobbleSpeed: 0.01 + Math.random() * 0.02,
+    });
+  }
+
+  // --- Catch effects ---
+  function addBurst(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 3;
+      bursts.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1,
+        decay: 0.015 + Math.random() * 0.02,
+        color,
+        radius: 1 + Math.random() * 2,
+      });
+    }
+  }
+
+  function addOrbiter(x, y, type) {
+    const angle = Math.atan2(y - my, x - mx);
+    orbiting.push({
+      angle,
+      dist: 30 + Math.random() * 15,
+      speed: 0.03 + Math.random() * 0.02,
+      life: 1,
+      decay: 0.008,
+      color: type.color,
+      radius: 3,
+    });
+  }
+
+  // --- Init ---
+  function init() {
+    score = 0;
+    noiseCount = 0;
+    gameOver = false;
+    gameStarted = true;
+    gameTime = 0;
+    particles = [];
+    orbiting = [];
+    bursts = [];
+    trails = [];
+    edgeFlash = 0;
+    breathPhase = 0;
+    spawnTimer = 0;
+    spawnInterval = 60; // frames between spawns, decreases over time
+    mx = W / 2;
+    my = H / 2;
+    overlay.classList.add('hidden');
+    if (!audioCtx) initAudio();
+  }
+
+  function showGameOver() {
+    gameOver = true;
+    finalScoreEl.textContent = score;
+    finalScoreEl.style.display = 'block';
+    finalLabel.style.display = 'block';
+    setTimeout(() => {
+      overlay.classList.remove('hidden');
+    }, 600);
+  }
+
+  // --- Click handler ---
+  function onClick() {
+    if (!gameStarted || gameOver) {
+      // hide final score for fresh start
+      if (!gameStarted) {
+        finalScoreEl.style.display = 'none';
+        finalLabel.style.display = 'none';
+      }
+      init();
+    }
+  }
+  overlay.addEventListener('click', onClick);
+  overlay.addEventListener('touchstart', e => { e.preventDefault(); onClick(); });
+
+  // --- Game loop ---
+  let lastTime = 0;
+
+  function update(dt) {
+    if (gameOver) return;
+
+    gameTime += dt;
+    breathPhase += dt * 1.5;
+
+    // spawn
+    spawnTimer += dt * 60;
+    const currentInterval = Math.max(15, spawnInterval - gameTime * 0.3);
+    if (spawnTimer >= currentInterval) {
+      spawnTimer = 0;
+      spawnParticle();
+    }
+
+    // update particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.wobble += p.wobbleSpeed;
+      p.x += p.vx + Math.sin(p.wobble) * 0.2;
+      p.y += p.vy + Math.cos(p.wobble) * 0.15;
+
+      // trail
+      if (p.key !== 'noise') {
+        trails.push({ x: p.x, y: p.y, color: p.type.glow, life: 1, decay: 0.06, radius: p.radius * 0.6 });
+      }
+
+      // off screen?
+      if (p.x < -60 || p.x > W + 60 || p.y < -60 || p.y > H + 60) {
+        particles.splice(i, 1);
+        continue;
+      }
+
+      // proximity check
+      const dx = p.x - mx;
+      const dy = p.y - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 30) {
+        // caught!
+        if (p.key === 'noise') {
+          noiseCount++;
+          edgeFlash = 1;
+          score += p.type.points;
+          playTone(p.type.freq, 0.3, 0.08);
+          if (noiseCount >= 5) {
+            showGameOver();
+          }
+        } else {
+          score += p.type.points;
+          addBurst(p.x, p.y, p.type.color, 12);
+          addOrbiter(p.x, p.y, p.type);
+          playTone(p.type.freq, 0.5, 0.06);
+        }
+        particles.splice(i, 1);
+      }
+    }
+
+    // update orbiters
+    for (let i = orbiting.length - 1; i >= 0; i--) {
+      const o = orbiting[i];
+      o.angle += o.speed;
+      o.life -= o.decay;
+      o.dist += 0.1;
+      if (o.life <= 0) { orbiting.splice(i, 1); }
+    }
+
+    // update bursts
+    for (let i = bursts.length - 1; i >= 0; i--) {
+      const b = bursts[i];
+      b.x += b.vx;
+      b.y += b.vy;
+      b.vx *= 0.96;
+      b.vy *= 0.96;
+      b.life -= b.decay;
+      if (b.life <= 0) { bursts.splice(i, 1); }
+    }
+
+    // update trails
+    for (let i = trails.length - 1; i >= 0; i--) {
+      trails[i].life -= trails[i].decay;
+      if (trails[i].life <= 0) { trails.splice(i, 1); }
+    }
+
+    // edge flash decay
+    if (edgeFlash > 0) edgeFlash *= 0.92;
+    if (edgeFlash < 0.01) edgeFlash = 0;
+  }
+
+  function draw() {
+    // clear with slight fade for motion blur feel
+    ctx.fillStyle = 'rgba(5,5,8,0.3)';
+    ctx.fillRect(0, 0, W, H);
+
+    // hard clear every ~60 frames to prevent ghosting buildup
+    if (Math.random() < 0.016) {
+      ctx.fillStyle = '#050508';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // trails
+    for (const t of trails) {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
+      ctx.fillStyle = t.color + (t.life * 0.15) + ')';
+      ctx.fill();
+    }
+
+    // particles
+    for (const p of particles) {
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+
+      // glow
+      if (p.key !== 'noise') {
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 4);
+        grad.addColorStop(0, p.type.glow + '0.25)');
+        grad.addColorStop(1, p.type.glow + '0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(p.x - p.radius * 4, p.y - p.radius * 4, p.radius * 8, p.radius * 8);
+      }
+
+      // core
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = p.type.color;
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // bursts
+    for (const b of bursts) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.radius * b.life, 0, Math.PI * 2);
+      ctx.fillStyle = b.color;
+      ctx.globalAlpha = b.life * 0.8;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // orbiters
+    for (const o of orbiting) {
+      const ox = mx + Math.cos(o.angle) * o.dist;
+      const oy = my + Math.sin(o.angle) * o.dist;
+      ctx.beginPath();
+      ctx.arc(ox, oy, o.radius * o.life, 0, Math.PI * 2);
+      ctx.fillStyle = o.color;
+      ctx.globalAlpha = o.life * 0.7;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // player orb
+    if (gameStarted && !gameOver) {
+      const breath = 1 + Math.sin(breathPhase) * 0.15;
+      const playerRadius = 6 * breath;
+
+      // outer glow
+      const g1 = ctx.createRadialGradient(mx, my, 0, mx, my, 40 * breath);
+      g1.addColorStop(0, 'rgba(200,220,240,0.12)');
+      g1.addColorStop(0.5, 'rgba(200,220,240,0.03)');
+      g1.addColorStop(1, 'rgba(200,220,240,0)');
+      ctx.fillStyle = g1;
+      ctx.fillRect(mx - 50, my - 50, 100, 100);
+
+      // inner glow
+      const g2 = ctx.createRadialGradient(mx, my, 0, mx, my, 16 * breath);
+      g2.addColorStop(0, 'rgba(240,245,255,0.6)');
+      g2.addColorStop(0.6, 'rgba(200,220,240,0.15)');
+      g2.addColorStop(1, 'rgba(200,220,240,0)');
+      ctx.fillStyle = g2;
+      ctx.beginPath();
+      ctx.arc(mx, my, 18 * breath, 0, Math.PI * 2);
+      ctx.fill();
+
+      // core
+      ctx.beginPath();
+      ctx.arc(mx, my, playerRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#EEF2FF';
+      ctx.fill();
+    }
+
+    // edge flash (red, for noise catch)
+    if (edgeFlash > 0) {
+      ctx.save();
+      const ef = edgeFlash * 0.15;
+      // vignette flash
+      const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.3, W/2, H/2, Math.min(W,H)*0.7);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, `rgba(180,40,40,${ef})`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    // score
+    if (gameStarted) {
+      ctx.save();
+      ctx.font = '13px "JetBrains Mono", "Fira Code", monospace';
+      ctx.fillStyle = 'rgba(200,204,208,0.25)';
+      ctx.textAlign = 'right';
+      ctx.fillText(score, W - 24, H - 20);
+
+      // noise indicator: dim dots
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(W - 80 + i * 14, H - 18, 3, 0, Math.PI * 2);
+        ctx.fillStyle = i < noiseCount ? 'rgba(180,50,50,0.5)' : 'rgba(80,80,80,0.15)';
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  function loop(ts) {
+    const dt = Math.min((ts - lastTime) / 1000, 0.05) || 0.016;
+    lastTime = ts;
+
+    if (gameStarted) {
+      update(dt);
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // initial clear
+  ctx.fillStyle = '#050508';
+  ctx.fillRect(0, 0, W, H);
+
+  // ambient particles on title screen
+  gameStarted = false;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

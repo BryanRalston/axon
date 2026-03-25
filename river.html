@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The River — Cortex Thoughtstream</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #050508; }
+  canvas { display: block; position: absolute; top: 0; left: 0; }
+</style>
+</head>
+<body>
+<canvas id="river"></canvas>
+<script>
+// ============================================================
+//  The River — Generative art. Cortex's thoughtstream rendered
+//  as luminous particles flowing through a curving river of
+//  light in the void. No UI. No labels. Just the stream.
+// ============================================================
+
+(() => {
+'use strict';
+
+// ─── Simplex Noise (2D, self-contained) ─────────────────────
+const SimplexNoise = (() => {
+  const F2 = 0.5 * (Math.sqrt(3) - 1);
+  const G2 = (3 - Math.sqrt(3)) / 6;
+  const grad3 = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+
+  return class {
+    constructor(seed) {
+      this.perm = new Uint8Array(512);
+      this.permMod12 = new Uint8Array(512);
+      const p = new Uint8Array(256);
+      for (let i = 0; i < 256; i++) p[i] = i;
+      let s = seed || Math.random() * 65536 >>> 0;
+      for (let i = 255; i > 0; i--) {
+        s = (s * 16807) % 2147483647;
+        const j = s % (i + 1);
+        [p[i], p[j]] = [p[j], p[i]];
+      }
+      for (let i = 0; i < 512; i++) {
+        this.perm[i] = p[i & 255];
+        this.permMod12[i] = this.perm[i] % 12;
+      }
+    }
+    noise2D(xin, yin) {
+      const s = (xin + yin) * F2;
+      const i = Math.floor(xin + s), j = Math.floor(yin + s);
+      const t = (i + j) * G2;
+      const x0 = xin - (i - t), y0 = yin - (j - t);
+      const i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
+      const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+      const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+      const ii = i & 255, jj = j & 255;
+      let n0 = 0, n1 = 0, n2 = 0;
+      let t0 = 0.5 - x0*x0 - y0*y0;
+      if (t0 >= 0) { t0 *= t0; const gi = this.permMod12[ii + this.perm[jj]]; n0 = t0*t0*(grad3[gi][0]*x0 + grad3[gi][1]*y0); }
+      let t1 = 0.5 - x1*x1 - y1*y1;
+      if (t1 >= 0) { t1 *= t1; const gi = this.permMod12[ii + i1 + this.perm[jj + j1]]; n1 = t1*t1*(grad3[gi][0]*x1 + grad3[gi][1]*y1); }
+      let t2 = 0.5 - x2*x2 - y2*y2;
+      if (t2 >= 0) { t2 *= t2; const gi = this.permMod12[ii + 1 + this.perm[jj + 1]]; n2 = t2*t2*(grad3[gi][0]*x2 + grad3[gi][1]*y2); }
+      return 70 * (n0 + n1 + n2);
+    }
+  };
+})();
+
+// ─── Palette ────────────────────────────────────────────────
+const TYPE_COLORS = {
+  reflection:  [224, 224, 224],
+  research:    [13, 148, 136],
+  observation: [34, 211, 238],
+  synthesis:   [245, 158, 11],
+  hypothesis:  [139, 92, 246],
+  idea:        [16, 185, 129],
+  insight:     [234, 179, 8],
+  pattern:     [249, 115, 22],
+  curiosity:   [236, 72, 153],
+};
+const TYPE_KEYS = Object.keys(TYPE_COLORS);
+
+const MATURITY = {
+  seed:        { size: 2.0, opacity: 0.35 },
+  developing:  { size: 3.0, opacity: 0.55 },
+  actionable:  { size: 4.5, opacity: 0.75 },
+  mature:      { size: 6.0, opacity: 1.00 },
+};
+const MATURITY_KEYS = Object.keys(MATURITY);
+
+// ─── Canvas ─────────────────────────────────────────────────
+const canvas = document.getElementById('river');
+const ctx = canvas.getContext('2d');
+let W, H, dpr;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  generateStars();
+  buildRiverBedImage();
+}
+window.addEventListener('resize', resize);
+
+// ─── Noise ──────────────────────────────────────────────────
+const noiseFlow  = new SimplexNoise(42);
+const noiseDrift = new SimplexNoise(137);
+const noiseWarp  = new SimplexNoise(314);
+
+// ─── River geometry ─────────────────────────────────────────
+function riverCenterY(x) {
+  const nx = x / W;
+  return H * 0.5
+    + Math.sin(nx * Math.PI * 2.0 + 0.5) * H * 0.10
+    + Math.sin(nx * Math.PI * 3.7 + 1.2) * H * 0.05
+    + Math.sin(nx * Math.PI * 1.1 + 2.8) * H * 0.03;
+}
+
+function riverHalfWidth(x) {
+  const nx = x / W;
+  const dist = Math.abs(nx - 0.5);
+  // Wide, generous channel — wider in the center, gentle taper at edges
+  return (H * 0.24 - dist * H * 0.06);
+}
+
+// ─── Pre-rendered river bed (offscreen canvas) ──────────────
+let riverBedCanvas = null;
+
+function buildRiverBedImage() {
+  riverBedCanvas = document.createElement('canvas');
+  riverBedCanvas.width = W;
+  riverBedCanvas.height = H;
+  const rc = riverBedCanvas.getContext('2d');
+
+  // Paint multiple glow layers for the river channel
+  for (let layer = 0; layer < 6; layer++) {
+    const widthMul = [1.4, 1.1, 0.8, 0.5, 0.28, 0.12][layer];
+    const alpha =    [0.025, 0.035, 0.045, 0.06, 0.07, 0.09][layer];
+    const colors = [
+      [8, 12, 35],     // outermost: deep navy
+      [10, 18, 45],
+      [14, 26, 60],    // mid: indigo
+      [18, 35, 75],
+      [22, 45, 90],    // inner: brighter blue
+      [30, 60, 110],   // centerline: luminous blue
+    ][layer];
+
+    rc.beginPath();
+    const steps = Math.ceil(W / 3);
+    for (let i = 0; i <= steps; i++) {
+      const x = (i / steps) * W;
+      const cy = riverCenterY(x);
+      const hw = riverHalfWidth(x) * widthMul;
+      if (i === 0) rc.moveTo(x, cy - hw);
+      else rc.lineTo(x, cy - hw);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const x = (i / steps) * W;
+      const cy = riverCenterY(x);
+      const hw = riverHalfWidth(x) * widthMul;
+      rc.lineTo(x, cy + hw);
+    }
+    rc.closePath();
+    rc.fillStyle = `rgba(${colors[0]}, ${colors[1]}, ${colors[2]}, ${alpha})`;
+    rc.fill();
+  }
+
+  // Centerline glow — a luminous stroke down the middle
+  rc.beginPath();
+  for (let i = 0; i <= W; i += 4) {
+    const cy = riverCenterY(i);
+    if (i === 0) rc.moveTo(i, cy);
+    else rc.lineTo(i, cy);
+  }
+  rc.strokeStyle = 'rgba(35, 70, 140, 0.12)';
+  rc.lineWidth = 4;
+  rc.stroke();
+  rc.strokeStyle = 'rgba(25, 55, 120, 0.06)';
+  rc.lineWidth = 16;
+  rc.stroke();
+  rc.strokeStyle = 'rgba(18, 40, 100, 0.03)';
+  rc.lineWidth = 40;
+  rc.stroke();
+
+  // Edge vignette / bank fog — soft framing, not too aggressive
+  const bankTop = rc.createLinearGradient(0, 0, 0, H * 0.22);
+  bankTop.addColorStop(0, 'rgba(5, 5, 8, 0.85)');
+  bankTop.addColorStop(0.5, 'rgba(5, 5, 8, 0.3)');
+  bankTop.addColorStop(1, 'rgba(5, 5, 8, 0)');
+  rc.fillStyle = bankTop;
+  rc.fillRect(0, 0, W, H * 0.22);
+
+  const bankBot = rc.createLinearGradient(0, H * 0.78, 0, H);
+  bankBot.addColorStop(0, 'rgba(5, 5, 8, 0)');
+  bankBot.addColorStop(0.5, 'rgba(5, 5, 8, 0.3)');
+  bankBot.addColorStop(1, 'rgba(5, 5, 8, 0.85)');
+  rc.fillStyle = bankBot;
+  rc.fillRect(0, H * 0.78, W, H * 0.22);
+
+  // Horizontal edge vignette
+  const bankLeft = rc.createLinearGradient(0, 0, W * 0.06, 0);
+  bankLeft.addColorStop(0, 'rgba(5, 5, 8, 0.5)');
+  bankLeft.addColorStop(1, 'rgba(5, 5, 8, 0)');
+  rc.fillStyle = bankLeft;
+  rc.fillRect(0, 0, W * 0.06, H);
+
+  const bankRight = rc.createLinearGradient(W * 0.94, 0, W, 0);
+  bankRight.addColorStop(0, 'rgba(5, 5, 8, 0)');
+  bankRight.addColorStop(1, 'rgba(5, 5, 8, 0.5)');
+  rc.fillStyle = bankRight;
+  rc.fillRect(W * 0.94, 0, W * 0.06, H);
+}
+
+// ─── Stars ──────────────────────────────────────────────────
+let stars = [];
+
+function generateStars() {
+  stars = [];
+  const count = Math.floor(W * H / 2200);
+  for (let i = 0; i < count; i++) {
+    const sx = Math.random() * W;
+    const sy = Math.random() * H;
+    const cy = riverCenterY(sx);
+    const hw = riverHalfWidth(sx);
+    const distFromCenter = Math.abs(sy - cy);
+    if (distFromCenter > hw * 0.4) {
+      const edgeFade = Math.min(1, (distFromCenter - hw * 0.4) / (hw * 0.6));
+      stars.push({
+        x: sx,
+        y: sy,
+        r: Math.random() * 1.4 + 0.4,
+        baseAlpha: (Math.random() * 0.20 + 0.06) * (0.4 + edgeFade * 0.6),
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.4 + 0.08,
+      });
+    }
+  }
+}
+
+// ─── Particles ──────────────────────────────────────────────
+let particles = [];
+let connectionMap = {};
+let particleById = {};
+
+function createParticle(thought, idx) {
+  const type = thought.type || TYPE_KEYS[Math.floor(Math.random() * TYPE_KEYS.length)];
+  const maturity = thought.maturity || MATURITY_KEYS[Math.floor(Math.random() * MATURITY_KEYS.length)];
+  const color = TYPE_COLORS[type] || TYPE_COLORS.observation;
+  const mc = MATURITY[maturity] || MATURITY.seed;
+
+  const x = Math.random() * W;
+  const cy = riverCenterY(x);
+  const hw = riverHalfWidth(x);
+  // Gaussian spread — wide, fills the channel
+  const g = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;
+  const y = cy + g * hw * 1.7;
+
+  return {
+    id: thought.id || ('gen-' + idx),
+    x, y,
+    vx: 0, vy: 0,
+    baseSpeed: 0.15 + Math.random() * 0.7,
+    noiseOff: Math.random() * 2000,
+    color, type, maturity,
+    size: mc.size,
+    baseOpacity: mc.opacity,
+    pulsePhase: Math.random() * Math.PI * 2,
+    // Trail (previous positions for motion blur)
+    trail: [],
+    // Ripple
+    rippleStart: -1,
+  };
+}
+
+function generateFallback(count) {
+  const thoughts = [];
+  for (let i = 0; i < count; i++) {
+    const type = TYPE_KEYS[Math.floor(Math.random() * TYPE_KEYS.length)];
+    const maturity = MATURITY_KEYS[Math.floor(Math.random() * MATURITY_KEYS.length)];
+    const conns = [];
+    if (i > 0 && Math.random() < 0.22) conns.push({ targetId: 'fallback-' + (i - 1 - Math.floor(Math.random() * Math.min(i, 6))) });
+    if (Math.random() < 0.12 && i > 4) conns.push({ targetId: 'fallback-' + Math.floor(Math.random() * i) });
+    thoughts.push({ id: 'fallback-' + i, type, maturity, connections: conns });
+  }
+  return thoughts;
+}
+
+function initParticles(thoughts) {
+  particles = [];
+  connectionMap = {};
+  particleById = {};
+
+  for (let i = 0; i < thoughts.length; i++) {
+    const t = thoughts[i];
+    const p = createParticle(t, i);
+    particles.push(p);
+    particleById[p.id] = p;
+    if (t.connections && t.connections.length > 0) {
+      connectionMap[p.id] = t.connections.map(c => c.targetId || c.target || c);
+    }
+  }
+}
+
+// ─── Load data ──────────────────────────────────────────────
+async function loadThoughts() {
+  try {
+    const res = await fetch('http://localhost:3142/api/cortex/thoughtstream?limit=500');
+    if (!res.ok) throw new Error('fail');
+    const data = await res.json();
+    if (data.thoughts && data.thoughts.length > 0) {
+      initParticles(data.thoughts);
+    } else {
+      initParticles(generateFallback(200));
+    }
+  } catch {
+    initParticles(generateFallback(200));
+  }
+}
+
+// ─── Ripples ────────────────────────────────────────────────
+let nextRipple = 0;
+
+function triggerRipple(time) {
+  if (!particles.length) return;
+  const p = particles[Math.floor(Math.random() * particles.length)];
+  p.rippleStart = time;
+}
+
+// ─── Ambient color shift ────────────────────────────────────
+function hueShift(time) {
+  const a = ((time % 300000) / 300000) * Math.PI * 2;
+  return {
+    r: Math.sin(a) * 10,
+    g: Math.sin(a + 2.094) * 8,
+    b: Math.sin(a + 4.189) * 12,
+  };
+}
+
+function clamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
+
+// ─── Physics ────────────────────────────────────────────────
+function updateParticles(time, dt) {
+  const ts = time / 1000;
+  const dtN = dt / 16.667; // normalize to ~60fps
+
+  for (const p of particles) {
+    // Store trail point (longer trail for smoother motion blur)
+    if (p.trail.length > 8) p.trail.shift();
+    p.trail.push({ x: p.x, y: p.y });
+
+    // Flow field from noise
+    const ns = 0.0006;
+    const flowX = noiseFlow.noise2D(
+      (p.x + p.noiseOff) * ns,
+      (p.y) * ns + ts * 0.025
+    );
+    const flowY = noiseDrift.noise2D(
+      (p.x + p.noiseOff) * ns * 1.3,
+      (p.y) * ns * 1.3 + ts * 0.018
+    );
+    // Secondary warp for more organic motion
+    const warp = noiseWarp.noise2D(
+      p.x * ns * 0.5 + ts * 0.01,
+      p.y * ns * 0.5
+    ) * 0.2;
+
+    // Velocity
+    const speed = p.baseSpeed * (0.7 + flowX * 0.5);
+    p.vx = speed + warp;
+    p.vy = flowY * 0.5 + warp * 0.3;
+
+    // River center attraction — very gentle, lets particles spread
+    const cy = riverCenterY(p.x);
+    const hw = riverHalfWidth(p.x);
+    const offset = p.y - cy;
+    const norm = offset / (hw + 1);
+    // Cubic pull — only strong near edges
+    p.vy -= norm * norm * norm * 0.18;
+    // Very gentle linear centering
+    p.vy -= norm * 0.008;
+
+    // Apply velocity
+    p.x += p.vx * dtN;
+    p.y += p.vy * dtN;
+
+    // Hard clamp to river bounds — generous but firm
+    const maxDist = hw * 0.75;
+    if (Math.abs(p.y - cy) > maxDist) {
+      p.y = cy + Math.sign(p.y - cy) * (maxDist - 2);
+    }
+
+    // Connection attraction
+    const conns = connectionMap[p.id];
+    if (conns) {
+      for (const tid of conns) {
+        const t = particleById[tid];
+        if (!t) continue;
+        const dx = t.x - p.x;
+        const dy = t.y - p.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d > 8 && d < W * 0.25) {
+          const f = 0.008 / (1 + d * 0.008);
+          p.x += dx * f * dtN;
+          p.y += dy * f * dtN;
+        }
+      }
+    }
+
+    // Wrap
+    if (p.x > W + 30) {
+      p.x = -25;
+      const ncy = riverCenterY(0);
+      const nhw = riverHalfWidth(0);
+      const g = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;
+      p.y = ncy + g * nhw * 1.6;
+      p.trail = [];
+    }
+    if (p.x < -30) {
+      p.x = W + 25;
+      p.trail = [];
+    }
+  }
+}
+
+// ─── Draw ───────────────────────────────────────────────────
+
+function drawStars(time) {
+  for (const s of stars) {
+    const twinkle = Math.sin(time * 0.001 * s.speed + s.phase);
+    const alpha = s.baseAlpha * (0.6 + twinkle * 0.4);
+    if (alpha < 0.01) continue;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(170, 180, 210, ${alpha.toFixed(3)})`;
+    ctx.fill();
+  }
+}
+
+function drawRiverBed(time) {
+  if (riverBedCanvas) {
+    ctx.drawImage(riverBedCanvas, 0, 0);
+  }
+
+  // Animated shimmer — moving noise-based brightness patches
+  const hs = hueShift(time);
+  const ts = time / 1000;
+
+  // Breathing ambient glow — the river slowly brightens and dims
+  const breath = Math.sin(ts * 0.15) * 0.5 + 0.5;
+  const breathAlpha = 0.01 + breath * 0.015;
+  const steps = Math.ceil(W / 6);
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const x = (i / steps) * W;
+    const cy = riverCenterY(x);
+    const hw = riverHalfWidth(x) * 0.5;
+    if (i === 0) ctx.moveTo(x, cy - hw);
+    else ctx.lineTo(x, cy - hw);
+  }
+  for (let i = steps; i >= 0; i--) {
+    const x = (i / steps) * W;
+    const cy = riverCenterY(x);
+    const hw = riverHalfWidth(x) * 0.5;
+    ctx.lineTo(x, cy + hw);
+  }
+  ctx.closePath();
+  const br = clamp(15 + hs.r);
+  const bg = clamp(30 + hs.g);
+  const bb = clamp(70 + hs.b);
+  ctx.fillStyle = `rgba(${br}, ${bg}, ${bb}, ${breathAlpha.toFixed(4)})`;
+  ctx.fill();
+
+  // Shimmer spots — brighter patches that drift through
+  for (let i = 0; i < 16; i++) {
+    const sx = ((ts * 25 + i * W / 16) % (W + 300)) - 150;
+    const cy = riverCenterY(sx);
+    const hw = riverHalfWidth(sx);
+    const n = noiseWarp.noise2D(sx * 0.0015 + ts * 0.04, i * 0.7);
+    if (n > 0.15) {
+      const shimmerAlpha = (n - 0.15) * 0.04;
+      const r = clamp(22 + hs.r);
+      const g = clamp(45 + hs.g);
+      const b = clamp(100 + hs.b);
+      const grad = ctx.createRadialGradient(sx, cy, 0, sx, cy, hw * 0.5);
+      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${shimmerAlpha.toFixed(4)})`);
+      grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${(shimmerAlpha * 0.3).toFixed(4)})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(sx - hw, cy - hw, hw * 2, hw * 2);
+    }
+  }
+}
+
+function drawConnections(time) {
+  const hs = hueShift(time);
+
+  for (const p of particles) {
+    const targets = connectionMap[p.id];
+    if (!targets) continue;
+
+    for (const tid of targets) {
+      const t = particleById[tid];
+      if (!t) continue;
+
+      const dx = p.x - t.x;
+      const dy = p.y - t.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > W * 0.30) continue;
+
+      const fade = 1 - dist / (W * 0.30);
+      const alpha = fade * fade * 0.10; // quadratic fade for softer look
+
+      const r = clamp((p.color[0] + t.color[0]) * 0.5 + hs.r);
+      const g = clamp((p.color[1] + t.color[1]) * 0.5 + hs.g);
+      const b = clamp((p.color[2] + t.color[2]) * 0.5 + hs.b);
+
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      // Slight curve via midpoint offset for organic feel
+      const mx = (p.x + t.x) / 2;
+      const my = (p.y + t.y) / 2 + (dist * 0.05 * Math.sin(time * 0.0005 + p.noiseOff));
+      ctx.quadraticCurveTo(mx, my, t.x, t.y);
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(4)})`;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+  }
+}
+
+function drawParticles(time) {
+  const hs = hueShift(time);
+  const TAU = Math.PI * 2;
+
+  // Pre-compute per-particle values, then batch by render layer
+  // to minimize fillStyle changes and improve GPU batching
+
+  const pData = new Array(particles.length);
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    let size = p.size;
+    let opacity = p.baseOpacity;
+
+    if (p.maturity === 'mature') {
+      const pulse = Math.sin(time * 0.0018 + p.pulsePhase) * 0.5 + 0.5;
+      size *= (0.9 + pulse * 0.25);
+      opacity *= (0.75 + pulse * 0.25);
+    }
+
+    const pcy = riverCenterY(p.x);
+    const phw = riverHalfWidth(p.x);
+    const edgeDist = Math.abs(p.y - pcy) / (phw + 1);
+    opacity *= Math.max(0.2, 1 - edgeDist * edgeDist * 0.4);
+
+    pData[i] = {
+      p, size, opacity,
+      r: clamp(p.color[0] + hs.r),
+      g: clamp(p.color[1] + hs.g),
+      b: clamp(p.color[2] + hs.b),
+    };
+  }
+
+  // Layer 1: Trails (faintest, drawn first)
+  for (let i = 0; i < pData.length; i++) {
+    const { p, size, opacity, r, g, b } = pData[i];
+    if (p.trail.length < 2) continue;
+    // Draw only every other trail point for performance
+    for (let ti = 0; ti < p.trail.length; ti += 2) {
+      const t = p.trail[ti];
+      const frac = ti / p.trail.length;
+      const trailAlpha = frac * 0.12 * opacity;
+      if (trailAlpha < 0.003) continue;
+      const trailSize = size * (0.3 + 0.35 * frac);
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, trailSize, 0, TAU);
+      ctx.fillStyle = `rgba(${r},${g},${b},${trailAlpha.toFixed(3)})`;
+      ctx.fill();
+    }
+  }
+
+  // Layer 2: Outer bloom (only for larger particles)
+  for (let i = 0; i < pData.length; i++) {
+    const { p, size, opacity, r, g, b } = pData[i];
+    if (size < 4) continue;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size * 10, 0, TAU);
+    ctx.fillStyle = `rgba(${r},${g},${b},${(opacity * 0.010).toFixed(4)})`;
+    ctx.fill();
+  }
+
+  // Layer 3: Glow halos
+  for (let i = 0; i < pData.length; i++) {
+    const { p, size, opacity, r, g, b } = pData[i];
+    if (size < 2) continue;
+    // Outer haze
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size * 4.5, 0, TAU);
+    ctx.fillStyle = `rgba(${r},${g},${b},${(opacity * 0.025).toFixed(4)})`;
+    ctx.fill();
+    // Mid glow
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size * 2.5, 0, TAU);
+    ctx.fillStyle = `rgba(${r},${g},${b},${(opacity * 0.07).toFixed(4)})`;
+    ctx.fill();
+  }
+
+  // Layer 4: Core particles
+  for (let i = 0; i < pData.length; i++) {
+    const { p, size, opacity, r, g, b } = pData[i];
+    // Inner glow ring
+    if (size >= 2) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size * 1.6, 0, TAU);
+      ctx.fillStyle = `rgba(${r},${g},${b},${(opacity * 0.13).toFixed(3)})`;
+      ctx.fill();
+    }
+    // Core
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size, 0, TAU);
+    ctx.fillStyle = `rgba(${r},${g},${b},${opacity.toFixed(3)})`;
+    ctx.fill();
+  }
+
+  // Layer 5: Hot centers (brightest, on top)
+  for (let i = 0; i < pData.length; i++) {
+    const { p, size, opacity, r, g, b } = pData[i];
+    if (size < 3.5) continue;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size * 0.35, 0, TAU);
+    ctx.fillStyle = `rgba(${Math.min(255,r+100)},${Math.min(255,g+100)},${Math.min(255,b+100)},${(opacity*0.7).toFixed(3)})`;
+    ctx.fill();
+  }
+
+  // Layer 6: Ripples
+  for (let i = 0; i < pData.length; i++) {
+    const { p, r, g, b } = pData[i];
+    if (p.rippleStart < 0) continue;
+    const elapsed = (time - p.rippleStart) / 1000;
+    if (elapsed >= 2.5) { p.rippleStart = -1; continue; }
+    const progress = elapsed / 2.5;
+    const decay = (1 - progress) * (1 - progress);
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, elapsed * 45, 0, TAU);
+    ctx.strokeStyle = `rgba(${r},${g},${b},${(0.3 * decay).toFixed(4)})`;
+    ctx.lineWidth = 1.5 * (1 - progress);
+    ctx.stroke();
+
+    if (elapsed > 0.12) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, (elapsed - 0.12) * 38, 0, TAU);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${(0.15 * decay).toFixed(4)})`;
+      ctx.lineWidth = 0.8 * (1 - progress);
+      ctx.stroke();
+    }
+
+    if (elapsed > 0.3) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, (elapsed - 0.3) * 30, 0, TAU);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${(0.08 * decay).toFixed(4)})`;
+      ctx.lineWidth = 0.4 * (1 - progress);
+      ctx.stroke();
+    }
+  }
+}
+
+// ─── Mist / fog layer ───────────────────────────────────────
+function drawMist(time) {
+  const ts = time / 1000;
+  const hs = hueShift(time);
+
+  // Several drifting fog patches that move with the flow
+  for (let i = 0; i < 8; i++) {
+    const phase = i * 1.618; // golden ratio spacing
+    // Drift speed varies per patch
+    const drift = ts * (12 + i * 3) + phase * 200;
+    const mx = ((drift) % (W + 400)) - 200;
+    const cy = riverCenterY(mx);
+    const hw = riverHalfWidth(mx);
+    // Noise-modulated vertical offset
+    const yOff = noiseWarp.noise2D(i * 3.7, ts * 0.03) * hw * 0.3;
+    const my = cy + yOff;
+
+    // Fog intensity oscillates
+    const intensity = (Math.sin(ts * 0.08 + phase) * 0.5 + 0.5);
+    const alpha = intensity * 0.012;
+    if (alpha < 0.002) continue;
+
+    const fogSize = hw * (0.4 + intensity * 0.3);
+    const r = clamp(12 + hs.r);
+    const g = clamp(25 + hs.g);
+    const b = clamp(55 + hs.b);
+
+    const grad = ctx.createRadialGradient(mx, my, 0, mx, my, fogSize);
+    grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(4)})`);
+    grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${(alpha * 0.4).toFixed(4)})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(mx - fogSize, my - fogSize, fogSize * 2, fogSize * 2);
+  }
+}
+
+// ─── Main loop ──────────────────────────────────────────────
+let lastTime = 0;
+
+function frame(time) {
+  const dt = lastTime ? Math.min(time - lastTime, 50) : 16;
+  lastTime = time;
+
+  updateParticles(time, dt);
+
+  // Ripples
+  if (time > nextRipple) {
+    triggerRipple(time);
+    nextRipple = time + 2500 + Math.random() * 4500;
+  }
+
+  // Full clear — trails are drawn explicitly per particle
+  ctx.fillStyle = '#050508';
+  ctx.fillRect(0, 0, W, H);
+
+  drawStars(time);
+  drawRiverBed(time);
+  drawMist(time);
+  drawConnections(time);
+  drawParticles(time);
+
+  requestAnimationFrame(frame);
+}
+
+// ─── Init ───────────────────────────────────────────────────
+resize();
+loadThoughts().then(() => {
+  requestAnimationFrame(frame);
+});
+
+})();
+</script>
+</body>
+</html>

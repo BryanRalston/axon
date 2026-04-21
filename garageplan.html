@@ -173,7 +173,7 @@
     <div class="wizard-title">Your garage plan starts with a photo</div>
     <div class="wizard-sub">Upload a photo of your garage. 3D storage items overlay directly onto your space so you see exactly what fits before buying anything.</div>
     <label class="dropzone" id="dropzone" for="wiz-file">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" style="margin:0 auto">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--border-hover)" stroke-width="1.5" style="margin:0 auto">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
         <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
@@ -182,7 +182,7 @@
       <input type="file" id="wiz-file" accept="image/*" class="hidden">
     </label>
     <div style="margin-top:16px">
-      <button class="nav-btn" id="skip-wizard-btn" style="width:100%;justify-content:center;background:#0f172a;">Skip photo &mdash; start with empty scene</button>
+      <button class="nav-btn" id="skip-wizard-btn" style="width:100%;justify-content:center;">Skip photo &mdash; start with empty scene</button>
     </div>
   </div>
 </div>
@@ -226,7 +226,7 @@
       <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-1.86-4.88L23 10"/>
     </svg>Redo
   </button>
-  <button class="nav-btn" id="btn-autofill" style="background:#0e7490;border-color:var(--accent);color:#fff;display:none">
+  <button class="nav-btn" id="btn-autofill" style="background:var(--accent-dim);border-color:var(--accent);color:var(--accent);display:none">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/>
     </svg>Auto-Fill Wall
@@ -268,6 +268,20 @@
     <div id="hint-overlay"></div>
     <div id="scale-pts-info"></div>
   </div>
+  <div id="materials-panel" data-testid="materials-panel">
+    <div class="mat-hdr">Cut List</div>
+    <div id="materials-list"></div>
+    <div id="mat-footer">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="color:var(--text-secondary);font-size:12px">Estimated Total</span>
+        <span id="cost-total" style="color:var(--text-primary);font-weight:700;font-size:14px">$0</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="mat-btn" id="btn-copy-list">Copy List</button>
+        <button class="mat-btn" id="btn-export-csv">Export CSV</button>
+      </div>
+    </div>
+  </div>
 </div><!-- /main-layout -->
 
 <!-- Step 3: Dimension entry modal (shown after 4 corners placed) -->
@@ -304,22 +318,6 @@
   </div>
   <button class="step-btn-secondary" id="redo-corners-btn">&#8634; Redo</button>
   <button class="step-btn-primary" style="padding:12px 20px;flex:0 0 auto" id="confirm-cal-btn">Looks Right &#10003;</button>
-</div>
-
-<div id="materials-panel" data-testid="materials-panel">
-    <div class="mat-hdr">Cut List</div>
-    <div id="materials-list"></div>
-    <div id="mat-footer">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span style="color:#9ca3af;font-size:12px">Estimated Total</span>
-        <span id="cost-total" style="color:#f1f5f9;font-weight:700;font-size:14px">$0</span>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="mat-btn" id="btn-copy-list">Copy List</button>
-        <button class="mat-btn" id="btn-export-csv">Export CSV</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <div id="status-bar" data-testid="status-bar">
@@ -387,7 +385,7 @@
       <span class="fc-label" style="font-size:10px;color:#6b7280">' open</span>
     </div>
   </div>
-  <button id="fc-apply-btn" class="nav-btn" style="width:100%;justify-content:center;background:#0e7490;border-color:var(--accent);color:#fff;margin-top:10px">Apply &amp; Fill &#9658;</button>
+  <button id="fc-apply-btn" class="nav-btn" style="width:100%;justify-content:center;background:var(--accent-dim);border-color:var(--accent);color:var(--accent);margin-top:10px">Apply &amp; Fill &#9658;</button>
 </div>
 
 <div id="props-panel">
@@ -408,7 +406,7 @@
     </div>
   </div>
   <div style="display:flex;gap:8px;margin-top:10px">
-    <button id="pp-apply-btn" class="nav-btn" style="flex:1;justify-content:center;background:#0e7490;border-color:var(--accent);color:#fff">Apply</button>
+    <button id="pp-apply-btn" class="nav-btn" style="flex:1;justify-content:center;background:var(--accent-dim);border-color:var(--accent);color:var(--accent)">Apply</button>
     <button id="pp-close-btn" class="nav-btn" style="flex:1;justify-content:center">Cancel</button>
   </div>
 </div>
@@ -1189,10 +1187,15 @@ function addItem(lib) {
   const grp = buildItem(lib);
   grp.userData = { isItem: true, id: lib.id, ud: { ...lib } };
   if (CAL.H && CAL.wallW > 0) {
-    // Wall mode: back face at Z=0, centered horizontally, sitting on floor
-    const D = lib.depthIn;
-    const startX = Math.max(0, (CAL.wallW - lib.widthIn) / 2);
-    grp.position.set(startX, 0, 0); // left-edge-aligned, back face at Z=0
+    // Wall mode: place to the right of the rightmost existing item
+    let wallX = 0;
+    ITEMS.forEach(it => {
+      const right = it.group.position.x + (it.ud.widthIn || 48);
+      if (right > wallX) wallX = right;
+    });
+    // Wrap to beginning if item won't fit
+    if (wallX + lib.widthIn > CAL.wallW) wallX = 0;
+    grp.position.set(wallX, 0, 0);
   } else {
     grp.position.set(nextX, 0, 0);
     nextX += lib.widthIn + 4;
@@ -1298,7 +1301,7 @@ function updateMaterials() {
     });
   } else {
     // Show cut list
-    html += '<div class="mat-item" style="background:#0f172a;margin:0 -8px;padding:8px 16px 4px">';
+    html += '<div class="mat-item" style="background:rgba(34,211,238,.05);margin:0 -8px;padding:8px 16px 4px;border-top:1px solid var(--border)">';
     html += '<div class="mat-item-name" style="color:var(--accent)">Cut List — 2×4 SPF</div></div>';
     cutPieces.twoByFour.forEach(p => {
       const linFt = (p.length * p.qty / 12).toFixed(1);
@@ -1308,7 +1311,7 @@ function updateMaterials() {
       html += '<div class="mat-item-price">~' + boards + ' board' + (boards>1?'s':'') + '</div></div>';
     });
 
-    html += '<div class="mat-item" style="background:#0f172a;margin:0 -8px;padding:8px 16px 4px">';
+    html += '<div class="mat-item" style="background:rgba(34,211,238,.05);margin:0 -8px;padding:8px 16px 4px;border-top:1px solid var(--border)">';
     html += '<div class="mat-item-name" style="color:var(--accent)">Cut List — ¾" Plywood</div></div>';
     let totalSheets = 0;
     cutPieces.plywood.forEach(p => {
@@ -1667,14 +1670,20 @@ document.getElementById('skip-wizard-btn').addEventListener('click', () => {
   finishCal();
 });
 
-document.getElementById('skip-cal-btn').addEventListener('click', () => finishCal());
+document.getElementById('skip-cal-btn').addEventListener('click', () => {
+  finishCal();
+  document.getElementById('btn-autofill').style.display = 'inline-flex';
+});
 
+// Navbar "Upload Photo" — swap photo and restart corner marking
 document.getElementById('photo-input').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   const reader = new FileReader();
   reader.onload = ev => {
     APP.photoSrc = ev.target.result;
     container.style.backgroundImage = 'url("' + ev.target.result + '")';
+    document.getElementById('wiz-bar').style.display = 'block';
+    startCornerMark();
   };
   reader.readAsDataURL(f);
 });
@@ -1739,7 +1748,10 @@ document.getElementById('confirm-cal-btn').addEventListener('click', () => {
   applyCameraCalibration();
   finishCal();
   document.getElementById('btn-autofill').style.display = 'inline-flex';
-  showHint('Calibrated! ✓ Click "Auto-Fill Wall" or pick a shelf from the library');
+  const isMobile = window.matchMedia('(max-width:767px)').matches;
+  showHint(isMobile
+    ? 'Calibrated! ✓ Tap "Auto-Fill Wall" or ☰ to pick shelves'
+    : 'Calibrated! ✓ Click "Auto-Fill Wall" or pick a shelf from the library');
 });
 
 function finishCal() {
@@ -1749,7 +1761,8 @@ function finishCal() {
   document.getElementById('grid-check-bar').classList.remove('open');
   document.querySelectorAll('.corner-dot').forEach(d => d.remove());
   _hideCalCursor();
-  canvas.style.opacity = '1';  // restore 3D scene
+  canvas.style.opacity = '1';
+  document.getElementById('btn-autofill').style.display = 'inline-flex';
   APP.wizStep = 0;
   updateStatus();
 }
@@ -1842,6 +1855,7 @@ function applyCameraCalibration() {
 // ─── AUTO-FILL WALL ───────────────────────────────────────────────────────────
 function autoFillWall() {
   if (!CAL.H || CAL.wallW < 12) { showHint('Calibrate the wall first, then use Auto-Fill'); return; }
+  if (ITEMS.length > 0 && !confirm('Auto-Fill will replace the current layout. Continue?')) return;
 
   ITEMS.forEach(it => scene.remove(it.group));
   ITEMS.length = 0;

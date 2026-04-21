@@ -1,0 +1,2136 @@
+<!--
+  GaragePlan v3 - Three.js 3D Garage Storage Planner
+  Real 3D items with PBR materials, shadows, and metalness/roughness
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GaragePlan v3</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    :root{--accent:#22d3ee;--accent-dark:#0e9ec2;--bg-void:#030712;--bg-panel:#111827;--bg-card:#1f2937;--border:#1f2937;--border-hover:#374151;--text-primary:#f1f5f9;--text-dim:#6b7280;--danger:#f87171;}
+    *{box-sizing:border-box;}
+    body{background:var(--bg-void);color:var(--text-primary);font-family:'Inter',system-ui,-apple-system,sans-serif;margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column;}
+    ::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:4px;}
+
+    #wizard-overlay{position:fixed;inset:0;z-index:1000;background:rgba(3,7,18,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .wizard-card{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:40px;max-width:520px;width:calc(100% - 32px);box-shadow:0 24px 64px rgba(0,0,0,.7);text-align:center;}
+    .wizard-steps{display:flex;justify-content:center;gap:8px;margin-bottom:32px;}
+    .wdot{width:8px;height:8px;border-radius:50%;background:#374151;transition:background .2s;}
+    .wdot.active{background:var(--accent);}.wdot.done{background:#0e7490;}
+    .wizard-icon{width:64px;height:64px;margin:0 auto 20px;background:#1f2937;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--accent);}
+    .wizard-title{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:8px;}
+    .wizard-sub{font-size:13px;color:#9ca3af;margin-bottom:28px;line-height:1.6;}
+    .dropzone{border:2px dashed #374151;border-radius:12px;padding:40px 20px;cursor:pointer;transition:all .2s;background:#0f172a;display:block;}
+    .dropzone:hover,.dropzone.drag{border-color:var(--accent);background:rgba(34,211,238,.04);}
+    .dz-text{font-size:14px;color:#9ca3af;margin-top:10px;}.dz-hint{font-size:12px;color:#4b5563;margin-top:6px;}
+
+    #wiz-bar{display:none;position:fixed;top:0;left:0;right:0;z-index:900;background:rgba(9,9,11,.95);border-bottom:1px solid var(--accent);padding:12px 20px;backdrop-filter:blur(12px);}
+    .wb-inner{max-width:900px;margin:0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+    .wb-step{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:3px;}
+    .wb-instr{font-size:13px;color:#e2e8f0;}.wb-hints{font-size:11px;color:#6b7280;margin-top:3px;}
+    .wb-action{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+    #scale-wrap{display:none;align-items:center;gap:8px;}
+    #scale-in{width:80px;background:#1f2937;border:1px solid #374151;border-radius:6px;padding:6px 10px;color:#f1f5f9;font-size:13px;outline:none;font-family:inherit;}
+    #scale-in:focus{border-color:var(--accent);}
+
+    #navbar{height:52px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;flex-shrink:0;z-index:1010;position:relative;}
+    .nav-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;background:var(--bg-card);border:1px solid var(--border-hover);color:#d1d5db;cursor:pointer;font-size:12px;transition:all .15s;white-space:nowrap;user-select:none;font-family:inherit;}
+    .nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+    #main-layout{flex:1;display:flex;overflow:hidden;}
+
+    #left-sidebar{width:220px;min-width:220px;background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+    .sidebar-hdr{padding:12px 14px 8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);flex-shrink:0;}
+    #lib-list{flex:1;overflow-y:auto;padding:8px;}
+    .lib-card{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;margin-bottom:4px;user-select:none;}
+    .lib-card:hover{background:var(--bg-card);border-left-color:var(--accent);}
+    .lib-card:active{transform:scale(.97);}
+    .lib-card .cdot{width:10px;height:10px;border-radius:2px;flex-shrink:0;margin-top:3px;}
+    .lib-card .cname{font-size:12px;font-weight:600;color:#e2e8f0;line-height:1.3;}
+    .lib-card .cdims{font-size:11px;color:var(--text-dim);margin-top:1px;}
+    .lib-card .cprice{font-size:11px;color:var(--accent);margin-left:auto;flex-shrink:0;font-weight:600;}
+
+    #canvas-container{flex:1;position:relative;overflow:hidden;background:#0a0f1a;background-size:cover;background-position:center;background-repeat:no-repeat;}
+    #main-canvas{display:block;width:100%;height:100%;background:transparent;}
+
+    #hint-overlay{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);border:1px solid var(--accent);border-radius:8px;padding:7px 16px;font-size:12px;color:var(--accent);pointer-events:none;z-index:10;white-space:nowrap;display:none;}
+
+    #materials-panel{width:280px;min-width:280px;background:var(--bg-panel);border-left:1px solid var(--border);display:flex;flex-direction:column;}
+    .mat-hdr{padding:14px 16px 8px;font-size:13px;font-weight:700;color:var(--accent);border-bottom:1px solid var(--border);flex-shrink:0;}
+    #materials-list{flex:1;overflow-y:auto;padding:0 8px;}
+    #mat-footer{padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;}
+    .mat-btn{flex:1;padding:7px 10px;border-radius:6px;font-size:11px;font-weight:600;background:var(--bg-card);border:1px solid var(--border-hover);color:#d1d5db;cursor:pointer;transition:all .15s;font-family:inherit;}
+    .mat-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .mat-item{padding:10px 8px;border-bottom:1px solid #1f2937;display:flex;flex-direction:column;gap:3px;}
+    .mat-item-name{font-size:12px;font-weight:600;color:#e2e8f0;}
+    .mat-item-sub{font-size:11px;color:var(--text-dim);}
+    .mat-item-price{font-size:11px;color:var(--accent);font-weight:600;}
+
+    #status-bar{height:28px;background:#0f172a;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;font-size:11px;color:var(--text-dim);flex-shrink:0;}
+
+    #scale-pts-info{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.7);border:1px solid var(--accent);border-radius:10px;padding:16px 20px;font-size:13px;color:#e2e8f0;pointer-events:none;text-align:center;display:none;z-index:20;}
+
+    #mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;}
+    #mob-drawer{position:fixed;left:0;top:0;bottom:0;width:260px;background:var(--bg-panel);z-index:210;transform:translateX(-100%);transition:transform .3s ease;display:flex;flex-direction:column;overflow:hidden;}
+    #mob-drawer.open{transform:translateX(0);}
+    .hidden{display:none !important;}
+    #hamburger-btn{display:none;}
+    @media(max-width:767px){#left-sidebar{display:none;}#materials-panel{display:none;}#hamburger-btn{display:inline-flex;}}
+
+    .sel-ring{position:absolute;pointer-events:none;border:2px solid var(--accent);border-radius:4px;box-shadow:0 0 12px rgba(34,211,238,.4);display:none;}
+    input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{opacity:1;}
+    input[type=number]{-moz-appearance:textfield;}
+
+    #cal-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:15;display:none;cursor:none;}
+    .corner-dot{position:absolute;width:44px;height:44px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 0 12px rgba(34,211,238,.8);transform:translate(-50%,-50%);pointer-events:auto;cursor:grab;z-index:20;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#000;font-family:monospace;user-select:none;touch-action:none;}
+    .corner-dot:active{cursor:grabbing;}
+    /* Crosshair preview cursor */
+    #cal-cursor{position:absolute;z-index:22;pointer-events:none;display:none;transform:translate(-50%,-50%);}
+    #cal-cursor .cc-ring{width:32px;height:32px;border-radius:50%;border:2px solid rgba(34,211,238,0.9);background:rgba(34,211,238,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--accent);font-family:monospace;}
+    #cal-cursor .cc-h{position:absolute;top:50%;left:-18px;width:12px;height:1px;background:var(--accent);}
+    #cal-cursor .cc-h2{position:absolute;top:50%;right:-18px;width:12px;height:1px;background:var(--accent);}
+    #cal-cursor .cc-v{position:absolute;left:50%;top:-18px;width:1px;height:12px;background:var(--accent);}
+    #cal-cursor .cc-v2{position:absolute;left:50%;bottom:-18px;width:1px;height:12px;background:var(--accent);}
+    #wiz-dims-wrap,#wiz-grid-wrap{display:none;align-items:center;gap:6px;flex-wrap:wrap;}
+    .dim-in{width:52px;background:#1f2937;border:1px solid #374151;border-radius:6px;padding:5px 8px;color:#f1f5f9;font-size:13px;outline:none;font-family:inherit;text-align:center;}
+    .dim-in:focus{border-color:var(--accent);}
+    /* Step overlays — dims entry + grid confirm */
+    .step-modal{display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.65);align-items:flex-end;justify-content:center;padding:0 0 env(safe-area-inset-bottom,0);}
+    .step-modal.open{display:flex;}
+    @media(min-width:600px){.step-modal{align-items:center;}}
+    .step-card{background:#0d1117;border:1px solid var(--accent);border-radius:16px 16px 0 0;padding:28px 24px 32px;width:100%;max-width:480px;box-shadow:0 -8px 40px rgba(34,211,238,.15);}
+    @media(min-width:600px){.step-card{border-radius:16px;}}
+    .step-card h3{margin:0 0 6px;font-size:18px;color:#f1f5f9;}
+    .step-card p{margin:0 0 20px;font-size:13px;color:#9ca3af;}
+    .dim-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+    .dim-row label{width:52px;font-size:12px;color:#9ca3af;font-weight:600;letter-spacing:.05em;text-transform:uppercase;}
+    .dim-row input{flex:1;background:#1f2937;border:1px solid #374151;border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:16px;outline:none;font-family:inherit;text-align:center;-moz-appearance:textfield;}
+    .dim-row input:focus{border-color:var(--accent);}
+    .dim-row input::-webkit-inner-spin-button,.dim-row input::-webkit-outer-spin-button{opacity:1;}
+    .dim-sep{font-size:13px;color:#6b7280;}
+    .step-actions{display:flex;gap:10px;margin-top:20px;}
+    .step-btn-primary{flex:1;padding:14px;border-radius:10px;background:var(--accent);border:none;color:#000;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+    .step-btn-secondary{padding:14px 18px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#d1d5db;font-size:14px;cursor:pointer;font-family:inherit;}
+    .grid-check-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:950;background:#0d1117;border-top:1px solid var(--accent);padding:16px 20px calc(16px + env(safe-area-inset-bottom,0));gap:12px;align-items:center;justify-content:space-between;}
+    .grid-check-bar.open{display:flex;}
+    .gcb-text{font-size:13px;color:#e2e8f0;flex:1;}
+    .gcb-text strong{display:block;font-size:15px;margin-bottom:2px;}
+    .dim-label{font-size:12px;color:#9ca3af;white-space:nowrap;}
+
+    #ctx-menu{position:fixed;z-index:600;background:#1e293b;border:1px solid #374151;border-radius:10px;padding:5px 0;box-shadow:0 4px 20px rgba(0,0,0,.6);display:none;min-width:140px;}
+    .ctx-item{padding:7px 16px;font-size:12px;color:#d1d5db;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s;}
+    .ctx-item:hover{background:#374151;color:#f1f5f9;}
+    .ctx-item.danger:hover{background:#450a0a;color:var(--danger);}
+    .ctx-sep{height:1px;background:#374151;margin:4px 0;}
+    #fill-config,#props-panel{position:fixed;top:52px;right:0;z-index:500;background:#111827;border:1px solid var(--accent);border-top:none;border-right:none;border-radius:0 0 0 12px;padding:16px 18px;width:340px;box-shadow:-4px 6px 24px rgba(0,0,0,.6);display:none;}
+    #props-panel{top:52px;}
+    .fc-title{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;text-transform:uppercase;letter-spacing:.08em;}
+    .fc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+    .fc-label{font-size:12px;color:#9ca3af;min-width:58px;flex-shrink:0;}
+    .fc-toggles{display:flex;gap:4px;flex-wrap:wrap;}
+    .fc-btn{padding:4px 10px;border-radius:5px;border:1px solid #374151;background:#1f2937;color:#9ca3af;font-size:11px;cursor:pointer;transition:all .15s;font-family:inherit;}
+    .fc-btn.active{background:#0e7490;border-color:var(--accent);color:#fff;}
+    .fc-btn:hover:not(.active){border-color:#6b7280;color:#e2e8f0;}
+  </style>
+</head>
+<body>
+
+<div id="wizard-overlay" data-testid="wizard-overlay">
+  <div class="wizard-card">
+    <div class="wizard-steps">
+      <div class="wdot active" id="wdot1"></div>
+      <div class="wdot" id="wdot2"></div>
+      <div class="wdot" id="wdot3"></div>
+      <div class="wdot" id="wdot4"></div>
+    </div>
+    <div class="wizard-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </div>
+    <div class="wizard-title">Your garage plan starts with a photo</div>
+    <div class="wizard-sub">Upload a photo of your garage. 3D storage items overlay directly onto your space so you see exactly what fits before buying anything.</div>
+    <label class="dropzone" id="dropzone" for="wiz-file">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" style="margin:0 auto">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <div class="dz-text">Drop your garage photo here</div>
+      <div class="dz-hint">or click to browse &mdash; JPG, PNG, HEIC</div>
+      <input type="file" id="wiz-file" accept="image/*" class="hidden">
+    </label>
+    <div style="margin-top:16px">
+      <button class="nav-btn" id="skip-wizard-btn" style="width:100%;justify-content:center;background:#0f172a;">Skip photo &mdash; start with empty scene</button>
+    </div>
+  </div>
+</div>
+
+<div id="wiz-bar">
+  <div class="wb-inner">
+    <div style="flex:1">
+      <div class="wb-step" id="wb-step">Step 2 of 4</div>
+      <div class="wb-instr" id="wb-instr">Click the bottom-left corner of the wall where you want shelves.</div>
+      <div class="wb-hints" id="wb-hints">Mark corners in order: Bottom-Left &rarr; Bottom-Right &rarr; Top-Right &rarr; Top-Left</div>
+    </div>
+    <div class="wb-action">
+      <button id="undo-corner-btn" class="nav-btn" style="display:none">&#8592; Undo</button>
+      <button id="skip-cal-btn" class="nav-btn">Skip</button>
+    </div>
+  </div>
+</div>
+
+<div id="navbar" id="navbar">
+  <button id="hamburger-btn" class="nav-btn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+  <span style="font-weight:800;font-size:15px;color:var(--accent);margin-right:8px">&#11042; GaragePlan</span>
+  <label class="nav-btn" style="cursor:pointer" data-testid="upload-photo-input">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </svg>
+    Upload Photo
+    <input type="file" id="photo-input" accept="image/*" class="hidden">
+  </label>
+  <button class="nav-btn" id="btn-undo">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 101.86-4.88L1 10"/>
+    </svg>Undo
+  </button>
+  <button class="nav-btn" id="btn-redo">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-1.86-4.88L23 10"/>
+    </svg>Redo
+  </button>
+  <button class="nav-btn" id="btn-autofill" style="background:#0e7490;border-color:var(--accent);color:#fff;display:none">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/>
+    </svg>Auto-Fill Wall
+  </button>
+  <div style="flex:1"></div>
+  <button class="nav-btn" data-testid="btn-export-png" id="btn-export-png">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+    </svg>PNG
+  </button>
+  <button class="nav-btn" data-testid="btn-save" id="btn-save">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+      <polyline points="17 21 17 13 7 13 7 21"/>
+      <polyline points="7 3 7 8 15 8"/>
+    </svg>Save
+  </button>
+  <label class="nav-btn" style="cursor:pointer">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4M17 8l-5-5-5 5M12 3v12"/>
+    </svg>Load
+    <input type="file" accept=".json" class="hidden" id="load-input">
+  </label>
+</div>
+
+<div id="main-layout">
+  <div id="left-sidebar">
+    <div class="sidebar-hdr">Lumber Library</div>
+    <div id="lib-list"></div>
+  </div>
+  <div id="canvas-container" data-testid="canvas-container">
+    <canvas id="main-canvas"></canvas>
+    <canvas id="cal-canvas"></canvas>
+    <div id="cal-cursor">
+      <div class="cc-h"></div><div class="cc-h2"></div>
+      <div class="cc-v"></div><div class="cc-v2"></div>
+      <div class="cc-ring" id="cal-cursor-label"></div>
+    </div>
+    <div id="hint-overlay"></div>
+    <div id="scale-pts-info"></div>
+  </div>
+</div><!-- /main-layout -->
+
+<!-- Step 3: Dimension entry modal (shown after 4 corners placed) -->
+<div class="step-modal" id="dims-modal">
+  <div class="step-card">
+    <h3>How big is this wall section?</h3>
+    <p>Enter the real-world width and height of the area you marked. Use a measuring tape or estimate from a door (standard = 6'8" tall).</p>
+    <div class="dim-row">
+      <label>Width</label>
+      <input type="number" id="wall-w-ft" placeholder="ft" min="1" max="40">
+      <span class="dim-sep">'</span>
+      <input type="number" id="wall-w-in" placeholder="in" min="0" max="11" step="0.5">
+      <span class="dim-sep">"</span>
+    </div>
+    <div class="dim-row">
+      <label>Height</label>
+      <input type="number" id="wall-h-ft" placeholder="ft" min="1" max="16">
+      <span class="dim-sep">'</span>
+      <input type="number" id="wall-h-in" placeholder="in" min="0" max="11" step="0.5">
+      <span class="dim-sep">"</span>
+    </div>
+    <div class="step-actions">
+      <button class="step-btn-secondary" id="dims-redo-btn">&#8634; Redo Corners</button>
+      <button class="step-btn-primary" id="confirm-dims-btn">Calibrate &#9658;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 4: Grid check bar (shown after calibration, fixed bottom) -->
+<div class="grid-check-bar" id="grid-check-bar">
+  <div class="gcb-text">
+    <strong>Does the grid match your wall?</strong>
+    Lines should follow the wall edges and floor line.
+  </div>
+  <button class="step-btn-secondary" id="redo-corners-btn">&#8634; Redo</button>
+  <button class="step-btn-primary" style="padding:12px 20px;flex:0 0 auto" id="confirm-cal-btn">Looks Right &#10003;</button>
+</div>
+
+<div id="materials-panel" data-testid="materials-panel">
+    <div class="mat-hdr">Cut List</div>
+    <div id="materials-list"></div>
+    <div id="mat-footer">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="color:#9ca3af;font-size:12px">Estimated Total</span>
+        <span id="cost-total" style="color:#f1f5f9;font-weight:700;font-size:14px">$0</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="mat-btn" id="btn-copy-list">Copy List</button>
+        <button class="mat-btn" id="btn-export-csv">Export CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="status-bar" data-testid="status-bar">
+  <span id="st-scale">Scale: not set</span>
+  <span id="st-objects">Objects: 0</span>
+  <span id="st-floor">Floor: not set</span>
+</div>
+
+<div id="mob-overlay"></div>
+<div id="mob-drawer">
+  <div class="sidebar-hdr" style="display:flex;align-items:center;justify-content:space-between">
+    Storage Library
+    <button id="close-drawer-btn" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:18px">&times;</button>
+  </div>
+  <div id="mob-lib-list" style="flex:1;overflow-y:auto;padding:8px"></div>
+</div>
+
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-rotate">&#8635; Rotate 90&deg;</div>
+  <div class="ctx-item" id="ctx-dup">&#10063; Duplicate</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" id="ctx-del">&#128465; Delete</div>
+</div>
+
+<div id="fill-config">
+  <div class="fc-title">Shelf Configuration</div>
+  <div class="fc-row">
+    <span class="fc-label">Depth</span>
+    <div class="fc-toggles" id="fc-t-depth">
+      <button class="fc-btn" data-val="12">12"</button>
+      <button class="fc-btn active" data-val="16">16"</button>
+      <button class="fc-btn" data-val="24">24"</button>
+    </div>
+  </div>
+  <div class="fc-row">
+    <span class="fc-label">Spacing</span>
+    <div class="fc-toggles" id="fc-t-spacing">
+      <button class="fc-btn" data-val="12">Tight 12"</button>
+      <button class="fc-btn active" data-val="16">Standard 16"</button>
+      <button class="fc-btn" data-val="24">Open 24"</button>
+    </div>
+  </div>
+  <div class="fc-row">
+    <span class="fc-label">Height</span>
+    <div class="fc-toggles" id="fc-t-height">
+      <button class="fc-btn active" data-val="full">Full Wall</button>
+      <button class="fc-btn" data-val="custom">Custom</button>
+    </div>
+    <div id="fc-custom-h" style="display:none;align-items:center;gap:4px">
+      <input type="number" id="fc-h-ft" class="dim-in" placeholder="ft" min="2" max="12" value="6">
+      <span class="fc-label">'</span>
+      <input type="number" id="fc-h-in" class="dim-in" placeholder="in" min="0" max="11" step="0.5" value="0">
+      <span class="fc-label">"</span>
+    </div>
+  </div>
+  <div class="fc-row">
+    <span class="fc-label">Leave bay</span>
+    <div class="fc-toggles" id="fc-t-bay">
+      <button class="fc-btn active" data-val="none">None</button>
+      <button class="fc-btn" data-val="left">Left</button>
+      <button class="fc-btn" data-val="right">Right</button>
+    </div>
+    <div id="fc-bay-w" style="display:none;align-items:center;gap:4px">
+      <input type="number" id="fc-bay-ft" class="dim-in" placeholder="ft" min="1" max="20" value="3">
+      <span class="fc-label" style="font-size:10px;color:#6b7280">' open</span>
+    </div>
+  </div>
+  <button id="fc-apply-btn" class="nav-btn" style="width:100%;justify-content:center;background:#0e7490;border-color:var(--accent);color:#fff;margin-top:10px">Apply &amp; Fill &#9658;</button>
+</div>
+
+<div id="props-panel">
+  <div class="fc-title">Shelf Properties</div>
+  <div class="fc-row"><span class="fc-label">Width</span>
+    <input type="number" id="pp-w-ft" class="dim-in" placeholder="ft" min="1" max="20"> <span class="fc-label">'</span>
+    <input type="number" id="pp-w-in" class="dim-in" placeholder="in" min="0" max="11" step="0.5"> <span class="fc-label">"</span>
+  </div>
+  <div class="fc-row"><span class="fc-label">Height</span>
+    <input type="number" id="pp-h-ft" class="dim-in" placeholder="ft" min="1" max="12"> <span class="fc-label">'</span>
+    <input type="number" id="pp-h-in" class="dim-in" placeholder="in" min="0" max="11" step="0.5"> <span class="fc-label">"</span>
+  </div>
+  <div class="fc-row"><span class="fc-label">Depth</span>
+    <div class="fc-toggles" id="pp-t-depth">
+      <button class="fc-btn" data-val="12">12"</button>
+      <button class="fc-btn active" data-val="16">16"</button>
+      <button class="fc-btn" data-val="24">24"</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button id="pp-apply-btn" class="nav-btn" style="flex:1;justify-content:center;background:#0e7490;border-color:var(--accent);color:#fff">Apply</button>
+    <button id="pp-close-btn" class="nav-btn" style="flex:1;justify-content:center">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+'use strict';
+
+import * as THREE from 'three';
+import { PMREMGenerator } from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ─── LIBRARY DATA ────────────────────────────────────────────────────────────
+// Lumber-based shelf units — widthIn/heightIn/depthIn are the OUTSIDE dimensions
+const LIBRARY = [
+  {id:'lumber-96',  name:'2×4 Shelf Unit 96"',  widthIn:96, heightIn:96, depthIn:16, color:'#D4A86A', mount:'floor', priceRange:[120,160], store:'Home Depot / Lowe\'s'},
+  {id:'lumber-72',  name:'2×4 Shelf Unit 72"',  widthIn:72, heightIn:96, depthIn:16, color:'#D4A86A', mount:'floor', priceRange:[90,120],  store:'Home Depot / Lowe\'s'},
+  {id:'lumber-48',  name:'2×4 Shelf Unit 48"',  widthIn:48, heightIn:96, depthIn:16, color:'#D4A86A', mount:'floor', priceRange:[60,85],   store:'Home Depot / Lowe\'s'},
+  {id:'lumber-36',  name:'2×4 Shelf Unit 36"',  widthIn:36, heightIn:84, depthIn:16, color:'#D4A86A', mount:'floor', priceRange:[50,70],   store:'Home Depot / Lowe\'s'},
+  {id:'lumber-deep-72', name:'Deep Shelf 72" (24")', widthIn:72, heightIn:96, depthIn:24, color:'#C4924A', mount:'floor', priceRange:[110,145], store:'Home Depot / Lowe\'s'},
+  {id:'lumber-deep-48', name:'Deep Shelf 48" (24")', widthIn:48, heightIn:96, depthIn:24, color:'#C4924A', mount:'floor', priceRange:[80,110],  store:'Home Depot / Lowe\'s'},
+  {id:'wall-shelf-48',  name:'Wall Shelf 48"',       widthIn:48, heightIn:12, depthIn:12, color:'#9AAAB5', mount:'wall',  priceRange:[29,59],   store:'Home Depot / Lowe\'s'},
+  {id:'wall-shelf-36',  name:'Wall Shelf 36"',       widthIn:36, heightIn:12, depthIn:12, color:'#9AAAB5', mount:'wall',  priceRange:[24,49],   store:'Home Depot / Lowe\'s'},
+  {id:'workbench',      name:'Workbench 72"',        widthIn:72, heightIn:36, depthIn:30, color:'#B87948', mount:'floor', priceRange:[199,399], store:'Home Depot / Costco'},
+  {id:'pegboard',       name:'Pegboard 48×48"',      widthIn:48, heightIn:48, depthIn:1,  color:'#C4A56A', mount:'wall',  priceRange:[29,59],   store:'Home Depot / Lowe\'s'},
+  {id:'custom',         name:'Custom Shelf',         widthIn:48, heightIn:84, depthIn:16, color:'#22d3ee', mount:'floor', priceRange:[0,0],     store:'Custom build'},
+];
+
+// ─── APP STATE ────────────────────────────────────────────────────────────────
+const APP = {
+  photoSrc: null,
+  scale: { ppi: null },
+  floorY: null,
+  wizStep: 1,
+  scalePts: [],
+  undoStack: [],
+  redoStack: [],
+};
+const ITEMS = []; // {group, ud}
+const FILL_CONFIG = { depth: 16, spacing: 16, heightMode: 'full', customH: 0, bay: 'none', bayW: 36 };
+let selectedItem = null;
+let selHelper = null;
+
+// ─── TEXTURE HELPERS ─────────────────────────────────────────────────────────
+function makeWoodTex() {
+  const sz = 512;
+  const c = document.createElement('canvas');
+  c.width = sz; c.height = sz;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#C4834A';
+  ctx.fillRect(0, 0, sz, sz);
+  for (let i = 0; i < 28; i++) {
+    const x = (sz / 28) * i + (Math.random() - 0.5) * 8;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    const cp1x = x + (Math.random() - 0.5) * 30;
+    const cp1y = sz * 0.33;
+    const cp2x = x + (Math.random() - 0.5) * 30;
+    const cp2y = sz * 0.66;
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x + (Math.random()-0.5)*20, sz);
+    const alpha = 0.08 + Math.random() * 0.07;
+    ctx.strokeStyle = `rgba(80,40,10,${alpha})`;
+    ctx.lineWidth = 0.5 + Math.random() * 1.0;
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function makePegTex() {
+  const sz = 256;
+  const c = document.createElement('canvas');
+  c.width = sz; c.height = sz;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#C8A96E';
+  ctx.fillRect(0, 0, sz, sz);
+  const step = 16;
+  for (let y = step; y < sz; y += step) {
+    for (let x = step; x < sz; x += step) {
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(60,30,5,0.55)';
+      ctx.fill();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+// ─── MATERIALS ────────────────────────────────────────────────────────────────
+const woodTex = makeWoodTex();
+const pegTex = makePegTex();
+
+function mat(params) { return new THREE.MeshStandardMaterial(params); }
+
+const MATS = {
+  steel:       mat({color:0x8A9BA8, metalness:0.65, roughness:0.30}),
+  steelDark:   mat({color:0x5E6E78, metalness:0.72, roughness:0.25}),
+  steelLight:  mat({color:0xA8BEC8, metalness:0.45, roughness:0.42}),
+  maple:       mat({color:0xC4834A, metalness:0.0,  roughness:0.88, map: woodTex}),
+  redPaint:    mat({color:0xC62828, metalness:0.18, roughness:0.52}),
+  redLid:      mat({color:0xD32F2F, metalness:0.18, roughness:0.48}),
+  chrome:      mat({color:0xCCDDE8, metalness:0.94, roughness:0.06}),
+  rubber:      mat({color:0x191919, metalness:0.0,  roughness:0.96}),
+  masonite:    mat({color:0xC8A96E, metalness:0.0,  roughness:0.92, map: pegTex}),
+  frameWood:   mat({color:0x7A5528, metalness:0.0,  roughness:0.90}),
+  bluePlastic: mat({color:0x2563EB, metalness:0.08, roughness:0.42}),
+  blackHook:   mat({color:0x1E2430, metalness:0.3,  roughness:0.55}),
+  wireFrame:   mat({color:0x5C6B75, metalness:0.55, roughness:0.38}),
+  pine:        mat({color:0xD4A86A, metalness:0.0,  roughness:0.86, map: woodTex}),
+  plywood:     mat({color:0xC2924A, metalness:0.0,  roughness:0.90}),
+  pineEnd:     mat({color:0xC49658, metalness:0.0,  roughness:0.88}),
+};
+
+function shadow(mesh) {
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function box(w, h, d, material, x, y, z) {
+  const m = shadow(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material));
+  m.position.set(x || 0, y || 0, z || 0);
+  return m;
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ─── ITEM BUILDERS ────────────────────────────────────────────────────────────
+function buildShelf(W, H, D) {
+  const g = new THREE.Group();
+  const upW = Math.max(3.5, W * 0.04);
+  const nShelves = clamp(Math.floor(H / 22), 3, 8);
+
+  // Uprights
+  [-1, 1].forEach(side => {
+    const up = box(upW, H, D, MATS.steelDark, side * (W / 2 - upW / 2), H / 2, 0);
+    g.add(up);
+  });
+
+  // Shelves
+  for (let i = 0; i <= nShelves; i++) {
+    const sy = i * (H / nShelves);
+    const shelf = box(W - upW * 2, 2.5, D, MATS.steelLight, 0, sy, 0);
+    g.add(shelf);
+    // Front lip
+    const lip = box(W - upW * 2, 1.5, 1, MATS.steel, 0, sy + 2, -D / 2 + 0.5);
+    g.add(lip);
+  }
+  return g;
+}
+
+function buildWorkbench(W, H, D) {
+  const g = new THREE.Group();
+  const topH = Math.max(4, H * 0.12);
+  const legSz = Math.max(3, W * 0.04);
+
+  // Wood top
+  g.add(box(W, topH, D, MATS.maple, 0, H - topH / 2, 0));
+  // Edge banding
+  g.add(box(W, 0.5, D + 0.5, MATS.steelDark, 0, H - topH, 0));
+
+  // 4 legs
+  const legH = H - topH;
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz]) => {
+    g.add(box(legSz, legH, legSz, MATS.steelDark, sx*(W/2-legSz/2), legH/2, sz*(D/2-legSz/2)));
+  });
+
+  // Lower shelf
+  g.add(box(W - legSz * 2.4, 2, D - legSz * 2.4, MATS.steel, 0, legH * 0.35, 0));
+
+  // Stretchers (front and back)
+  [-1, 1].forEach(sz => {
+    g.add(box(2, 2, D - legSz * 2, MATS.steelDark, -W/2 + legSz/2, legH - 4, sz*(D/2-legSz)));
+    g.add(box(2, 2, D - legSz * 2, MATS.steelDark,  W/2 - legSz/2, legH - 4, sz*(D/2-legSz)));
+  });
+  return g;
+}
+
+function buildToolbox(W, H, D) {
+  const g = new THREE.Group();
+  const wR = Math.min(W * 0.1, 12);
+  const bodyH = H - wR * 2.2;
+  const lidH = bodyH * 0.2;
+  const numDrawers = clamp(Math.floor(bodyH / 22), 2, 4);
+  const drawerH = (bodyH - lidH) / numDrawers;
+  const baseY = wR * 2.2;
+
+  // Body
+  g.add(box(W, bodyH - lidH, D, MATS.redPaint, 0, baseY + (bodyH - lidH) / 2, 0));
+  // Lid
+  g.add(box(W, lidH, D, MATS.redLid, 0, baseY + bodyH - lidH / 2, 0));
+
+  // Drawers
+  for (let i = 0; i < numDrawers; i++) {
+    const dy = baseY + i * drawerH + drawerH / 2;
+    // Drawer face
+    const df = box(W - 1, drawerH - 1, 0.5, MATS.redPaint, 0, dy, -D/2 - 0.25);
+    g.add(df);
+    // Chrome pull
+    g.add(box(W * 0.28, drawerH * 0.3, 1, MATS.chrome, 0, dy, -D/2 - 1));
+  }
+
+  // Lid handle
+  const handleGeo = new THREE.CylinderGeometry(1.2, 1.2, W * 0.4, 8);
+  const handle = shadow(new THREE.Mesh(handleGeo, MATS.chrome));
+  handle.rotation.z = Math.PI / 2;
+  handle.position.set(0, baseY + bodyH + 1.2, -D/2 - 1);
+  g.add(handle);
+
+  // Wheels
+  [-1,1].forEach(side => {
+    const wGeo = new THREE.CylinderGeometry(wR, wR, D * 0.2, 16);
+    const wheel = shadow(new THREE.Mesh(wGeo, MATS.rubber));
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(side * (W/2 - wR * 1.5), wR, 0);
+    g.add(wheel);
+    const hubGeo = new THREE.CylinderGeometry(wR*0.38, wR*0.38, D*0.22, 12);
+    const hub = shadow(new THREE.Mesh(hubGeo, MATS.chrome));
+    hub.rotation.z = Math.PI / 2;
+    hub.position.copy(wheel.position);
+    g.add(hub);
+  });
+
+  return g;
+}
+
+function buildPegboard(W, H, D) {
+  const g = new THREE.Group();
+  const Dact = Math.max(D, 1.5);
+  g.add(box(W, H, Dact, MATS.masonite, 0, H/2, 0));
+  const fh = H * 0.04;
+  g.add(box(W, fh, Dact + 0.5, MATS.frameWood, 0, H, 0));
+  g.add(box(W, fh, Dact + 0.5, MATS.frameWood, 0, 0, 0));
+  g.add(box(fh, H, Dact + 0.5, MATS.frameWood, -W/2, H/2, 0));
+  g.add(box(fh, H, Dact + 0.5, MATS.frameWood,  W/2, H/2, 0));
+  return g;
+}
+
+function buildTote(W, H, D) {
+  const g = new THREE.Group();
+  const lidH = H * 0.16;
+  // Body
+  g.add(box(W, H - lidH, D, MATS.bluePlastic, 0, (H - lidH) / 2, 0));
+  // Lid (slightly lighter)
+  const lidMat = MATS.bluePlastic.clone();
+  lidMat.color.setHex(0x3B82F6);
+  const lid = box(W, lidH, D + 1, lidMat, 0, H - lidH / 2, 0);
+  g.add(lid);
+  // Lid lip
+  g.add(box(W - 1, lidH * 0.4, D + 2, MATS.bluePlastic, 0, H - lidH, 0));
+  // Ribbing
+  for (let i = 1; i <= 3; i++) {
+    const ry = (H - lidH) * i / 4;
+    const darkMat = MATS.bluePlastic.clone();
+    darkMat.color.setHex(0x1D4ED8);
+    g.add(box(W + 0.5, 1, D + 0.5, darkMat, 0, ry, 0));
+  }
+  // Handles
+  [-1,1].forEach(side => {
+    const hGeo = new THREE.CylinderGeometry(1, 1, D * 0.15, 8);
+    const h = shadow(new THREE.Mesh(hGeo, MATS.chrome));
+    h.rotation.z = Math.PI / 2;
+    h.position.set(side * (W/2 + 0.5), H * 0.45, 0);
+    g.add(h);
+  });
+  return g;
+}
+
+function buildCeilingRack(W, H, D) {
+  const g = new THREE.Group();
+  const bW = 2.5;
+  const yTop = H;
+
+  // Outer frame
+  g.add(box(W, bW, bW, MATS.wireFrame, 0, yTop, -D/2));
+  g.add(box(W, bW, bW, MATS.wireFrame, 0, yTop,  D/2));
+  g.add(box(bW, bW, D, MATS.wireFrame, -W/2, yTop, 0));
+  g.add(box(bW, bW, D, MATS.wireFrame,  W/2, yTop, 0));
+
+  // Grid members
+  const cols = Math.max(2, Math.floor(W / 14));
+  for (let i = 1; i < cols; i++) {
+    const gx = -W/2 + (W / cols) * i;
+    g.add(box(bW*0.7, bW*0.7, D, MATS.wireFrame, gx, yTop, 0));
+  }
+  const rows = Math.max(2, Math.floor(D / 14));
+  for (let i = 1; i < rows; i++) {
+    const gz = -D/2 + (D / rows) * i;
+    g.add(box(W, bW*0.7, bW*0.7, MATS.wireFrame, 0, yTop, gz));
+  }
+
+  // 4 suspension rods going up
+  [[W/2-8, D/2-8],[W/2-8,-(D/2-8)],[-(W/2-8),D/2-8],[-(W/2-8),-(D/2-8)]].forEach(([rx,rz]) => {
+    const rodGeo = new THREE.CylinderGeometry(1, 1, 40, 8);
+    const rod = shadow(new THREE.Mesh(rodGeo, MATS.chrome));
+    rod.position.set(rx, yTop + 20, rz);
+    g.add(rod);
+    g.add(box(6, 4, 6, MATS.chrome, rx, yTop + 40, rz));
+  });
+
+  return g;
+}
+
+function buildBikeHook(W, H, D) {
+  const g = new THREE.Group();
+  const mountH = Math.max(6, H * 0.12);
+  const mountD = 2;
+  const mountW = W;
+
+  // Mount plate
+  g.add(box(mountW, mountH, mountD, MATS.steel, 0, H - mountH/2, D/2));
+
+  // Screws
+  [-0.28, 0.28].forEach(sx => {
+    const sGeo = new THREE.CylinderGeometry(1, 1, mountD + 1, 6);
+    const screw = shadow(new THREE.Mesh(sGeo, MATS.chrome));
+    screw.rotation.x = Math.PI / 2;
+    screw.position.set(sx * mountW, H - mountH/2, D/2);
+    g.add(screw);
+  });
+
+  // Hook shaft (vertical part)
+  const shaftH = H - mountH;
+  const tubeR = Math.max(3, W * 0.14);
+  g.add(box(tubeR, shaftH, tubeR, MATS.blackHook, 0, (H - mountH) / 2, 0));
+
+  // Hook curve (the J part)
+  const curveLen = H * 0.18;
+  g.add(box(curveLen, tubeR, tubeR, MATS.blackHook, curveLen/2, tubeR/2, 0));
+
+  // Rubber tip
+  const tipGeo = new THREE.SphereGeometry(tubeR * 0.9, 8, 6);
+  const tip = shadow(new THREE.Mesh(tipGeo, MATS.rubber));
+  tip.position.set(curveLen, tubeR/2, 0);
+  g.add(tip);
+
+  return g;
+}
+
+function buildBikeRack(W, H, D) {
+  const g = new THREE.Group();
+  const barH = Math.max(8, H * 0.28);
+  const barD = Math.max(4, D);
+
+  // Main bar
+  g.add(box(W, barH, barD, MATS.steel, 0, H - barH/2, 0));
+
+  // Mounting holes
+  [-0.3,0.3].forEach(sx => {
+    const mhGeo = new THREE.CylinderGeometry(1.5,1.5,D+2,8);
+    const mh = shadow(new THREE.Mesh(mhGeo, MATS.steelDark));
+    mh.rotation.z = Math.PI/2;
+    mh.position.set(sx*W, H - barH/2, 0);
+    g.add(mh);
+  });
+
+  // Two J-hooks
+  const hookH = H - barH;
+  const tubeR = Math.max(2.5, W * 0.06);
+  [-0.26, 0.26].forEach(hx => {
+    const shaftH = hookH;
+    g.add(box(tubeR, shaftH, tubeR, MATS.blackHook, hx*W, shaftH/2, 0));
+    const curveLen = hookH * 0.2;
+    g.add(box(curveLen, tubeR, tubeR, MATS.blackHook, hx*W + curveLen/2, tubeR/2, 0));
+    const tipGeo = new THREE.SphereGeometry(tubeR*0.9, 8, 6);
+    const tip = shadow(new THREE.Mesh(tipGeo, MATS.rubber));
+    tip.position.set(hx*W + curveLen, tubeR/2, 0);
+    g.add(tip);
+  });
+  return g;
+}
+
+function buildWallShelf(W, H, D) {
+  const g = new THREE.Group();
+  const boardH = Math.max(10, H * 0.5);
+  const lip = Math.max(2, boardH * 0.18);
+
+  g.add(box(W, boardH, D, MATS.steel, 0, H - boardH/2, 0));
+  g.add(box(W, lip, 2, MATS.steelDark, 0, H - lip/2, -D/2));
+
+  // Mounting holes
+  const numH = Math.max(3, Math.floor(W / 20));
+  for (let i = 0; i < numH; i++) {
+    const hx = -W/2 + (W / (numH - 1)) * i;
+    const hGeo = new THREE.CylinderGeometry(1.2, 1.2, boardH + 1, 8);
+    const hm = shadow(new THREE.Mesh(hGeo, MATS.steelDark));
+    hm.rotation.z = Math.PI/2;
+    hm.position.set(hx, H - boardH * 0.35, 0);
+    g.add(hm);
+  }
+
+  // Brackets
+  const numBrackets = Math.max(2, Math.floor(W / 56));
+  const bracketH = H - boardH;
+  for (let i = 0; i < numBrackets; i++) {
+    const bx = -W/2 + (W / (numBrackets - 1)) * i;
+    g.add(box(2, bracketH, 2, MATS.steelDark, bx, bracketH/2, 0));
+    g.add(box(2, 2, D * 0.8, MATS.steelDark, bx, bracketH, D * 0.4 - D/2));
+  }
+  return g;
+}
+
+function buildCustom(W, H, D, colorHex) {
+  const g = buildLumberShelf(W, H, D);
+  const customMat = MATS.pine.clone();
+  customMat.color.set(colorHex || '#22d3ee');
+  g.traverse(child => { if (child.isMesh) child.material = customMat; });
+  return g;
+}
+
+// ─── LUMBER SHELF BUILDER ─────────────────────────────────────────────────────
+// Builds a realistic 2×4 + ¾" plywood shelf unit against a wall.
+// Coordinate system: X=right, Y=up, Z=out from wall (back face at Z=0).
+function buildLumberShelf(W, H, D, shelfSpacing) {
+  const g = new THREE.Group();
+
+  // Actual lumber dimensions
+  const TW = 1.5, TD = 3.5; // 2×4 actual
+  const PLY = 0.75;          // ¾" plywood
+  const depth = Math.max(D, 12);
+
+  // Upright positions: always at 0 and W, plus center if wide
+  const uprightXs = [0, W];
+  if (W > 56) uprightXs.splice(1, 0, W / 2);
+
+  // 2×4 Uprights: back face at Z=0, front face at Z=TD
+  uprightXs.forEach(ux => {
+    const cx = ux === 0 ? TW / 2 : ux === W ? W - TW / 2 : ux;
+    g.add(box(TW, H, TD, MATS.pine, cx, H / 2, TD / 2));
+  });
+
+  // Bottom rail (horizontal, at floor level, flat face toward room)
+  g.add(box(W, TD, TW, MATS.pine, W / 2, TD / 2, TW / 2));
+
+  // Top rail
+  g.add(box(W, TD, TW, MATS.pine, W / 2, H - TD / 2, TW / 2));
+
+  // Shelf levels
+  const baseY = TD + 2;            // first shelf starts above bottom rail
+  const topY = H - TD - PLY - 1;  // last shelf below top rail
+  const usable = topY - baseY;
+  const sp = shelfSpacing || 18;
+  const nGaps = Math.max(2, Math.round(usable / sp));
+  const spacing = usable / nGaps;
+
+  for (let i = 0; i <= nGaps; i++) {
+    const sy = i === nGaps ? topY : baseY + spacing * i;
+
+    // Plywood shelf: full width × PLY thick × full depth
+    g.add(box(W, PLY, depth, MATS.plywood, W / 2, sy + PLY / 2, depth / 2));
+
+    // Front edge strip (hides plywood edge, adds stiffness)
+    g.add(box(W, PLY * 3, TW, MATS.pine, W / 2, sy + PLY * 1.5, TW / 2));
+
+    // Ledger strips between uprights (back wall support)
+    for (let b = 0; b < uprightXs.length - 1; b++) {
+      const lx0 = uprightXs[b] + TW;
+      const lx1 = uprightXs[b + 1] - TW;
+      if (lx1 > lx0) {
+        g.add(box(lx1 - lx0, TD, TW, MATS.pine, (lx0 + lx1) / 2, sy - TD / 2, TW / 2));
+      }
+    }
+  }
+
+  return g;
+}
+
+function buildItem(lib) {
+  const { widthIn: W, heightIn: H, depthIn: D, id, color } = lib;
+  switch (id) {
+    case 'lumber-96':
+    case 'lumber-72':
+    case 'lumber-48':
+    case 'lumber-36':         return buildLumberShelf(W, H, D);
+    case 'lumber-deep-72':
+    case 'lumber-deep-48':    return buildLumberShelf(W, H, D);
+    case 'workbench':         return buildWorkbench(W, H, D);
+    case 'pegboard':          return buildPegboard(W, H, D);
+    case 'wall-shelf-48':
+    case 'wall-shelf-36':   return buildWallShelf(W, H, D);
+    case 'custom':          return buildCustom(W, H, D, color);
+    default:                return buildLumberShelf(W, H, D);
+  }
+}
+
+// ─── THREE.JS SCENE SETUP ─────────────────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const canvas = document.getElementById('main-canvas');
+
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setPixelRatio(window.devicePixelRatio);
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 1, 5000);
+camera.position.set(0, 280, 480);
+camera.lookAt(0, 80, 0);
+
+// PMREMGenerator environment
+const pmrem = new PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
+pmrem.dispose();
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+
+const dirLight = new THREE.DirectionalLight(0xfff4e0, 2.2);
+dirLight.position.set(250, 450, 220);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+dirLight.shadow.camera.left = -350;
+dirLight.shadow.camera.right = 350;
+dirLight.shadow.camera.top = 250;
+dirLight.shadow.camera.bottom = -250;
+dirLight.shadow.bias = -0.0005;
+scene.add(dirLight);
+
+scene.add(new THREE.HemisphereLight(0x87CEEB, 0x444440, 0.5));
+
+// Ground plane
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(4000, 4000),
+  new THREE.ShadowMaterial({ opacity: 0.4, transparent: true })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = 0;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Grid
+const grid = new THREE.GridHelper(800, 40, 0x333344, 0x1a1a2a);
+grid.position.y = 0.5;
+scene.add(grid);
+
+// Resize
+function onResize() {
+  const w = container.clientWidth, h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+onResize();
+window.addEventListener('resize', onResize);
+
+// Animate
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+// ─── DRAG / SELECTION ─────────────────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const dragOffset = new THREE.Vector3();
+const mouseVec = new THREE.Vector2();
+let isDragging = false;
+
+function toNDC(e) {
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.clientX - r.left) / r.width;
+  const cy = (e.clientY - r.top) / r.height;
+  mouseVec.set(cx * 2 - 1, -(cy * 2 - 1));
+}
+
+function findItemGroup(obj) {
+  let o = obj;
+  while (o) {
+    if (o.userData && o.userData.isItem) return o;
+    o = o.parent;
+  }
+  return null;
+}
+
+function selectItem(item) {
+  selectedItem = item;
+  updateSelHelper();
+}
+
+function deselect() {
+  selectedItem = null;
+  if (selHelper) {
+    scene.remove(selHelper);
+    selHelper = null;
+  }
+}
+
+function updateSelHelper() {
+  if (selHelper) scene.remove(selHelper);
+  selHelper = null;
+  if (!selectedItem) return;
+  const bb = new THREE.Box3().setFromObject(selectedItem.group);
+  selHelper = new THREE.Box3Helper(bb, new THREE.Color(0x22d3ee));
+  scene.add(selHelper);
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (APP.wizStep >= 2) return; // calibration active — cal-canvas handles clicks
+  toNDC(e);
+  raycaster.setFromCamera(mouseVec, camera);
+  const meshes = [];
+  ITEMS.forEach(it => it.group.traverse(c => { if (c.isMesh) meshes.push(c); }));
+  const hits = raycaster.intersectObjects(meshes);
+  if (hits.length > 0) {
+    const grp = findItemGroup(hits[0].object);
+    if (grp) {
+      selectItem(ITEMS.find(i => i.group === grp));
+      isDragging = true;
+      // In wall mode: use a XY plane at the item's Z position for smooth dragging
+      if (CAL.H && CAL.wallW > 0) {
+        dragPlane.setFromNormalAndCoplanarPoint(
+          new THREE.Vector3(0, 0, 1),
+          grp.position
+        );
+      }
+      const pt = new THREE.Vector3();
+      raycaster.ray.intersectPlane(dragPlane, pt);
+      dragOffset.subVectors(grp.position, pt);
+      canvas.style.cursor = 'grabbing';
+    }
+  } else {
+    deselect();
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (isDragging && selectedItem) {
+    toNDC(e);
+    raycaster.setFromCamera(mouseVec, camera);
+    const pt = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(dragPlane, pt)) {
+      if (CAL.H && CAL.wallW > 0) {
+        // Wall mode: move in XY (along wall), keep Z
+        const newX = Math.max(0, Math.min(CAL.wallW - (selectedItem.ud.widthIn||48), pt.x + dragOffset.x));
+        const newY = Math.max(0, Math.min(CAL.wallH - (selectedItem.ud.heightIn||84), pt.y + dragOffset.y));
+        selectedItem.group.position.set(newX, newY, selectedItem.group.position.z);
+      } else {
+        selectedItem.group.position.set(pt.x + dragOffset.x, 0, pt.z + dragOffset.z);
+      }
+      updateSelHelper();
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  if (isDragging) { isDragging = false; pushUndo(); canvas.style.cursor = ''; }
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  toNDC(e);
+  raycaster.setFromCamera(mouseVec, camera);
+  const meshes = [];
+  ITEMS.forEach(it => it.group.traverse(c => { if (c.isMesh) meshes.push(c); }));
+  const hits = raycaster.intersectObjects(meshes);
+  if (hits.length > 0) {
+    const grp = findItemGroup(hits[0].object);
+    if (grp) selectItem(ITEMS.find(i => i.group === grp));
+    showCtxMenu(e.clientX, e.clientY);
+  }
+});
+
+// Wheel zoom
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const delta = e.deltaY * 0.5;
+  const newPos = camera.position.clone().addScaledVector(dir, -delta);
+  const dist = newPos.distanceTo(new THREE.Vector3(0, 80, 0));
+  if (dist > 80 && dist < 2000) camera.position.copy(newPos);
+}, { passive: false });
+
+// Keyboard
+window.addEventListener('keydown', e => {
+  if (!selectedItem) return;
+  if (e.key === 'r' || e.key === 'R') {
+    selectedItem.group.rotation.y += Math.PI / 2;
+    updateSelHelper();
+    pushUndo();
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (document.activeElement === document.body) {
+      removeItem(selectedItem);
+      e.preventDefault();
+    }
+  }
+  if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
+    e.preventDefault();
+    dupSelected();
+  }
+});
+
+// ─── CONTEXT MENU ────────────────────────────────────────────────────────────
+const ctxMenu = document.getElementById('ctx-menu');
+function showCtxMenu(x, y) {
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = x + 'px';
+  ctxMenu.style.top = y + 'px';
+}
+function hideCtxMenu() { ctxMenu.style.display = 'none'; }
+document.getElementById('ctx-rotate').onclick = () => {
+  if (selectedItem) { selectedItem.group.rotation.y += Math.PI/2; updateSelHelper(); pushUndo(); }
+  hideCtxMenu();
+};
+document.getElementById('ctx-dup').onclick = () => { dupSelected(); hideCtxMenu(); };
+document.getElementById('ctx-del').onclick = () => { if (selectedItem) removeItem(selectedItem); hideCtxMenu(); };
+document.addEventListener('click', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(); });
+
+// Right-click "Properties" entry in context menu
+document.getElementById('ctx-menu').insertAdjacentHTML('afterbegin',
+  '<div class="ctx-item" id="ctx-props">&#9881; Properties</div><div class="ctx-sep"></div>');
+
+document.getElementById('ctx-props').onclick = () => {
+  hideCtxMenu();
+  if (!selectedItem) return;
+  const ud = selectedItem.ud;
+  document.getElementById('pp-w-ft').value = Math.floor(ud.widthIn / 12);
+  document.getElementById('pp-w-in').value = Math.round(ud.widthIn % 12 * 10) / 10;
+  document.getElementById('pp-h-ft').value = Math.floor(ud.heightIn / 12);
+  document.getElementById('pp-h-in').value = Math.round(ud.heightIn % 12 * 10) / 10;
+  // Activate current depth toggle
+  const depthVal = ud.depthIn <= 13 ? '12' : ud.depthIn <= 20 ? '16' : '24';
+  document.getElementById('pp-t-depth').querySelectorAll('.fc-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === depthVal);
+  });
+  document.getElementById('fill-config').style.display = 'none';
+  document.getElementById('props-panel').style.display = 'block';
+};
+
+makeToggleGroup('pp-t-depth', v => { /* stored when Apply clicked */ });
+
+document.getElementById('pp-apply-btn').addEventListener('click', () => {
+  if (!selectedItem) return;
+  const wFt = parseFloat(document.getElementById('pp-w-ft').value)||0;
+  const wIn = parseFloat(document.getElementById('pp-w-in').value)||0;
+  const hFt = parseFloat(document.getElementById('pp-h-ft').value)||0;
+  const hIn = parseFloat(document.getElementById('pp-h-in').value)||0;
+  const dBtn = document.getElementById('pp-t-depth').querySelector('.fc-btn.active');
+  const W = wFt*12 + wIn || selectedItem.ud.widthIn;
+  const H = hFt*12 + hIn || selectedItem.ud.heightIn;
+  const D = dBtn ? parseInt(dBtn.dataset.val) : selectedItem.ud.depthIn;
+  if (W < 12 || H < 12) { showHint('Minimum 1 foot each dimension'); return; }
+
+  const oldPos = selectedItem.group.position.clone();
+  const lib = { ...selectedItem.ud, widthIn:W, heightIn:H, depthIn:D };
+  scene.remove(selectedItem.group);
+  const idx = ITEMS.indexOf(selectedItem);
+  const grp = buildLumberShelf(W, H, D, FILL_CONFIG.spacing);
+  grp.userData = { isItem:true, id:lib.id, ud:{...lib} };
+  grp.position.copy(oldPos);
+  scene.add(grp);
+  ITEMS[idx] = { group:grp, ud:{...lib} };
+  selectedItem = ITEMS[idx];
+  updateSelHelper();
+  updateMaterials();
+  pushUndo();
+  document.getElementById('props-panel').style.display = 'none';
+  showHint('Shelf resized to '+Math.round(W/12)+"'W × "+Math.round(H/12)+"'H × "+D+'"D');
+});
+
+document.getElementById('pp-close-btn').addEventListener('click', () => {
+  document.getElementById('props-panel').style.display = 'none';
+});
+
+// ─── ITEM MANAGEMENT ─────────────────────────────────────────────────────────
+let nextX = 0;
+function addItem(lib) {
+  const grp = buildItem(lib);
+  grp.userData = { isItem: true, id: lib.id, ud: { ...lib } };
+  if (CAL.H && CAL.wallW > 0) {
+    // Wall mode: back face at Z=0, centered horizontally, sitting on floor
+    const D = lib.depthIn;
+    const startX = Math.max(0, (CAL.wallW - lib.widthIn) / 2);
+    grp.position.set(startX, 0, 0); // left-edge-aligned, back face at Z=0
+  } else {
+    grp.position.set(nextX, 0, 0);
+    nextX += lib.widthIn + 4;
+    if (nextX > 300) nextX = 0;
+  }
+  scene.add(grp);
+  ITEMS.push({ group: grp, ud: { ...lib } });
+  updateStatus();
+  updateMaterials();
+  pushUndo();
+  showHint('Drag to move • R = rotate • Right-click for options');
+}
+
+function removeItem(item) {
+  if (!item) return;
+  scene.remove(item.group);
+  const idx = ITEMS.indexOf(item);
+  if (idx !== -1) ITEMS.splice(idx, 1);
+  if (selectedItem === item) deselect();
+  updateStatus();
+  updateMaterials();
+  pushUndo();
+}
+
+function dupSelected() {
+  if (!selectedItem) return;
+  const lib = selectedItem.ud;
+  const grp = buildItem(lib);
+  grp.userData = { isItem: true, id: lib.id, ud: { ...lib } };
+  grp.position.copy(selectedItem.group.position);
+  grp.position.x += 40;
+  grp.rotation.y = selectedItem.group.rotation.y;
+  scene.add(grp);
+  ITEMS.push({ group: grp, ud: { ...lib } });
+  selectItem(ITEMS[ITEMS.length - 1]);
+  updateStatus();
+  updateMaterials();
+  pushUndo();
+}
+
+// ─── STATUS / MATERIALS ───────────────────────────────────────────────────────
+function updateStatus() {
+  document.getElementById('st-objects').textContent = 'Objects: ' + ITEMS.length;
+  document.getElementById('st-scale').textContent = APP.scale.ppi
+    ? 'Scale: ' + APP.scale.ppi.toFixed(1) + ' px/in'
+    : 'Scale: not set';
+  document.getElementById('st-floor').textContent = APP.floorY !== null
+    ? 'Floor: ' + APP.floorY.toFixed(0) + '"'
+    : 'Floor: not set';
+}
+
+function updateMaterials() {
+  const counts = {};
+  ITEMS.forEach(it => {
+    const key = it.ud.id;
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const el = document.getElementById('materials-list');
+  if (Object.keys(counts).length === 0) {
+    el.innerHTML = '<div style="padding:16px 8px;color:#6b7280;font-size:12px">Add items from the library to build your shopping list.</div>';
+    document.getElementById('cost-total').textContent = '$0';
+    return;
+  }
+  // Build lumber cut list from all shelf items
+  const cutPieces = { twoByFour: [], plywood: [] };
+  let totalLo = 0, totalHi = 0;
+  let html = '';
+
+  ITEMS.forEach(it => {
+    const ud = it.ud;
+    const W = ud.widthIn || 48, H = ud.heightIn || 84, D = ud.depthIn || 16;
+    const isLumber = ud.id && (ud.id.startsWith('lumber') || ud.id === 'custom');
+    if (!isLumber) return;
+
+    const TW = 1.5, TD = 3.5, PLY = 0.75;
+    const uprightCount = W > 56 ? 3 : 2;
+    const nShelves = Math.max(2, Math.round((H - TD*2 - 2) / 18)) + 1;
+
+    // Uprights: 2×4 × H
+    cutPieces.twoByFour.push({ label: '2×4 upright', length: H, qty: uprightCount });
+    // Top + bottom rails: 2×4 × W
+    cutPieces.twoByFour.push({ label: '2×4 rail', length: W, qty: 2 });
+    // Ledgers per shelf: 2×4 × (bay_width)
+    const bayW = W > 56 ? W / 2 : W;
+    const bays = uprightCount - 1;
+    cutPieces.twoByFour.push({ label: '2×4 ledger', length: Math.round(bayW - TW*2), qty: nShelves * bays });
+    // Plywood: ¾" × W × D per shelf
+    cutPieces.plywood.push({ label: '¾" plywood shelf', width: W, depth: D, qty: nShelves });
+  });
+
+  if (cutPieces.twoByFour.length === 0 && cutPieces.plywood.length === 0) {
+    // Fallback: show item list
+    Object.keys(counts).forEach(key => {
+      const lib = LIBRARY.find(l => l.id === key);
+      if (!lib) return;
+      const qty = counts[key];
+      const lo = lib.priceRange[0] * qty;
+      const hi = lib.priceRange[1] * qty;
+      totalLo += lo; totalHi += hi;
+      html += '<div class="mat-item"><div class="mat-item-name">' + qty + 'x ' + lib.name + '</div>';
+      html += '<div class="mat-item-sub">' + lib.store + '</div>';
+      html += '<div class="mat-item-price">' + (lo === 0 ? 'Custom' : '$'+lo+'–$'+hi) + '</div></div>';
+    });
+  } else {
+    // Show cut list
+    html += '<div class="mat-item" style="background:#0f172a;margin:0 -8px;padding:8px 16px 4px">';
+    html += '<div class="mat-item-name" style="color:var(--accent)">Cut List — 2×4 SPF</div></div>';
+    cutPieces.twoByFour.forEach(p => {
+      const linFt = (p.length * p.qty / 12).toFixed(1);
+      const boards = Math.ceil(p.length / 96 * p.qty); // how many 8-ft boards
+      html += '<div class="mat-item"><div class="mat-item-name">' + p.qty + 'x ' + p.label + '</div>';
+      html += '<div class="mat-item-sub">' + Math.round(p.length) + '" each = ' + linFt + ' lin ft</div>';
+      html += '<div class="mat-item-price">~' + boards + ' board' + (boards>1?'s':'') + '</div></div>';
+    });
+
+    html += '<div class="mat-item" style="background:#0f172a;margin:0 -8px;padding:8px 16px 4px">';
+    html += '<div class="mat-item-name" style="color:var(--accent)">Cut List — ¾" Plywood</div></div>';
+    let totalSheets = 0;
+    cutPieces.plywood.forEach(p => {
+      const sqFt = (p.width * p.depth * p.qty / 144).toFixed(1);
+      const sheets = Math.ceil(p.width * p.depth * p.qty / (48 * 96));
+      totalSheets += sheets;
+      html += '<div class="mat-item"><div class="mat-item-name">' + p.qty + 'x shelf panel</div>';
+      html += '<div class="mat-item-sub">' + Math.round(p.width) + '" × ' + Math.round(p.depth) + '" each = ' + sqFt + ' sq ft</div>';
+      html += '<div class="mat-item-price">~' + sheets + ' sheet' + (sheets>1?'s':'') + '</div></div>';
+    });
+
+    // Cost estimate
+    const twoByFourBoards = cutPieces.twoByFour.reduce((s,p) => s + Math.ceil(p.length/96*p.qty), 0);
+    const estLo = twoByFourBoards * 4 + totalSheets * 45;
+    const estHi = twoByFourBoards * 6 + totalSheets * 65;
+    totalLo = estLo; totalHi = estHi;
+  }
+
+  el.innerHTML = html;
+  document.getElementById('cost-total').textContent = totalLo === 0 ? 'Custom' : '$' + totalLo + '–$' + totalHi;
+}
+
+// ─── HINT OVERLAY ─────────────────────────────────────────────────────────────
+let hintTimer = null;
+function showHint(msg) {
+  const el = document.getElementById('hint-overlay');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+// ─── CALIBRATION ─────────────────────────────────────────────────────────────
+
+const CAL = {
+  corners: [],  // [{x,y}] display-px, order: BL, BR, TR, TL
+  wallW: 0,     // inches
+  wallH: 0,     // inches
+  H: null,      // 9-element row-major homography: world(in) → display-px
+};
+
+const calCanvas = document.getElementById('cal-canvas');
+const calCtx = calCanvas.getContext('2d');
+
+function resizeCalCanvas() {
+  calCanvas.width  = container.clientWidth;
+  calCanvas.height = container.clientHeight;
+  if (CAL.H) drawCalGrid();
+}
+resizeCalCanvas();
+window.addEventListener('resize', resizeCalCanvas);
+
+// ── Homography math ───────────────────────────────────────────────────────────
+// Gaussian elimination, solves Ax = b
+function solveLinear(A, b) {
+  const n = b.length;
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < n; col++) {
+    let mx = col;
+    for (let r = col + 1; r < n; r++) if (Math.abs(M[r][col]) > Math.abs(M[mx][col])) mx = r;
+    [M[col], M[mx]] = [M[mx], M[col]];
+    const piv = M[col][col];
+    if (Math.abs(piv) < 1e-12) return null;
+    for (let r = col + 1; r < n; r++) {
+      const f = M[r][col] / piv;
+      for (let j = col; j <= n; j++) M[r][j] -= f * M[col][j];
+    }
+  }
+  const x = new Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    x[i] = M[i][n];
+    for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j];
+    x[i] /= M[i][i];
+  }
+  return x;
+}
+
+// DLT: compute H mapping world(in) → display-px
+// corners: [{x,y}] BL, BR, TR, TL (display-px)
+// returns flat 9-element row-major H, or null
+function computeH(corners, W, H) {
+  const wpts = [[0,0],[W,0],[W,H],[0,H]];
+  const A = [], b = [];
+  for (let i = 0; i < 4; i++) {
+    const [u, v] = [corners[i].x, corners[i].y];
+    const [X, Y]  = wpts[i];
+    A.push([X, Y, 1, 0, 0, 0, -u*X, -u*Y]);  b.push(u);
+    A.push([0, 0, 0, X, Y, 1, -v*X, -v*Y]);  b.push(v);
+  }
+  const h = solveLinear(A, b);
+  return h ? [...h, 1] : null;
+}
+
+// Apply H to world-point (X, Y) → display-px {x, y}
+function applyH(Hm, X, Y) {
+  const w = Hm[6]*X + Hm[7]*Y + Hm[8];
+  return { x: (Hm[0]*X + Hm[1]*Y + Hm[2]) / w,
+           y: (Hm[3]*X + Hm[4]*Y + Hm[5]) / w };
+}
+
+// ── Grid drawing ──────────────────────────────────────────────────────────────
+function drawCalGrid() {
+  const W = CAL.wallW, H = CAL.wallH, Hm = CAL.H;
+  calCtx.clearRect(0, 0, calCanvas.width, calCanvas.height);
+  if (!Hm || !W || !H) return;
+
+  const step = 12; // 1 foot = 12 inches
+  const steps = 8; // sub-steps per foot for smooth perspective curves
+
+  // Draw translucent fill over the wall region
+  calCtx.beginPath();
+  const corners4 = [[0,0],[W,0],[W,H],[0,H]];
+  corners4.forEach(([X,Y], i) => {
+    const p = applyH(Hm, X, Y);
+    i === 0 ? calCtx.moveTo(p.x, p.y) : calCtx.lineTo(p.x, p.y);
+  });
+  calCtx.closePath();
+  calCtx.fillStyle = 'rgba(34,211,238,0.06)';
+  calCtx.fill();
+
+  function drawLine(X0, Y0, X1, Y1, isEdge) {
+    calCtx.strokeStyle = isEdge ? 'rgba(34,211,238,1)' : 'rgba(34,211,238,.55)';
+    calCtx.lineWidth   = isEdge ? 3 : 1.5;
+    const segCount = steps;
+    calCtx.beginPath();
+    for (let s = 0; s <= segCount; s++) {
+      const t = s / segCount;
+      const X = X0 + (X1-X0)*t, Y = Y0 + (Y1-Y0)*t;
+      const p = applyH(Hm, X, Y);
+      s === 0 ? calCtx.moveTo(p.x, p.y) : calCtx.lineTo(p.x, p.y);
+    }
+    calCtx.stroke();
+  }
+
+  // Vertical grid lines
+  for (let X = 0; X <= W; X += step) drawLine(X, 0, X, H, X === 0 || X === W);
+  // Horizontal grid lines
+  for (let Y = 0; Y <= H; Y += step) drawLine(0, Y, W, Y, Y === 0 || Y === H);
+
+  // Dimension labels
+  calCtx.font = 'bold 11px Inter, system-ui, sans-serif';
+  calCtx.fillStyle = 'rgba(34,211,238,.9)';
+
+  // Bottom labels (feet along width)
+  calCtx.textAlign = 'center';
+  calCtx.textBaseline = 'top';
+  for (let X = 0; X <= W; X += step) {
+    const p = applyH(Hm, X, 0);
+    calCtx.fillText(Math.round(X/12)+"'", p.x, p.y + 5);
+  }
+  // Left labels (feet along height)
+  calCtx.textAlign = 'right';
+  calCtx.textBaseline = 'middle';
+  for (let Y = 0; Y <= H; Y += step) {
+    const p = applyH(Hm, 0, Y);
+    calCtx.fillText(Math.round(Y/12)+"'", p.x - 7, p.y);
+  }
+
+  // Corner dots on canvas
+  const CLABELS = ['BL','BR','TR','TL'];
+  CAL.corners.forEach((c, i) => {
+    calCtx.fillStyle = '#22d3ee';
+    calCtx.beginPath();
+    calCtx.arc(c.x, c.y, 7, 0, Math.PI*2);
+    calCtx.fill();
+    calCtx.fillStyle = '#000';
+    calCtx.font = 'bold 8px monospace';
+    calCtx.textAlign = 'center';
+    calCtx.textBaseline = 'middle';
+    calCtx.fillText(CLABELS[i], c.x, c.y);
+  });
+}
+
+// ── Wizard helpers ────────────────────────────────────────────────────────────
+function setWizStep(n) {
+  APP.wizStep = n;
+  document.querySelectorAll('.wdot').forEach((d, i) => {
+    d.classList.toggle('active', i === n - 1);
+    d.classList.toggle('done', i < n - 1);
+  });
+}
+
+function wizShow(step, instr, hints) {
+  setWizStep(step);
+  document.getElementById('wb-step').textContent = 'Step ' + step + ' of 4';
+  document.getElementById('wb-instr').textContent = instr;
+  document.getElementById('wb-hints').textContent = hints;
+  document.getElementById('wiz-bar').style.display = 'block';
+}
+
+// ── Corner drag + preview cursor ──────────────────────────────────────────────
+let _calDragIdx = -1;
+let _calDragMoved = false;
+const _calCursor    = document.getElementById('cal-cursor');
+const _calCursorLbl = document.getElementById('cal-cursor-label');
+const CLABELS = ['BL','BR','TR','TL'];
+
+function _posFromEvent(e) {
+  // Normalize mouse or touch to {x,y} relative to calCanvas
+  const r = calCanvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return {
+    x: Math.max(0, Math.min(calCanvas.width,  src.clientX - r.left)),
+    y: Math.max(0, Math.min(calCanvas.height, src.clientY - r.top))
+  };
+}
+
+function _showCalCursor(x, y) {
+  // On touch, offset upward so the finger doesn't cover the target
+  const isTouchDevice = window.matchMedia('(pointer:coarse)').matches;
+  const offsetY = isTouchDevice ? -64 : 0;
+  _calCursor.style.left = x + 'px';
+  _calCursor.style.top  = (y + offsetY) + 'px';
+  _calCursor.style.display = 'block';
+  const next = CAL.corners.length < 4 ? CLABELS[CAL.corners.length] : '';
+  _calCursorLbl.textContent = next;
+}
+
+function _hideCalCursor() { _calCursor.style.display = 'none'; }
+
+// Preview cursor follows mouse/touch on calCanvas (only during corner marking)
+calCanvas.addEventListener('mousemove', e => {
+  if (APP.wizStep !== 2 || _calDragIdx >= 0) return;
+  const p = _posFromEvent(e);
+  _showCalCursor(p.x, p.y);
+});
+calCanvas.addEventListener('mouseleave', () => { if (_calDragIdx < 0) _hideCalCursor(); });
+
+calCanvas.addEventListener('touchmove', e => {
+  if (APP.wizStep !== 2) return;
+  e.preventDefault();
+  const p = _posFromEvent(e);
+  if (_calDragIdx >= 0) {
+    // dragging an existing dot
+    _calDragMoved = true;
+    CAL.corners[_calDragIdx] = p;
+    renderCornerDots();
+    if (CAL.corners.length === 4 && CAL.wallW > 0 && CAL.wallH > 0) {
+      CAL.H = computeH(CAL.corners, CAL.wallW, CAL.wallH);
+      drawCalGrid();
+    }
+  } else {
+    _showCalCursor(p.x, p.y);
+  }
+}, { passive: false });
+
+calCanvas.addEventListener('touchend', e => {
+  if (APP.wizStep !== 2) return;
+  if (_calDragIdx >= 0) { _calDragIdx = -1; return; }
+  if (_calDragMoved)    { _calDragMoved = false; return; }
+  if (CAL.corners.length >= 4) return;
+  const r = calCanvas.getBoundingClientRect();
+  const src = e.changedTouches[0];
+  const isTouchDevice = window.matchMedia('(pointer:coarse)').matches;
+  const offsetY = isTouchDevice ? -64 : 0;
+  const cx = Math.max(0, Math.min(calCanvas.width,  src.clientX - r.left));
+  const cy = Math.max(0, Math.min(calCanvas.height, src.clientY - r.top + offsetY));
+  const HIT = 26;
+  if (CAL.corners.some(c => Math.hypot(c.x - cx, c.y - cy) < HIT)) return;
+  CAL.corners.push({ x: cx, y: cy });
+  renderCornerDots();
+  if (CAL.corners.length < 4) {
+    wizShow(2, CORNER_INSTRS[CAL.corners.length],
+      'Mark corners: Bottom-Left → Bottom-Right → Top-Right → Top-Left');
+    _calCursorLbl.textContent = CLABELS[CAL.corners.length];
+  } else {
+    _hideCalCursor();
+    _showDimsModal();
+  }
+});
+
+// Dot drag — mouse
+function _calDotMousedown(idx, e) {
+  e.stopPropagation(); e.preventDefault();
+  _calDragIdx = idx; _calDragMoved = false;
+}
+function _calDocMousemove(e) {
+  if (_calDragIdx < 0) return;
+  _calDragMoved = true;
+  CAL.corners[_calDragIdx] = _posFromEvent(e);
+  renderCornerDots();
+  if (CAL.corners.length === 4 && CAL.wallW > 0 && CAL.wallH > 0) {
+    CAL.H = computeH(CAL.corners, CAL.wallW, CAL.wallH);
+    drawCalGrid();
+  }
+}
+function _calDocMouseup() { _calDragIdx = -1; }
+document.addEventListener('mousemove', _calDocMousemove);
+document.addEventListener('mouseup',   _calDocMouseup);
+
+// Dot drag — touch
+function _calDotTouchstart(idx, e) {
+  e.stopPropagation(); e.preventDefault();
+  _calDragIdx = idx; _calDragMoved = false;
+}
+// touchmove on dots is handled by the calCanvas touchmove above (bubbles up)
+
+function renderCornerDots() {
+  document.querySelectorAll('.corner-dot').forEach(d => d.remove());
+  CAL.corners.forEach((c, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'corner-dot';
+    dot.textContent = CLABELS[i];
+    dot.style.left = c.x + 'px';
+    dot.style.top  = c.y + 'px';
+    dot.addEventListener('mousedown',  ev => _calDotMousedown(i, ev));
+    dot.addEventListener('touchstart', ev => _calDotTouchstart(i, ev), { passive: false });
+    container.appendChild(dot);
+  });
+  // Update cursor label to next corner
+  if (_calCursorLbl && CAL.corners.length < 4) {
+    _calCursorLbl.textContent = CLABELS[CAL.corners.length];
+  }
+}
+
+const CORNER_INSTRS = [
+  'Click the bottom-left corner of the wall.',
+  'Click the bottom-right corner.',
+  'Click the top-right corner.',
+  'Click the top-left corner (last one!).',
+];
+
+function startCornerMark() {
+  CAL.corners = [];
+  CAL.H = null;
+  calCanvas.style.display = 'block';
+  calCanvas.style.cursor = 'none';  // preview cursor handles it
+  calCtx.clearRect(0, 0, calCanvas.width, calCanvas.height);
+  document.querySelectorAll('.corner-dot').forEach(d => d.remove());
+  _calCursorLbl.textContent = CLABELS[0];
+  canvas.style.opacity = '0';  // hide 3D scene so photo is clear
+  document.getElementById('dims-modal').classList.remove('open');
+  document.getElementById('grid-check-bar').classList.remove('open');
+  document.getElementById('undo-corner-btn').style.display = 'inline-flex';
+  document.getElementById('skip-cal-btn').style.display = 'inline-flex';
+  wizShow(2, CORNER_INSTRS[0], 'Mark corners: Bottom-Left → Bottom-Right → Top-Right → Top-Left');
+}
+
+// ── Photo input / wizard start ────────────────────────────────────────────────
+function onWizPhoto(src) {
+  APP.photoSrc = src;
+  container.style.backgroundImage = 'url("' + src + '")';
+  document.getElementById('wizard-overlay').style.display = 'none';
+  startCornerMark();
+}
+
+document.getElementById('wiz-file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => onWizPhoto(ev.target.result);
+  reader.readAsDataURL(f);
+});
+
+document.getElementById('skip-wizard-btn').addEventListener('click', () => {
+  document.getElementById('wizard-overlay').style.display = 'none';
+  finishCal();
+});
+
+document.getElementById('skip-cal-btn').addEventListener('click', () => finishCal());
+
+document.getElementById('photo-input').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    APP.photoSrc = ev.target.result;
+    container.style.backgroundImage = 'url("' + ev.target.result + '")';
+  };
+  reader.readAsDataURL(f);
+});
+
+// ── Corner click capture ──────────────────────────────────────────────────────
+calCanvas.addEventListener('click', e => {
+  if (APP.wizStep !== 2) return;
+  if (_calDragMoved) { _calDragMoved = false; return; }   // was a drag, not a click
+  if (CAL.corners.length >= 4) return;
+  const r = calCanvas.getBoundingClientRect();
+  const cx = e.clientX - r.left, cy = e.clientY - r.top;
+  // Don't place a new corner if clicking on an existing dot
+  const HIT = 18;
+  if (CAL.corners.some(c => Math.hypot(c.x - cx, c.y - cy) < HIT)) return;
+  CAL.corners.push({ x: cx, y: cy });
+  renderCornerDots();
+
+  if (CAL.corners.length < 4) {
+    wizShow(2, CORNER_INSTRS[CAL.corners.length],
+      'Mark corners: Bottom-Left → Bottom-Right → Top-Right → Top-Left');
+  } else {
+    _hideCalCursor();
+    _showDimsModal();
+  }
+});
+
+document.getElementById('undo-corner-btn').addEventListener('click', () => {
+  if (!CAL.corners.length) return;
+  CAL.corners.pop();
+  renderCornerDots();
+  drawCalGrid();
+  _calCursorLbl.textContent = CLABELS[CAL.corners.length] || '';
+  wizShow(2, CORNER_INSTRS[CAL.corners.length],
+    'Mark corners: Bottom-Left → Bottom-Right → Top-Right → Top-Left');
+});
+
+// ── Dimensions confirm → compute H → show grid ────────────────────────────────
+document.getElementById('confirm-dims-btn').addEventListener('click', () => {
+  const wFt = parseFloat(document.getElementById('wall-w-ft').value) || 0;
+  const wIn = parseFloat(document.getElementById('wall-w-in').value) || 0;
+  const hFt = parseFloat(document.getElementById('wall-h-ft').value) || 0;
+  const hIn = parseFloat(document.getElementById('wall-h-in').value) || 0;
+  const W = wFt * 12 + wIn;
+  const H = hFt * 12 + hIn;
+  if (W < 12 || H < 12) { showHint('Enter valid dimensions (at least 1 foot each)'); return; }
+
+  CAL.wallW = W;
+  CAL.wallH = H;
+  CAL.H = computeH(CAL.corners, W, H);
+  if (!CAL.H) { showHint('Calibration math failed — try re-marking the corners'); return; }
+
+  drawCalGrid();
+  document.getElementById('dims-modal').classList.remove('open');
+  document.getElementById('grid-check-bar').classList.add('open');
+  document.getElementById('wiz-bar').style.display = 'none';
+});
+
+document.getElementById('redo-corners-btn').addEventListener('click', startCornerMark);
+document.getElementById('dims-redo-btn').addEventListener('click', startCornerMark);
+
+document.getElementById('confirm-cal-btn').addEventListener('click', () => {
+  applyCameraCalibration();
+  finishCal();
+  document.getElementById('btn-autofill').style.display = 'inline-flex';
+  showHint('Calibrated! ✓ Click "Auto-Fill Wall" or pick a shelf from the library');
+});
+
+function finishCal() {
+  calCanvas.style.display = 'none';
+  document.getElementById('wiz-bar').style.display = 'none';
+  document.getElementById('dims-modal').classList.remove('open');
+  document.getElementById('grid-check-bar').classList.remove('open');
+  document.querySelectorAll('.corner-dot').forEach(d => d.remove());
+  _hideCalCursor();
+  canvas.style.opacity = '1';  // restore 3D scene
+  APP.wizStep = 0;
+  updateStatus();
+}
+
+function _showDimsModal() {
+  document.getElementById('wiz-bar').style.display = 'none';
+  document.getElementById('dims-modal').classList.add('open');
+  document.getElementById('wall-h-ft').value = 8;  // common ceiling height default
+  document.getElementById('wall-w-ft').focus();
+}
+
+// ── Three.js camera matching ──────────────────────────────────────────────────
+function norm3(v) {
+  const l = Math.sqrt(v[0]**2 + v[1]**2 + v[2]**2);
+  return v.map(x => x / l);
+}
+function cross3(a, b) {
+  return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+}
+function dot3(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
+
+function applyCameraCalibration() {
+  if (!CAL.H) return;
+  const Hm = CAL.H;
+  const cx = container.clientWidth / 2;
+  const cy = container.clientHeight / 2;
+
+  // Columns of H
+  const h1 = [Hm[0], Hm[3], Hm[6]];
+  const h2 = [Hm[1], Hm[4], Hm[7]];
+  const h3 = [Hm[2], Hm[5], Hm[8]];
+
+  // Estimate focal length: orthogonality (K^-1 h1)·(K^-1 h2) = 0
+  // K^-1 h = [(hx-cx*hz)/f, (hy-cy*hz)/f, hz]
+  const a = (h1[0]-cx*h1[2])*(h2[0]-cx*h2[2]) + (h1[1]-cy*h1[2])*(h2[1]-cy*h2[2]);
+  const b = h1[2] * h2[2];
+  let f2 = Math.abs(b) > 1e-6 ? -a / b : null;
+
+  if (!f2 || f2 <= 0) {
+    // Fallback: equal-norm constraint
+    const na = (h1[0]-cx*h1[2])**2 + (h1[1]-cy*h1[2])**2;
+    const nb = (h2[0]-cx*h2[2])**2 + (h2[1]-cy*h2[2])**2;
+    const denom = h2[2]**2 - h1[2]**2;
+    f2 = Math.abs(denom) > 1e-6 ? (na - nb) / denom : null;
+  }
+  if (!f2 || f2 <= 0) f2 = (container.clientHeight * 1.15)**2; // phone-camera default
+
+  const f = Math.sqrt(f2);
+
+  function kinvh(h) {
+    return [(h[0]-cx*h[2])/f, (h[1]-cy*h[2])/f, h[2]];
+  }
+
+  const kh1 = kinvh(h1);
+  const len1 = Math.sqrt(kh1.reduce((s,v) => s+v*v, 0));
+  const r1 = norm3(kh1);
+  const r2 = norm3(kinvh(h2));
+  const r3 = cross3(r1, r2);
+
+  const lambda = 1 / len1;
+  const kh3 = kinvh(h3);
+  const t = kh3.map(v => v * lambda);
+
+  // Camera position in world: C = -R^T t
+  const camPos = [-dot3(r1,t), -dot3(r2,t), -dot3(r3,t)];
+
+  // Vertical FOV
+  const fovDeg = 2 * Math.atan(container.clientHeight / 2 / f) * 180 / Math.PI;
+
+  camera.fov = Math.max(20, Math.min(110, fovDeg));
+  camera.updateProjectionMatrix();
+  camera.position.set(camPos[0], camPos[1], camPos[2]);
+  camera.lookAt(CAL.wallW / 2, CAL.wallH / 2, 0);
+
+  // Switch drag plane to wall-surface (Z=0 XY plane, items drag along wall)
+  dragPlane.setFromNormalAndCoplanarPoint(
+    new THREE.Vector3(0, 0, 1),
+    new THREE.Vector3(0, 0, 0)
+  );
+
+  // Hide floor grid — it clashes with the photo floor
+  grid.visible = false;
+  ground.visible = false;
+
+  APP.scale.ppi = 1; // scene unit = 1 inch
+  APP.floorY = 0;
+  updateStatus();
+}
+
+// ─── AUTO-FILL WALL ───────────────────────────────────────────────────────────
+function autoFillWall() {
+  if (!CAL.H || CAL.wallW < 12) { showHint('Calibrate the wall first, then use Auto-Fill'); return; }
+
+  ITEMS.forEach(it => scene.remove(it.group));
+  ITEMS.length = 0;
+  deselect();
+
+  const H = FILL_CONFIG.heightMode === 'custom' && FILL_CONFIG.customH > 0
+    ? FILL_CONFIG.customH : CAL.wallH;
+  const D = FILL_CONFIG.depth;
+  const sp = FILL_CONFIG.spacing;
+
+  let startX = 0, availW = CAL.wallW;
+  if (FILL_CONFIG.bay === 'left')  { startX = FILL_CONFIG.bayW; availW -= FILL_CONFIG.bayW; }
+  else if (FILL_CONFIG.bay === 'right') availW -= FILL_CONFIG.bayW;
+  if (availW < 12) { showHint('Bay too wide — reduce bay width'); return; }
+
+  const MAX_SPAN = 96;
+  const unitCount = Math.ceil(availW / MAX_SPAN);
+  const unitW = availW / unitCount;
+
+  for (let i = 0; i < unitCount; i++) {
+    const lib = { id:'lumber-auto', name:'Lumber Shelf '+Math.round(unitW)+'"',
+                  widthIn:unitW, heightIn:H, depthIn:D, color:'#D4A86A',
+                  mount:'floor', priceRange:[0,0], store:'Cut lumber' };
+    const grp = buildLumberShelf(unitW, H, D, sp);
+    grp.userData = { isItem:true, id:lib.id, ud:{...lib} };
+    grp.position.set(startX + i * unitW, 0, 0);
+    scene.add(grp);
+    ITEMS.push({ group:grp, ud:{...lib} });
+  }
+
+  selectItem(ITEMS[0]);
+  updateStatus();
+  updateMaterials();
+  pushUndo();
+  const bayNote = FILL_CONFIG.bay !== 'none' ? ' + '+Math.round(FILL_CONFIG.bayW/12)+'ft open bay' : '';
+  showHint(unitCount + ' unit' + (unitCount>1?'s':'') + ' • ' + Math.round(H/12) + "' tall × " + Math.round(D) + '" deep' + bayNote);
+}
+
+// ─── LIBRARY SIDEBAR ─────────────────────────────────────────────────────────
+function renderLibrary(containerId) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  LIBRARY.forEach(lib => {
+    const price = lib.priceRange[0] === 0 ? 'Custom' : '$' + lib.priceRange[0] + '+';
+    const dims = lib.widthIn + '"W × ' + lib.heightIn + '"H';
+    const card = document.createElement('div');
+    card.className = 'lib-card';
+    card.setAttribute('data-testid', 'lib-item');
+    card.innerHTML =
+      '<div class="cdot" style="background:' + lib.color + '"></div>' +
+      '<div><div class="cname">' + lib.name + '</div><div class="cdims">' + dims + '</div></div>' +
+      '<div class="cprice">' + price + '</div>';
+    card.addEventListener('click', () => {
+      addItem(lib);
+      if (containerId === 'mob-lib-list') closeMobDrawer();
+    });
+    el.appendChild(card);
+  });
+}
+
+renderLibrary('lib-list');
+renderLibrary('mob-lib-list');
+
+// ─── MOBILE DRAWER ────────────────────────────────────────────────────────────
+const mobOverlay = document.getElementById('mob-overlay');
+const mobDrawer = document.getElementById('mob-drawer');
+document.getElementById('hamburger-btn').addEventListener('click', () => {
+  mobDrawer.classList.add('open');
+  mobOverlay.style.display = 'block';
+});
+function closeMobDrawer() {
+  mobDrawer.classList.remove('open');
+  mobOverlay.style.display = 'none';
+}
+mobOverlay.addEventListener('click', closeMobDrawer);
+document.getElementById('close-drawer-btn').addEventListener('click', closeMobDrawer);
+
+// ─── UNDO/REDO ────────────────────────────────────────────────────────────────
+function serializeState() {
+  return ITEMS.map(it => ({
+    id: it.ud.id,
+    position: { x: it.group.position.x, y: it.group.position.y, z: it.group.position.z },
+    rotation: { y: it.group.rotation.y },
+    ud: { ...it.ud }
+  }));
+}
+
+function restoreState(state) {
+  ITEMS.forEach(it => scene.remove(it.group));
+  ITEMS.length = 0;
+  deselect();
+  state.forEach(s => {
+    const lib = LIBRARY.find(l => l.id === s.id) || s.ud;
+    const grp = buildItem(lib);
+    grp.userData = { isItem: true, id: lib.id, ud: { ...lib } };
+    grp.position.set(s.position.x, s.position.y, s.position.z);
+    grp.rotation.y = s.rotation.y;
+    scene.add(grp);
+    ITEMS.push({ group: grp, ud: { ...lib } });
+  });
+  updateStatus();
+  updateMaterials();
+}
+
+function pushUndo() {
+  APP.undoStack.push(JSON.parse(JSON.stringify(serializeState())));
+  if (APP.undoStack.length > 50) APP.undoStack.shift();
+  APP.redoStack = [];
+}
+
+document.getElementById('btn-undo').addEventListener('click', () => {
+  if (APP.undoStack.length === 0) return;
+  APP.redoStack.push(JSON.parse(JSON.stringify(serializeState())));
+  const prev = APP.undoStack.pop();
+  restoreState(prev);
+});
+
+document.getElementById('btn-redo').addEventListener('click', () => {
+  if (APP.redoStack.length === 0) return;
+  APP.undoStack.push(JSON.parse(JSON.stringify(serializeState())));
+  const next = APP.redoStack.pop();
+  restoreState(next);
+});
+
+// ─── EXPORT PNG ────────────────────────────────────────────────────────────────
+document.getElementById('btn-export-png').addEventListener('click', () => {
+  renderer.render(scene, camera);
+  const threeURL = renderer.domElement.toDataURL('image/png');
+  if (!APP.photoSrc) {
+    const a = document.createElement('a'); a.href = threeURL; a.download = 'garageplan.png'; a.click();
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = renderer.domElement.width;
+    c.height = renderer.domElement.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    const t2 = new Image();
+    t2.onload = () => {
+      ctx.drawImage(t2, 0, 0);
+      c.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'garageplan.png';
+        a.click();
+      });
+    };
+    t2.src = threeURL;
+  };
+  img.src = APP.photoSrc;
+});
+
+// ─── SAVE / LOAD JSON ─────────────────────────────────────────────────────────
+document.getElementById('btn-save').addEventListener('click', () => {
+  const data = {
+    version: 3,
+    photoSrc: APP.photoSrc,
+    scale: APP.scale,
+    floorY: APP.floorY,
+    items: serializeState()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'garageplan.json';
+  a.click();
+});
+
+document.getElementById('load-input').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.photoSrc) {
+        APP.photoSrc = data.photoSrc;
+        container.style.backgroundImage = 'url("' + data.photoSrc + '")';
+      }
+      if (data.scale) APP.scale = data.scale;
+      if (data.floorY !== undefined) APP.floorY = data.floorY;
+      restoreState(data.items || []);
+      document.getElementById('wizard-overlay').style.display = 'none';
+      APP.wizStep = 0;
+    } catch (err) {
+      alert('Failed to load file: ' + err.message);
+    }
+  };
+  reader.readAsText(f);
+});
+
+// ─── COPY LIST / EXPORT CSV ───────────────────────────────────────────────────
+document.getElementById('btn-copy-list').addEventListener('click', () => {
+  const counts = {};
+  ITEMS.forEach(it => { const k = it.ud.id; counts[k] = (counts[k]||0)+1; });
+  const lines = ['GaragePlan Shopping List', ''];
+  Object.keys(counts).forEach(k => {
+    const lib = LIBRARY.find(l => l.id === k); if (!lib) return;
+    const price = lib.priceRange[0] === 0 ? 'Custom' : '$'+lib.priceRange[0]+'–$'+lib.priceRange[1];
+    lines.push(counts[k] + 'x ' + lib.name + ' — ' + price + ' — ' + lib.store);
+  });
+  navigator.clipboard.writeText(lines.join('\n')).then(() => showHint('Shopping list copied!'));
+});
+
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  const counts = {};
+  ITEMS.forEach(it => { const k = it.ud.id; counts[k] = (counts[k]||0)+1; });
+  let csv = 'Qty,Name,Width,Height,Depth,Price Low,Price High,Store\n';
+  Object.keys(counts).forEach(k => {
+    const lib = LIBRARY.find(l => l.id === k); if (!lib) return;
+    csv += [counts[k], lib.name, lib.widthIn, lib.heightIn, lib.depthIn,
+            lib.priceRange[0], lib.priceRange[1], lib.store].join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'garageplan.csv'; a.click();
+});
+
+// ─── DRAG-AND-DROP ON DROPZONE ───────────────────────────────────────────────
+const dropzone = document.getElementById('dropzone');
+['dragover','dragenter'].forEach(ev => {
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); });
+});
+['dragleave','drop'].forEach(ev => {
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); });
+});
+dropzone.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => onWizPhoto(ev.target.result);
+  reader.readAsDataURL(f);
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+updateStatus();
+updateMaterials();
+showHint('Upload a photo to get started, or skip to plan with an empty scene');
+
+// ─── FILL CONFIG PANEL ────────────────────────────────────────────────────────────
+function makeToggleGroup(containerId, onSelect) {
+  document.getElementById(containerId).querySelectorAll('.fc-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById(containerId).querySelectorAll('.fc-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onSelect(btn.dataset.val);
+    });
+  });
+}
+
+makeToggleGroup('fc-t-depth', v => { FILL_CONFIG.depth = parseInt(v); });
+makeToggleGroup('fc-t-spacing', v => { FILL_CONFIG.spacing = parseInt(v); });
+makeToggleGroup('fc-t-height', v => {
+  FILL_CONFIG.heightMode = v;
+  document.getElementById('fc-custom-h').style.display = v === 'custom' ? 'flex' : 'none';
+});
+makeToggleGroup('fc-t-bay', v => {
+  FILL_CONFIG.bay = v;
+  document.getElementById('fc-bay-w').style.display = v !== 'none' ? 'flex' : 'none';
+});
+
+document.getElementById('fc-apply-btn').addEventListener('click', () => {
+  if (FILL_CONFIG.heightMode === 'custom') {
+    const ft = parseFloat(document.getElementById('fc-h-ft').value)||6;
+    const inc = parseFloat(document.getElementById('fc-h-in').value)||0;
+    FILL_CONFIG.customH = ft*12 + inc;
+  }
+  if (FILL_CONFIG.bay !== 'none') {
+    FILL_CONFIG.bayW = (parseFloat(document.getElementById('fc-bay-ft').value)||3) * 12;
+  }
+  document.getElementById('fill-config').style.display = 'none';
+  autoFillWall();
+});
+
+// Auto-Fill button toggles config panel
+document.getElementById('btn-autofill').addEventListener('click', () => {
+  const panel = document.getElementById('fill-config');
+  const propsPanel = document.getElementById('props-panel');
+  propsPanel.style.display = 'none';
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+// Close panels on outside click
+document.addEventListener('click', e => {
+  const fc = document.getElementById('fill-config');
+  const pp = document.getElementById('props-panel');
+  const afBtn = document.getElementById('btn-autofill');
+  if (!fc.contains(e.target) && e.target !== afBtn) fc.style.display = 'none';
+  if (!pp.contains(e.target)) pp.style.display = 'none';
+});
+
+// Expose for Sentinel tests and Puppeteer testing
+window.APP = APP;
+window.ITEMS = ITEMS;
+window.LIBRARY = LIBRARY;
+window.onWizPhoto = onWizPhoto;
+window.addItem = addItem;
+window.autoFillWall = autoFillWall;
+window.CAL = CAL;
+</script>
+</body>
+</html>

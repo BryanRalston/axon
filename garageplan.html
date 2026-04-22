@@ -457,21 +457,95 @@ function makeWoodTex() {
   const c = document.createElement('canvas');
   c.width = sz; c.height = sz;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#C4834A';
+
+  // Fresh-cut SPF pine — pale straw base
+  ctx.fillStyle = '#D6B87A';
   ctx.fillRect(0, 0, sz, sz);
-  for (let i = 0; i < 28; i++) {
-    const x = (sz / 28) * i + (Math.random() - 0.5) * 8;
+
+  // Subtle row-by-row luminance variation (like saw-milled surface)
+  for (let y = 0; y < sz; y += 3) {
+    const v = (Math.random() - 0.5) * 0.06;
+    ctx.fillStyle = `rgba(${v>0?255:0},${v>0?255:0},${v>0?255:0},${Math.abs(v)})`;
+    ctx.fillRect(0, y, sz, 3);
+  }
+
+  // Dense vertical grain (growth rings on face-cut lumber)
+  for (let i = 0; i < 55; i++) {
+    const x = (sz / 55) * i + (Math.random() - 0.5) * 5;
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    const cp1x = x + (Math.random() - 0.5) * 30;
-    const cp1y = sz * 0.33;
-    const cp2x = x + (Math.random() - 0.5) * 30;
-    const cp2y = sz * 0.66;
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x + (Math.random()-0.5)*20, sz);
-    const alpha = 0.08 + Math.random() * 0.07;
-    ctx.strokeStyle = `rgba(80,40,10,${alpha})`;
-    ctx.lineWidth = 0.5 + Math.random() * 1.0;
+    const cp1x = x + (Math.random() - 0.5) * 18;
+    const cp2x = x + (Math.random() - 0.5) * 18;
+    ctx.bezierCurveTo(cp1x, sz*0.35, cp2x, sz*0.65, x+(Math.random()-0.5)*14, sz);
+    const alpha = 0.13 + Math.random() * 0.2;
+    ctx.strokeStyle = `rgba(95,52,12,${alpha})`;
+    ctx.lineWidth = 0.6 + Math.random() * 1.8;
     ctx.stroke();
+  }
+
+  // 1–3 realistic knots
+  const knotCount = 1 + Math.floor(Math.random() * 2);
+  for (let k = 0; k < knotCount; k++) {
+    const kx = 70 + Math.random() * (sz - 140);
+    const ky = 50 + Math.random() * (sz - 100);
+    const kr = 10 + Math.random() * 22;
+    const grd = ctx.createRadialGradient(kx, ky, 0, kx, ky, kr);
+    grd.addColorStop(0,   'rgba(45,22,5,0.9)');
+    grd.addColorStop(0.35,'rgba(80,48,18,0.65)');
+    grd.addColorStop(0.7, 'rgba(115,72,30,0.3)');
+    grd.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.ellipse(kx, ky, kr, kr * 0.72, Math.random()*Math.PI, 0, Math.PI*2);
+    ctx.fill();
+    // Ring lines radiating from knot
+    for (let r = kr * 1.1; r < kr * 3.2; r += 3.5) {
+      ctx.beginPath();
+      ctx.ellipse(kx, ky, r, r * 0.65, 0.1, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(80,44,14,${Math.max(0, 0.14 - r/(kr*20))})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+  }
+
+  // Saw marks — faint horizontal scoring
+  for (let i = 0; i < 10; i++) {
+    const y = Math.random() * sz;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(sz, y + (Math.random()-0.5)*2);
+    ctx.strokeStyle = `rgba(70,38,12,${0.03 + Math.random()*0.04})`;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function makePlywoodTex() {
+  const sz = 512;
+  const c = document.createElement('canvas');
+  c.width = sz; c.height = sz;
+  const ctx = c.getContext('2d');
+  // Face veneer — horizontal grain runs along shelf width
+  ctx.fillStyle = '#C8943C';
+  ctx.fillRect(0, 0, sz, sz);
+  for (let i = 0; i < 64; i++) {
+    const y = (sz / 64) * i + (Math.random()-0.5)*3;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    for (let x = 0; x <= sz; x += 24) ctx.lineTo(x, y+(Math.random()-0.5)*1.5);
+    ctx.strokeStyle = `rgba(85,44,10,${0.05+Math.random()*0.11})`;
+    ctx.lineWidth = 0.5 + Math.random() * 0.8;
+    ctx.stroke();
+  }
+  // Occasional dark streak (glue/veneer join)
+  for (let i = 0; i < 4; i++) {
+    const y = Math.random() * sz;
+    ctx.fillStyle = `rgba(80,40,10,0.14)`;
+    ctx.fillRect(0, y, sz, 1.5 + Math.random()*3);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -500,8 +574,9 @@ function makePegTex() {
 }
 
 // ─── MATERIALS ────────────────────────────────────────────────────────────────
-const woodTex = makeWoodTex();
-const pegTex = makePegTex();
+const woodTex    = makeWoodTex();
+const plywoodTex = makePlywoodTex();
+const pegTex     = makePegTex();
 
 function mat(params) { return new THREE.MeshStandardMaterial(params); }
 
@@ -519,9 +594,9 @@ const MATS = {
   bluePlastic: mat({color:0x2563EB, metalness:0.08, roughness:0.42}),
   blackHook:   mat({color:0x1E2430, metalness:0.3,  roughness:0.55}),
   wireFrame:   mat({color:0x5C6B75, metalness:0.55, roughness:0.38}),
-  pine:        mat({color:0xD4A86A, metalness:0.0,  roughness:0.86, map: woodTex}),
-  plywood:     mat({color:0xC2924A, metalness:0.0,  roughness:0.90}),
-  pineEnd:     mat({color:0xC49658, metalness:0.0,  roughness:0.88}),
+  pine:        mat({color:0xD4AA6A, metalness:0.0,  roughness:0.92, map: woodTex}),
+  plywood:     mat({color:0xC28A40, metalness:0.0,  roughness:0.94, map: plywoodTex}),
+  pineEnd:     mat({color:0xB8824A, metalness:0.0,  roughness:0.96}), // darker end grain
 };
 
 function shadow(mesh) {
@@ -905,7 +980,7 @@ renderer.setClearColor(0x000000, 0);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 0.88;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setPixelRatio(window.devicePixelRatio);
 
@@ -920,27 +995,33 @@ const pmrem = new PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
 pmrem.dispose();
 
-// Lights
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+// Lights — tuned for garage interior: diffuse overhead + slight front fill
+scene.add(new THREE.AmbientLight(0xfff8f0, 0.55)); // warm white ambient
 
-const dirLight = new THREE.DirectionalLight(0xfff4e0, 2.2);
-dirLight.position.set(250, 450, 220);
+const dirLight = new THREE.DirectionalLight(0xfff5e8, 1.8);
+dirLight.position.set(0, 600, 400); // overhead-front, no lateral bias
 dirLight.castShadow = true;
-dirLight.shadow.mapSize.width = 2048;
-dirLight.shadow.mapSize.height = 2048;
-dirLight.shadow.camera.left = -350;
-dirLight.shadow.camera.right = 350;
-dirLight.shadow.camera.top = 250;
-dirLight.shadow.camera.bottom = -250;
-dirLight.shadow.bias = -0.0005;
+dirLight.shadow.mapSize.width  = 4096;
+dirLight.shadow.mapSize.height = 4096;
+dirLight.shadow.camera.left   = -300;
+dirLight.shadow.camera.right  =  300;
+dirLight.shadow.camera.top    =  300;
+dirLight.shadow.camera.bottom = -50;
+dirLight.shadow.bias = -0.0003;
+dirLight.shadow.normalBias = 0.02;
 scene.add(dirLight);
 
-scene.add(new THREE.HemisphereLight(0x87CEEB, 0x444440, 0.5));
+// Subtle fill from below/front — bounced concrete floor light
+const fillLight = new THREE.DirectionalLight(0xe8f0ff, 0.35);
+fillLight.position.set(0, -100, 300);
+scene.add(fillLight);
 
-// Ground plane
+scene.add(new THREE.HemisphereLight(0xfff4e0, 0x888870, 0.4));
+
+// Ground shadow plane
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(4000, 4000),
-  new THREE.ShadowMaterial({ opacity: 0.4, transparent: true })
+  new THREE.ShadowMaterial({ opacity: 0.55, transparent: true })
 );
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0;
@@ -1924,7 +2005,16 @@ function applyCameraCalibration() {
 
   // Hide floor grid — it clashes with the photo floor
   grid.visible = false;
-  ground.visible = false;
+  // ground stays visible — ShadowMaterial only renders shadows, transparent elsewhere
+
+  // Wall shadow receiver (vertical plane just behind shelf units)
+  const wallShadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(CAL.wallW * 2, CAL.wallH * 2),
+    new THREE.ShadowMaterial({ opacity: 0.18, transparent: true })
+  );
+  wallShadow.position.set(CAL.wallW / 2, CAL.wallH / 2, -1);
+  wallShadow.receiveShadow = true;
+  scene.add(wallShadow);
 
   APP.scale.ppi = 1; // scene unit = 1 inch
   APP.floorY = 0;

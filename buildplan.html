@@ -112,7 +112,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 .sel-action-btn:hover{border-color:var(--accent);color:var(--accent);}
 
 /* ── Cut List Panel ── */
-#cutlist-panel{position:fixed;top:52px;right:-420px;bottom:0;width:400px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);z-index:800;display:flex;flex-direction:column;transition:right .3s ease;}
+#cutlist-panel{position:fixed;top:52px;right:-420px;bottom:0;width:400px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);z-index:1100;display:flex;flex-direction:column;transition:right .3s ease;}
 #cutlist-panel.open{right:0;}
 .cl-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .cl-header h3{font-size:15px;font-weight:700;}
@@ -1473,9 +1473,8 @@ function getFloorPos() {
   raycaster.setFromCamera(mouse3d, camera);
   const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
   const target = new THREE.Vector3();
-  raycaster.ray.intersectPlane(plane, target);
-  if (!target) return null;
-  // Snap to 1"
+  const hit = raycaster.ray.intersectPlane(plane, target);
+  if (!hit) return null;
   return { x: snap(target.x,1), z: snap(target.z,1) };
 }
 
@@ -1876,7 +1875,7 @@ function buildCutList(){
 
     // Purchase: how many standard pieces needed
     const stockLen=lt.l;
-    let totalInches=pieces.reduce((s,p)=>s+(item._customLen||stockLen),0);
+    let totalInches=pieces.reduce((s,p)=>s+p.len,0);
     const needed=Math.ceil(pieces.reduce((s,p)=>s+(p.len/stockLen),0));
     if(!purchase[lt.id]) purchase[lt.id]={lt,needed:0};
     purchase[lt.id].needed+=needed;

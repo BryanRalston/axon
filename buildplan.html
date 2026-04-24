@@ -348,7 +348,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     </div>
   </div>
   <!-- Wall properties panel (slides in from right when wall selected) -->
-  <div id="wall-props" style="display:none;position:absolute;top:0;right:0;bottom:0;width:220px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);padding:16px;z-index:100;display:none;flex-direction:column;gap:14px;">
+  <div id="wall-props" style="position:absolute;top:52px;right:0;bottom:28px;width:220px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);padding:16px;z-index:200;display:none;flex-direction:column;gap:14px;">
     <div style="font-size:13px;font-weight:700;color:var(--text-primary);">Wall Properties</div>
     <div style="display:flex;flex-direction:column;gap:6px;">
       <label style="font-size:11px;color:var(--text-muted);">LENGTH (ft)</label>
@@ -372,7 +372,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
         <option value="8">8" concrete block</option>
       </select>
     </div>
-    <button onclick="APP.selectedWall=null;renderPlanWalls();document.getElementById('wall-props').style.display='none';"
+    <button onclick="closeWallProps()"
       style="margin-top:auto;padding:7px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;">
       Done
     </button>
@@ -857,7 +857,8 @@ function renderPlanWalls() {
     const hitLine = document.createElementNS('http://www.w3.org/2000/svg','line');
     hitLine.setAttribute('x1',w.x1); hitLine.setAttribute('y1',w.y1);
     hitLine.setAttribute('x2',w.x2); hitLine.setAttribute('y2',w.y2);
-    hitLine.setAttribute('stroke','transparent'); hitLine.setAttribute('stroke-width','18');
+    hitLine.setAttribute('stroke','rgba(0,0,0,0)'); hitLine.setAttribute('stroke-width','18');
+    hitLine.setAttribute('pointer-events','stroke');
     hitLine.style.cursor = 'pointer';
     hitLine.addEventListener('mouseenter',()=>{ APP.hoveredWall=i; renderPlanWalls(); });
     hitLine.addEventListener('mouseleave',()=>{ APP.hoveredWall=null; renderPlanWalls(); });
@@ -903,12 +904,19 @@ function renderPlanWalls() {
 function showWallProps(wallIdx) {
   const w = PLAN.walls[wallIdx];
   if (!w) return;
+  APP.selectedWall = wallIdx;
   const panel = document.getElementById('wall-props');
   document.getElementById('wp-length').value = parseFloat((wallLength(w)/12).toFixed(2));
   document.getElementById('wp-height').value = parseFloat(((w.height||PLAN.ceilingH)/12).toFixed(2));
   document.getElementById('wp-thickness').value = w.thickness || 3.5;
   panel.style.display = 'flex';
 }
+
+window.closeWallProps = function() {
+  APP.selectedWall = null;
+  renderPlanWalls();
+  document.getElementById('wall-props').style.display = 'none';
+};
 
 window.applyWallProp = function(prop, val) {
   const i = APP.selectedWall;
@@ -2114,6 +2122,14 @@ showOnboardTip();
 setTool('draw');
 // Show template screen
 document.getElementById('template-screen').style.display='flex';
+
+// ── Expose internals for tests & inline handlers ──
+window.APP   = APP;
+window.ITEMS = ITEMS;
+window.PLAN  = PLAN;
+window.renderPlanWalls = renderPlanWalls;
+window.eraseWall = eraseWall;
+window.LUMBER_TYPES = LUMBER_TYPES;
 </script>
 </body>
 </html>

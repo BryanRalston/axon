@@ -1242,12 +1242,23 @@ function initThree() {
   const W = wrap.clientWidth||800, H = wrap.clientHeight||600;
   camera = new THREE.PerspectiveCamera(50, W/H, 1, 100000);
 
-  const cx = PLAN.floorW/2, cz = PLAN.floorD/2;
-  camera.position.set(cx, PLAN.ceilingH*1.4, cz+PLAN.floorD*1.2);
-  camera.lookAt(cx, 0, cz);
+  // Room center accounts for polygon offset
+  const xs = PLAN.polygon.map(p=>p.x), ys = PLAN.polygon.map(p=>p.y);
+  const minX = Math.min(...xs), minY = Math.min(...ys);
+  const cx = minX + PLAN.floorW/2, cz = minY + PLAN.floorD/2;
 
+  // Isometric 3/4 view: outside the room at a corner angle looking down into the space
+  const roomCx = minX + PLAN.floorW/2;
+  const roomCz = minY + PLAN.floorD/2;
+  const roomR  = Math.max(PLAN.floorW, PLAN.floorD);
+  camera.position.set(
+    roomCx + roomR * 0.85,
+    PLAN.ceilingH * 1.6,
+    minY + PLAN.floorD + roomR * 0.75
+  );
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(cx, PLAN.ceilingH*0.3, cz);
+  controls.target.set(roomCx, PLAN.ceilingH * 0.25, roomCz);
+  camera.lookAt(controls.target.x, controls.target.y, controls.target.z);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 12;
@@ -1264,12 +1275,17 @@ function initThree() {
 }
 
 function setupLights() {
-  scene.add(new THREE.AmbientLight(0xfff8f0, 0.5));
+  scene.add(new THREE.AmbientLight(0xfff8f0, 0.55));
   const dir = new THREE.DirectionalLight(0xfff5e8, 1.8);
-  dir.position.set(200,400,200); dir.castShadow=true;
+  const xs = PLAN.polygon.map(p=>p.x), ys = PLAN.polygon.map(p=>p.y);
+  const cx = Math.min(...xs)+PLAN.floorW/2, cz = Math.min(...ys)+PLAN.floorD/2;
+  dir.position.set(cx + PLAN.floorW*0.3, PLAN.ceilingH*2, cz + PLAN.floorD*0.5);
+  dir.target.position.set(cx, 0, cz);
+  scene.add(dir.target);
+  dir.castShadow=true;
   dir.shadow.mapSize.set(2048,2048);
-  dir.shadow.camera.near=10; dir.shadow.camera.far=2000;
-  const s=Math.max(PLAN.floorW,PLAN.floorD)*0.8;
+  dir.shadow.camera.near=10; dir.shadow.camera.far=PLAN.ceilingH*6;
+  const s=Math.max(PLAN.floorW,PLAN.floorD)*0.75;
   dir.shadow.camera.left=-s; dir.shadow.camera.right=s;
   dir.shadow.camera.top=s; dir.shadow.camera.bottom=-s;
   scene.add(dir);
@@ -1285,11 +1301,14 @@ function buildRoom() {
   const poly = PLAN.polygon;
   if (!poly||poly.length<3) return;
 
-  // Floor
+  // Floor — rotation.x = +π/2 maps polygon Y → world +Z (same direction as walls)
+  // DoubleSide so camera above the plane can see it (normal faces -Y after this rotation)
+  const floorMat = MATS.floor.clone();
+  floorMat.side = THREE.DoubleSide;
   const shape = new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,p.y)));
   const floorGeo = new THREE.ShapeGeometry(shape);
-  floorMesh = new THREE.Mesh(floorGeo, MATS.floor);
-  floorMesh.rotation.x = -Math.PI/2;
+  floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  floorMesh.rotation.x = Math.PI/2;
   floorMesh.receiveShadow=true;
   floorMesh.userData.isFloor=true;
   scene.add(floorMesh);

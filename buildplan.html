@@ -332,6 +332,10 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
         <g id="svg-labels"></g>
         <g id="svg-dots"></g>
       </svg>
+      <div id="wall-len-editor" style="display:none;position:absolute;z-index:200;">
+        <input id="wall-len-input" type="text" autocomplete="off"
+          style="width:80px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--accent);background:var(--bg-elevated);color:var(--text-primary);font-family:JetBrains Mono,monospace;font-size:13px;text-align:center;outline:none;">
+      </div>
       <div id="snap-cursor">
         <svg width="16" height="16" viewBox="0 0 16 16">
           <line x1="8" y1="0" x2="8" y2="6" stroke="var(--accent)" stroke-width="1.5"/>
@@ -843,6 +847,9 @@ function renderPlanWalls() {
     label.setAttribute('fill','rgba(255,255,255,0.7)'); label.setAttribute('font-size','8');
     label.setAttribute('font-family','JetBrains Mono,monospace');
     label.textContent = fmtIn(len);
+    label.style.cursor = 'pointer';
+    label.style.pointerEvents = 'all';
+    label.addEventListener('click', (e) => { e.stopPropagation(); showWallLenEditor(i, lx, ly, len); });
     svgLabels.appendChild(label);
 
     svgWalls.appendChild(g);
@@ -861,6 +868,45 @@ function renderPlanWalls() {
   });
 
   document.getElementById('st-walls').textContent = `Walls: ${PLAN.walls.length}`;
+}
+
+function showWallLenEditor(wallIdx, svgX, svgY, currentLen) {
+  const pt = svg.createSVGPoint();
+  pt.x = svgX; pt.y = svgY;
+  const screen = pt.matrixTransform(svg.getScreenCTM());
+  const wrapRect = document.getElementById('plan-canvas-wrap').getBoundingClientRect();
+  const editorDiv = document.getElementById('wall-len-editor');
+  const input = document.getElementById('wall-len-input');
+  editorDiv.style.left = (screen.x - wrapRect.left - 40) + 'px';
+  editorDiv.style.top  = (screen.y - wrapRect.top  - 16) + 'px';
+  editorDiv.style.display = 'block';
+  input.value = parseFloat((currentLen / 12).toFixed(2));
+  input.select();
+  input.focus();
+
+  const commit = () => {
+    editorDiv.style.display = 'none';
+    const val = parseFloat(input.value);
+    if (isNaN(val) || val <= 0) return;
+    const newLen = val * 12;
+    const w = PLAN.walls[wallIdx];
+    if (!w) return;
+    const ang = wallAngle(w);
+    w.x2 = w.x1 + Math.cos(ang) * newLen;
+    w.y2 = w.y1 + Math.sin(ang) * newLen;
+    // Update the shared endpoint in drawPoints and adjacent wall
+    const nextIdx = (wallIdx + 1) % APP.drawPoints.length;
+    APP.drawPoints[nextIdx] = { x: w.x2, y: w.y2 };
+    const nextWall = PLAN.walls[(wallIdx + 1) % PLAN.walls.length];
+    if (nextWall && APP.isPolygonClosed) { nextWall.x1 = w.x2; nextWall.y1 = w.y2; }
+    PLAN.polygon = APP.drawPoints.map(p => ({...p}));
+    renderPlanWalls();
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { editorDiv.style.display = 'none'; }
+  };
+  input.onblur = () => setTimeout(commit, 80);
 }
 
 function getPolygonPoints() {
@@ -902,17 +948,24 @@ window.confirmOpening = function() {
 
 function eraseWall(i) {
   if (APP.isPolygonClosed) {
-    if (PLAN.walls.length <= 3) { alert("Can't remove walls from a closed polygon with only 3 walls."); return; }
-    // Remove wall, reconnect polygon
-    const removed = PLAN.walls.splice(i,1)[0];
-    APP.drawPoints.splice(i,1);
-    // Rebuild walls
+    if (PLAN.walls.length <= 3) {
+      alert("Can't remove walls below 3.");
+      return;
+    }
+    // Open the polygon at wall i: reorder drawPoints so wall i becomes the gap
+    const n = APP.drawPoints.length;
+    const nextIdx = (i + 1) % n;
+    const reordered = [];
+    for (let k = 0; k < n; k++) reordered.push(APP.drawPoints[(nextIdx + k) % n]);
+    APP.drawPoints = reordered;
+    APP.isPolygonClosed = false;
     rebuildWallsFromPoints();
     checkPolygonClosed();
     renderPlanWalls();
   } else {
-    PLAN.walls.splice(i,1);
-    if (APP.drawPoints.length > PLAN.walls.length+1) APP.drawPoints.splice(i+1,1);
+    // Open polygon — remove the wall and the trailing endpoint that becomes dangling
+    PLAN.walls.splice(i, 1);
+    APP.drawPoints.splice(i + 1, 1);
     renderPlanWalls();
   }
 }

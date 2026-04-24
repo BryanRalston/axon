@@ -347,6 +347,36 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       </div>
     </div>
   </div>
+  <!-- Wall properties panel (slides in from right when wall selected) -->
+  <div id="wall-props" style="display:none;position:absolute;top:0;right:0;bottom:0;width:220px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);padding:16px;z-index:100;display:none;flex-direction:column;gap:14px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);">Wall Properties</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label style="font-size:11px;color:var(--text-muted);">LENGTH (ft)</label>
+      <input id="wp-length" type="number" min="0.5" step="0.5"
+        style="background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:6px 8px;color:var(--text-primary);font-size:13px;font-family:JetBrains Mono,monospace;outline:none;"
+        onchange="applyWallProp('length',this.value)">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label style="font-size:11px;color:var(--text-muted);">HEIGHT (ft) <span style="color:var(--text-muted);font-size:10px;">default = ceiling</span></label>
+      <input id="wp-height" type="number" min="0.5" step="0.5"
+        style="background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:6px 8px;color:var(--text-primary);font-size:13px;font-family:JetBrains Mono,monospace;outline:none;"
+        onchange="applyWallProp('height',this.value)">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label style="font-size:11px;color:var(--text-muted);">THICKNESS</label>
+      <select id="wp-thickness" onchange="applyWallProp('thickness',this.value)"
+        style="background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:6px 8px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;">
+        <option value="3.5">2×4 stud (3.5")</option>
+        <option value="5.5">2×6 stud (5.5")</option>
+        <option value="1.5">Partition (1.5")</option>
+        <option value="8">8" concrete block</option>
+      </select>
+    </div>
+    <button onclick="APP.selectedWall=null;renderPlanWalls();document.getElementById('wall-props').style.display='none';"
+      style="margin-top:auto;padding:7px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;">
+      Done
+    </button>
+  </div>
   <div id="plan-status">
     <span id="st-tool">Tool: Draw Wall</span>
     <span id="st-hint">Click to place first wall point</span>
@@ -870,6 +900,42 @@ function renderPlanWalls() {
   document.getElementById('st-walls').textContent = `Walls: ${PLAN.walls.length}`;
 }
 
+function showWallProps(wallIdx) {
+  const w = PLAN.walls[wallIdx];
+  if (!w) return;
+  const panel = document.getElementById('wall-props');
+  document.getElementById('wp-length').value = parseFloat((wallLength(w)/12).toFixed(2));
+  document.getElementById('wp-height').value = parseFloat(((w.height||PLAN.ceilingH)/12).toFixed(2));
+  document.getElementById('wp-thickness').value = w.thickness || 3.5;
+  panel.style.display = 'flex';
+}
+
+window.applyWallProp = function(prop, val) {
+  const i = APP.selectedWall;
+  if (i === null || i === undefined) return;
+  const w = PLAN.walls[i];
+  if (!w) return;
+  if (prop === 'length') {
+    const newLen = parseFloat(val) * 12;
+    if (isNaN(newLen) || newLen <= 0) return;
+    const ang = wallAngle(w);
+    w.x2 = w.x1 + Math.cos(ang) * newLen;
+    w.y2 = w.y1 + Math.sin(ang) * newLen;
+    const nextIdx = (i + 1) % APP.drawPoints.length;
+    APP.drawPoints[nextIdx] = { x: w.x2, y: w.y2 };
+    if (APP.isPolygonClosed) {
+      const nextWall = PLAN.walls[(i + 1) % PLAN.walls.length];
+      if (nextWall) { nextWall.x1 = w.x2; nextWall.y1 = w.y2; }
+    }
+    PLAN.polygon = APP.drawPoints.map(p => ({...p}));
+    renderPlanWalls();
+  } else if (prop === 'height') {
+    w.height = parseFloat(val) * 12;
+  } else if (prop === 'thickness') {
+    w.thickness = parseFloat(val);
+  }
+};
+
 function showWallLenEditor(wallIdx, svgX, svgY, currentLen) {
   const pt = svg.createSVGPoint();
   pt.x = svgX; pt.y = svgY;
@@ -922,6 +988,7 @@ function handleWallClick(e, wallIdx) {
   if (APP.tool === 'select') {
     APP.selectedWall = wallIdx;
     renderPlanWalls();
+    showWallProps(wallIdx);
   } else if (APP.tool === 'erase') {
     eraseWall(wallIdx);
   } else if (APP.tool === 'opening') {
@@ -1370,14 +1437,16 @@ function buildRoom() {
   PLAN.walls.forEach(w=>{
     const len = wallLength(w);
     if (len<1) return;
-    const wallGeo = new THREE.BoxGeometry(len, PLAN.ceilingH, 3.5);
+    const wH = w.height || PLAN.ceilingH;
+    const wT = w.thickness || 3.5;
+    const wallGeo = new THREE.BoxGeometry(len, wH, wT);
     const wallMat = MATS.wall.clone();
     const mesh = new THREE.Mesh(wallGeo, wallMat);
     mesh.castShadow=true; mesh.receiveShadow=true;
 
     const ang = wallAngle(w);
     const cx=(w.x1+w.x2)/2, cz=(w.y1+w.y2)/2;
-    mesh.position.set(cx, PLAN.ceilingH/2, cz);
+    mesh.position.set(cx, wH/2, cz);
     mesh.rotation.y = -ang;
     mesh.userData.isWall=true;
     scene.add(mesh);

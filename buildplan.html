@@ -1,0 +1,1979 @@
+<!-- BUILDPLAN v1 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BuildPlan — 3D Floor Plan Builder</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161/examples/jsm/"
+  }
+}
+</script>
+<style>
+:root {
+  --accent:#22D3EE; --accent-dim:rgba(34,211,238,.12); --accent-glow:rgba(34,211,238,.3);
+  --bg-void:#04040B; --bg-base:#08081A; --bg-surface:#0F0F1E; --bg-elevated:#181830;
+  --bg-glass:rgba(15,15,30,.78);
+  --border:rgba(255,255,255,.06); --border-hover:rgba(255,255,255,.14); --border-glow:rgba(34,211,238,.22);
+  --text-primary:#F0F0F5; --text-secondary:#8888A0; --text-muted:#5C5C78;
+  --danger:#F87171; --green:#34D399;
+  --radius:10px; --radius-lg:16px;
+  --transition:180ms ease-out;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'Inter',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
+
+/* ── Template Screen ── */
+#template-screen{position:fixed;inset:0;z-index:2000;background:var(--bg-void);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+#template-screen h1{font-size:32px;font-weight:800;color:var(--text-primary);margin-bottom:6px;letter-spacing:-.5px;}
+#template-screen h1 span{color:var(--accent);}
+#template-screen .subtitle{font-size:15px;color:var(--text-secondary);margin-bottom:36px;}
+.tpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:820px;width:100%;}
+@media(max-width:600px){.tpl-grid{grid-template-columns:1fr 1fr;}}
+.tpl-card{background:var(--bg-glass);backdrop-filter:blur(20px);border:1px solid var(--border-glow);border-radius:var(--radius-lg);padding:20px;cursor:pointer;transition:all var(--transition);text-align:center;user-select:none;}
+.tpl-card:hover{border-color:var(--accent);box-shadow:0 0 24px var(--accent-dim);transform:translateY(-2px);}
+.tpl-card svg{display:block;margin:0 auto 12px;}
+.tpl-card .tname{font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:4px;}
+.tpl-card .tdesc{font-size:11px;color:var(--text-muted);}
+
+/* ── Dim Modal (template config) ── */
+.modal-backdrop{position:fixed;inset:0;z-index:3000;background:rgba(4,4,11,.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;}
+.modal-card{background:var(--bg-glass);backdrop-filter:blur(24px);border:1px solid var(--border-glow);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:480px;box-shadow:0 24px 48px rgba(0,0,0,.5);}
+.modal-card h2{font-size:18px;font-weight:700;margin-bottom:6px;}
+.modal-card .modal-sub{font-size:13px;color:var(--text-secondary);margin-bottom:22px;line-height:1.6;}
+.modal-diagram{text-align:center;margin-bottom:20px;}
+.dim-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.dim-row label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);min-width:90px;}
+.dim-row input{flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:15px;outline:none;font-family:inherit;transition:border-color var(--transition);}
+.dim-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.btn-primary{flex:1;padding:13px;border-radius:10px;background:var(--accent);border:none;color:#000;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-primary:hover{opacity:.88;}
+.btn-secondary{padding:13px 18px;border-radius:10px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;transition:all var(--transition);}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── Plan Editor ── */
+#plan-screen{position:fixed;inset:0;z-index:1500;display:none;flex-direction:column;}
+#plan-navbar{height:52px;background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;flex-shrink:0;}
+.nav-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;transition:all var(--transition);user-select:none;white-space:nowrap;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+.nav-btn:disabled{opacity:.3;cursor:not-allowed;pointer-events:none;}
+.nav-btn.primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700;}
+.nav-btn.primary:hover{opacity:.88;}
+.plan-appname{font-size:15px;font-weight:800;color:var(--accent);flex:1;text-align:center;}
+#plan-layout{flex:1;display:flex;overflow:hidden;}
+#plan-toolbar{width:52px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0;}
+.tool-btn{width:38px;height:38px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition);position:relative;}
+.tool-btn:hover{background:var(--bg-elevated);color:var(--text-secondary);}
+.tool-btn.active{background:var(--accent-dim);border-color:var(--border-glow);color:var(--accent);}
+.tool-sep{width:28px;height:1px;background:var(--border);margin:4px 0;}
+#ceiling-ctrl{margin-top:auto;margin-bottom:8px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+#ceiling-ctrl label{font-size:9px;color:var(--text-muted);text-align:center;line-height:1.2;}
+#ceiling-ft{width:38px;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:4px;color:var(--text-primary);font-size:11px;text-align:center;outline:none;font-family:'JetBrains Mono',monospace;}
+#ceiling-ft:focus{border-color:var(--accent);}
+#plan-canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg-void);}
+#plan-svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;}
+#snap-cursor{position:absolute;pointer-events:none;display:none;transform:translate(-50%,-50%);}
+#plan-status{height:28px;background:var(--bg-base);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:16px;font-size:11px;color:var(--text-muted);flex-shrink:0;}
+
+/* ── 3D View ── */
+#view3d-screen{position:fixed;inset:0;z-index:1000;display:none;flex-direction:column;}
+#view3d-navbar{height:52px;background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;flex-shrink:0;}
+#view3d-layout{flex:1;display:flex;overflow:hidden;}
+#lumber-panel{width:260px;min-width:260px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width var(--transition);}
+#lumber-panel.collapsed{width:0;min-width:0;}
+#lumber-panel-inner{width:260px;display:flex;flex-direction:column;overflow:hidden;height:100%;}
+.lp-header{padding:12px 14px 8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+.lp-section{padding:8px 10px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);}
+#lumber-list{flex:1;overflow-y:auto;padding:4px 8px;}
+.lumber-item{display:flex;align-items:center;gap:9px;padding:8px 8px;border-radius:8px;cursor:pointer;transition:all var(--transition);margin-bottom:3px;border:1px solid transparent;}
+.lumber-item:hover{background:var(--bg-elevated);border-color:var(--border-hover);}
+.lumber-item.active{background:var(--accent-dim);border-color:var(--border-glow);}
+.li-icon{width:28px;height:20px;border-radius:3px;flex-shrink:0;position:relative;overflow:hidden;}
+.li-name{font-size:12px;font-weight:600;color:var(--text-primary);}
+.li-dims{font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+.lp-divider{height:1px;background:var(--border);margin:8px 4px;}
+#wizard-btn{margin:10px;padding:10px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;transition:all var(--transition);text-align:center;}
+#wizard-btn:hover{border-color:var(--accent);color:var(--accent);}
+#three-wrap{flex:1;position:relative;overflow:hidden;}
+#three-canvas{display:block;width:100%;height:100%;}
+#placement-cursor{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--bg-glass);backdrop-filter:blur(12px);border:1px solid var(--border-glow);border-radius:8px;padding:6px 14px;font-size:12px;color:var(--accent);pointer-events:none;display:none;}
+#sel-bar{height:36px;background:var(--bg-surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:12px;font-size:12px;color:var(--text-muted);flex-shrink:0;}
+#sel-bar .sel-name{color:var(--text-primary);font-weight:600;}
+#sel-bar .sel-hint{font-size:11px;color:var(--text-muted);}
+.sel-action-btn{padding:4px 10px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:11px;font-family:inherit;transition:all var(--transition);}
+.sel-action-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── Cut List Panel ── */
+#cutlist-panel{position:fixed;top:52px;right:-420px;bottom:0;width:400px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);z-index:800;display:flex;flex-direction:column;transition:right .3s ease;}
+#cutlist-panel.open{right:0;}
+.cl-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.cl-header h3{font-size:15px;font-weight:700;}
+#cl-content{flex:1;overflow-y:auto;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;}
+.cl-section-head{font-size:11px;font-weight:700;color:var(--accent);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border-glow);}
+.cl-row{display:flex;gap:8px;padding:4px 0;color:var(--text-secondary);}
+.cl-qty{color:var(--text-primary);font-weight:700;min-width:32px;text-align:right;}
+.cl-dim{min-width:80px;}
+.cl-group{color:var(--text-muted);font-size:10px;}
+.cl-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;}
+
+/* ── Stud Wizard Modal ── */
+#stud-wizard-modal{display:none;}
+#stud-wizard-modal.open{display:flex;}
+
+/* ── Repeat Modal ── */
+#repeat-modal{display:none;}
+#repeat-modal.open{display:flex;}
+
+/* ── Group Modal ── */
+#group-modal{display:none;}
+#group-modal.open{display:flex;}
+
+/* ── Opening Modal ── */
+#opening-modal{display:none;}
+#opening-modal.open{display:flex;}
+
+/* ── Tooltip ── */
+#onboard-tip{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg-glass);backdrop-filter:blur(12px);border:1px solid var(--border-glow);border-radius:10px;padding:10px 20px;font-size:13px;color:var(--text-primary);z-index:9999;display:none;pointer-events:none;text-align:center;}
+
+/* Mobile */
+@media(max-width:767px){
+  #lumber-panel{position:fixed;bottom:-100%;left:0;right:0;width:100% !important;min-width:unset !important;height:55vh;border-right:none;border-top:1px solid var(--border-glow);z-index:700;transition:bottom .3s ease;}
+  #lumber-panel.mobile-open{bottom:0;}
+  .tpl-grid{grid-template-columns:1fr 1fr;}
+}
+.hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     TEMPLATE PICKER SCREEN
+══════════════════════════════════════════ -->
+<div id="template-screen">
+  <h1>Build<span>Plan</span></h1>
+  <p class="subtitle">Design your space, build your structure.</p>
+  <div class="tpl-grid">
+    <!-- Rectangle -->
+    <div class="tpl-card" data-tpl="rect">
+      <svg width="80" height="60" viewBox="0 0 80 60">
+        <rect x="4" y="4" width="72" height="52" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" rx="1"/>
+      </svg>
+      <div class="tname">Rectangle</div>
+      <div class="tdesc">Simple rectangular room</div>
+    </div>
+    <!-- L-Shape -->
+    <div class="tpl-card" data-tpl="lshape">
+      <svg width="80" height="60" viewBox="0 0 80 60">
+        <polyline points="4,4 4,56 56,56 56,32 80,32 80,4 4,4" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+      </svg>
+      <div class="tname">L-Shape</div>
+      <div class="tdesc">L-shaped room</div>
+    </div>
+    <!-- U-Shape -->
+    <div class="tpl-card" data-tpl="ushape">
+      <svg width="80" height="60" viewBox="0 0 80 60">
+        <polyline points="4,4 4,56 28,56 28,32 52,32 52,56 76,56 76,4 4,4" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+      </svg>
+      <div class="tname">U-Shape</div>
+      <div class="tdesc">U-shaped room</div>
+    </div>
+    <!-- T-Shape -->
+    <div class="tpl-card" data-tpl="tshape">
+      <svg width="80" height="60" viewBox="0 0 80 60">
+        <polyline points="4,4 76,4 76,24 48,24 48,56 32,56 32,24 4,24 4,4" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+      </svg>
+      <div class="tname">T-Shape</div>
+      <div class="tdesc">T-shaped room</div>
+    </div>
+    <!-- Custom -->
+    <div class="tpl-card" data-tpl="custom" style="grid-column:span 2;">
+      <svg width="80" height="60" viewBox="0 0 80 60">
+        <polyline points="10,50 4,30 20,8 50,4 72,20 68,50 10,50" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-dasharray="4,3"/>
+        <circle cx="10" cy="50" r="3" fill="rgba(34,211,238,.6)"/>
+        <circle cx="4" cy="30" r="3" fill="rgba(34,211,238,.6)"/>
+        <circle cx="20" cy="8" r="3" fill="rgba(34,211,238,.6)"/>
+        <circle cx="50" cy="4" r="3" fill="rgba(34,211,238,.6)"/>
+      </svg>
+      <div class="tname">Custom</div>
+      <div class="tdesc">Draw your own walls</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DIMENSION MODALS (one per template)
+══════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="rect-modal">
+  <div class="modal-card">
+    <h2>Rectangle Room</h2>
+    <p class="modal-sub">Enter dimensions in feet (decimals ok, e.g. "20.5" = 20'6").</p>
+    <div class="dim-row"><label>Width (ft)</label><input type="number" id="rect-w" value="20" min="4" max="200" step="0.5"></div>
+    <div class="dim-row"><label>Depth (ft)</label><input type="number" id="rect-d" value="22" min="4" max="200" step="0.5"></div>
+    <div class="dim-row"><label>Ceiling (ft)</label><input type="number" id="rect-h" value="9" min="6" max="20" step="0.5"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeAllModals()">Cancel</button>
+      <button class="btn-primary" onclick="createFromTemplate('rect')">Create Room</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="lshape-modal">
+  <div class="modal-card">
+    <h2>L-Shape Room</h2>
+    <p class="modal-sub">Main section + wing section dimensions. Ceiling height applies to both.</p>
+    <div class="modal-diagram">
+      <svg width="200" height="130" viewBox="0 0 200 130" style="display:inline-block">
+        <rect x="4" y="4" width="120" height="80" fill="rgba(34,211,238,.05)" stroke="rgba(34,211,238,.4)" stroke-width="1.5" rx="1"/>
+        <rect x="124" y="4" width="72" height="44" fill="rgba(34,211,238,.05)" stroke="rgba(34,211,238,.4)" stroke-width="1.5" rx="1"/>
+        <text x="64" y="48" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="10">Main W</text>
+        <text x="160" y="28" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="10">Wing W</text>
+        <text x="10" y="48" fill="rgba(255,255,255,.4)" font-size="9" transform="rotate(-90,10,48)" text-anchor="middle">Main D</text>
+        <text x="128" y="28" fill="rgba(255,255,255,.4)" font-size="9" transform="rotate(-90,128,28)" text-anchor="middle">Wing D</text>
+      </svg>
+    </div>
+    <div class="dim-row"><label>Main Width</label><input type="number" id="l-mw" value="20" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Main Depth</label><input type="number" id="l-md" value="22" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Wing Width</label><input type="number" id="l-ww" value="12" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Wing Depth</label><input type="number" id="l-wd" value="12" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Ceiling (ft)</label><input type="number" id="l-h" value="9" min="6" max="20" step="0.5"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeAllModals()">Cancel</button>
+      <button class="btn-primary" onclick="createFromTemplate('lshape')">Create Room</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="ushape-modal">
+  <div class="modal-card">
+    <h2>U-Shape Room</h2>
+    <p class="modal-sub">Top bar width + depth, plus left and right wing depths.</p>
+    <div class="dim-row"><label>Total Width</label><input type="number" id="u-w" value="30" min="10" step="0.5"></div>
+    <div class="dim-row"><label>Bar Depth</label><input type="number" id="u-bd" value="10" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Wing Depth</label><input type="number" id="u-wd" value="16" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Wing Width</label><input type="number" id="u-ww" value="10" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Ceiling (ft)</label><input type="number" id="u-h" value="9" min="6" max="20" step="0.5"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeAllModals()">Cancel</button>
+      <button class="btn-primary" onclick="createFromTemplate('ushape')">Create Room</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="tshape-modal">
+  <div class="modal-card">
+    <h2>T-Shape Room</h2>
+    <p class="modal-sub">Top bar + stem dimensions.</p>
+    <div class="dim-row"><label>Bar Width</label><input type="number" id="t-bw" value="30" min="10" step="0.5"></div>
+    <div class="dim-row"><label>Bar Depth</label><input type="number" id="t-bd" value="10" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Stem Width</label><input type="number" id="t-sw" value="12" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Stem Depth</label><input type="number" id="t-sd" value="16" min="4" step="0.5"></div>
+    <div class="dim-row"><label>Ceiling (ft)</label><input type="number" id="t-h" value="9" min="6" max="20" step="0.5"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeAllModals()">Cancel</button>
+      <button class="btn-primary" onclick="createFromTemplate('tshape')">Create Room</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PLAN EDITOR SCREEN
+══════════════════════════════════════════ -->
+<div id="plan-screen" style="display:none">
+  <div id="plan-navbar">
+    <button class="nav-btn" onclick="goTemplates()">&#8592; Templates</button>
+    <div class="plan-appname">BuildPlan</div>
+    <button class="nav-btn primary" id="btn-view3d" disabled onclick="enterView3D()">View in 3D &#9654;</button>
+  </div>
+  <div id="plan-layout">
+    <!-- Left toolbar -->
+    <div id="plan-toolbar">
+      <button class="tool-btn active" id="tool-draw" title="Draw Wall" onclick="setTool('draw')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </button>
+      <button class="tool-btn" id="tool-select" title="Select/Move" onclick="setTool('select')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-3 7-4-17z"/></svg>
+      </button>
+      <button class="tool-btn" id="tool-opening" title="Add Opening" onclick="setTool('opening')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="1"/><line x1="8" y1="6" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="18"/></svg>
+      </button>
+      <button class="tool-btn" id="tool-erase" title="Erase Wall" onclick="setTool('erase')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l9-9 8 8-1 1"/><path d="M6 11l8 8"/></svg>
+      </button>
+      <div class="tool-sep"></div>
+      <div id="ceiling-ctrl">
+        <label>Ceil<br>ft</label>
+        <input type="number" id="ceiling-ft" value="9" min="6" max="20" step="0.5" onchange="updateCeiling(this.value)">
+      </div>
+    </div>
+    <!-- SVG Canvas -->
+    <div id="plan-canvas-wrap">
+      <svg id="plan-svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="dot-grid" width="96" height="96" patternUnits="userSpaceOnUse" patternTransform="translate(0,0)">
+            <circle cx="0" cy="0" r="0.8" fill="rgba(255,255,255,.08)"/>
+            <circle cx="96" cy="0" r="0.8" fill="rgba(255,255,255,.08)"/>
+            <circle cx="0" cy="96" r="0.8" fill="rgba(255,255,255,.08)"/>
+            <circle cx="96" cy="96" r="0.8" fill="rgba(255,255,255,.08)"/>
+            <circle cx="48" cy="48" r="0.5" fill="rgba(255,255,255,.04)"/>
+          </pattern>
+        </defs>
+        <rect id="svg-bg" width="100%" height="100%" fill="var(--bg-void)"/>
+        <rect id="grid-rect" width="100%" height="100%" fill="url(#dot-grid)"/>
+        <g id="svg-walls"></g>
+        <g id="svg-preview"></g>
+        <g id="svg-labels"></g>
+        <g id="svg-dots"></g>
+      </svg>
+      <div id="snap-cursor">
+        <svg width="16" height="16" viewBox="0 0 16 16">
+          <line x1="8" y1="0" x2="8" y2="6" stroke="var(--accent)" stroke-width="1.5"/>
+          <line x1="8" y1="10" x2="8" y2="16" stroke="var(--accent)" stroke-width="1.5"/>
+          <line x1="0" y1="8" x2="6" y2="8" stroke="var(--accent)" stroke-width="1.5"/>
+          <line x1="10" y1="8" x2="16" y2="8" stroke="var(--accent)" stroke-width="1.5"/>
+          <circle cx="8" cy="8" r="2.5" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div id="plan-status">
+    <span id="st-tool">Tool: Draw Wall</span>
+    <span id="st-hint">Click to place first wall point</span>
+    <span style="flex:1"></span>
+    <span id="st-walls">Walls: 0</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3D VIEW SCREEN
+══════════════════════════════════════════ -->
+<div id="view3d-screen" style="display:none">
+  <div id="view3d-navbar">
+    <button class="nav-btn" onclick="backToPlan()">&#8592; Back to Plan</button>
+    <div class="plan-appname">BuildPlan</div>
+    <button class="nav-btn" onclick="toggleCutList()">Cut List</button>
+    <button class="nav-btn" onclick="saveProject()">&#128190; Save</button>
+    <label class="nav-btn" style="cursor:pointer">&#128194; Load<input type="file" accept=".json" class="hidden" id="load-input" onchange="loadProject(this)"></label>
+  </div>
+  <div id="view3d-layout">
+    <div id="lumber-panel">
+      <div id="lumber-panel-inner">
+        <div class="lp-header">
+          Materials
+          <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;" onclick="toggleLumberPanel()">&#8249;</button>
+        </div>
+        <div id="lumber-list"></div>
+        <div style="padding:8px;">
+          <button id="wizard-btn" onclick="startStudWizard()">&#9881; Stud Wall Wizard</button>
+        </div>
+      </div>
+    </div>
+    <div id="three-wrap">
+      <canvas id="three-canvas"></canvas>
+      <div id="placement-cursor">Click to place &mdash; Esc to cancel</div>
+    </div>
+  </div>
+  <div id="sel-bar">
+    <span id="sel-name" class="sel-name">No selection</span>
+    <span id="sel-hint" class="sel-hint">Click a piece to select</span>
+    <span style="flex:1"></span>
+    <span id="sel-actions"></span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CUT LIST PANEL
+══════════════════════════════════════════ -->
+<div id="cutlist-panel">
+  <div class="cl-header">
+    <h3>Cut List</h3>
+    <button class="nav-btn" onclick="toggleCutList()">&#10005;</button>
+  </div>
+  <div id="cl-content"></div>
+  <div class="cl-footer">
+    <button class="nav-btn" onclick="copyCutList()">Copy</button>
+    <button class="nav-btn" onclick="exportCsv()">CSV</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     STUD WALL WIZARD MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="stud-wizard-modal" style="display:none">
+  <div class="modal-card">
+    <h2>Stud Wall Wizard</h2>
+    <p class="modal-sub">Click two points on the floor to define the wall base line, then configure below.</p>
+    <div class="dim-row"><label>Wall Height</label><input type="number" id="sw-height" value="96" min="24" max="200" step="1"> <span style="color:var(--text-muted);font-size:12px">inches</span></div>
+    <div class="dim-row"><label>Stud Spacing</label>
+      <select id="sw-spacing" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:15px;outline:none;font-family:inherit;">
+        <option value="16">16" OC</option>
+        <option value="24">24" OC</option>
+      </select>
+    </div>
+    <div class="dim-row"><label>Material</label>
+      <select id="sw-material" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:15px;outline:none;font-family:inherit;">
+        <option value="2x4">2×4</option>
+        <option value="2x6">2×6</option>
+      </select>
+    </div>
+    <div id="sw-status" style="font-size:12px;color:var(--text-muted);margin-top:8px;min-height:18px;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="cancelStudWizard()">Cancel</button>
+      <button class="btn-primary" id="sw-build-btn" onclick="buildStudWall()">Build Wall</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     REPEAT MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="repeat-modal" style="display:none">
+  <div class="modal-card">
+    <h2>Repeat Along Axis</h2>
+    <p class="modal-sub">Place copies of the selected piece at regular intervals.</p>
+    <div class="dim-row"><label>Direction</label>
+      <select id="rep-dir" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:15px;outline:none;font-family:inherit;">
+        <option value="x">X (left/right)</option>
+        <option value="y">Y (up/down)</option>
+        <option value="z">Z (front/back)</option>
+      </select>
+    </div>
+    <div class="dim-row"><label>Spacing (in)</label><input type="number" id="rep-spacing" value="16" min="1" step="0.5"></div>
+    <div class="dim-row"><label>Count</label><input type="number" id="rep-count" value="3" min="1" max="50" step="1"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeRepeatModal()">Cancel</button>
+      <button class="btn-primary" onclick="doRepeat()">Place Copies</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     GROUP MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="group-modal" style="display:none">
+  <div class="modal-card">
+    <h2>Name This Group</h2>
+    <p class="modal-sub">Selected pieces will be grouped together in the cut list.</p>
+    <div class="dim-row"><label>Group Name</label><input type="text" id="group-name-in" placeholder="e.g. Back Wall Shelving" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:15px;outline:none;font-family:inherit;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="document.getElementById('group-modal').style.display='none'">Cancel</button>
+      <button class="btn-primary" onclick="confirmGroup()">Create Group</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     OPENING MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="opening-modal" style="display:none">
+  <div class="modal-card">
+    <h2>Add Opening</h2>
+    <p class="modal-sub">Place a door or window opening in the selected wall segment.</p>
+    <div class="dim-row"><label>Type</label>
+      <select id="op-type" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:15px;outline:none;font-family:inherit;">
+        <option value="garage">Garage Door</option>
+        <option value="man">Man Door</option>
+        <option value="window">Window</option>
+      </select>
+    </div>
+    <div class="dim-row"><label>Width (in)</label><input type="number" id="op-width" value="96" min="12" max="240" step="1"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="document.getElementById('opening-modal').style.display='none'">Cancel</button>
+      <button class="btn-primary" onclick="confirmOpening()">Add Opening</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     ONBOARD TOOLTIP
+══════════════════════════════════════════ -->
+<div id="onboard-tip">Start by choosing your room shape.</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+const PLAN = {
+  walls: [],       // [{x1,y1,x2,y2,thickness:3.5, openings:[]}]
+  ceilingH: 108,   // inches
+  floorW: 0,
+  floorD: 0,
+  polygon: [],     // [{x,y}] ordered vertices in inches
+};
+const ITEMS = [];  // placed lumber pieces
+const APP = {
+  view: 'template',
+  tool: 'draw',
+  selectedItem: null,
+  selectedItems: [],   // multi-select
+  placingType: null,   // lumber type being placed
+  placingGhost: null,  // THREE.Mesh ghost
+  studWizardPoints: [],
+  pendingOpeningWall: null,
+  drawPoints: [],      // in-progress polygon points (inches)
+  isPolygonClosed: false,
+  zoom: 8,             // px per foot
+  panX: 0, panY: 0,
+  isDragging: false,
+  dragTarget: null,    // {type:'wall'|'endpoint', idx, ptIdx}
+  lastMouse: null,
+  hoveredWall: null,
+  selectedWall: null,
+  editingLabel: null,
+};
+
+// ══════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════
+function fmtIn(inches) {
+  const ft = Math.floor(Math.abs(inches) / 12);
+  const inn = Math.round((Math.abs(inches) % 12) * 8) / 8;
+  if (ft === 0) return `${inn}"`;
+  if (inn === 0) return `${ft}'`;
+  return `${ft}' ${inn}"`;
+}
+
+function ftToIn(ft) { return ft * 12; }
+
+function snap(val, grid) { return Math.round(val / grid) * grid; }
+
+function dist(x1,y1,x2,y2) { return Math.sqrt((x2-x1)**2+(y2-y1)**2); }
+
+function svgPt(svgEl, evt) {
+  const pt = svgEl.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(svgEl.getScreenCTM().inverse());
+}
+
+function svgToInches(sx, sy) {
+  return { x: sx, y: sy };
+}
+
+function inchesToSvg(ix, iy) {
+  return { x: ix, y: iy };
+}
+
+function wallLength(w) {
+  return dist(w.x1, w.y1, w.x2, w.y2);
+}
+
+function wallAngle(w) {
+  return Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
+}
+
+function closeAllModals() {
+  document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
+}
+
+// Make closeAllModals global
+window.closeAllModals = closeAllModals;
+
+// ══════════════════════════════════════════════════════════
+//  SVG VIEWBOX / ZOOM / PAN
+// ══════════════════════════════════════════════════════════
+const svg = document.getElementById('plan-svg');
+const svgWalls = document.getElementById('svg-walls');
+const svgPreview = document.getElementById('svg-preview');
+const svgLabels = document.getElementById('svg-labels');
+const svgDots = document.getElementById('svg-dots');
+const dotGridPat = document.getElementById('dot-grid');
+
+function getViewBox() {
+  const wrap = document.getElementById('plan-canvas-wrap');
+  const W = wrap.clientWidth || 1000;
+  const H = wrap.clientHeight || 700;
+  // px per inch = zoom/12
+  const ppi = APP.zoom / 12;
+  const vw = W / ppi;
+  const vh = H / ppi;
+  return { vx: -APP.panX / ppi, vy: -APP.panY / ppi, vw, vh, ppi, W, H };
+}
+
+function updateViewBox() {
+  const {vx,vy,vw,vh,ppi} = getViewBox();
+  svg.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
+  // Update grid pattern: 1 foot = 12 inches = ppi*12 px → but in viewBox coords 1ft=12 units
+  // Pattern is 12 inches (1 foot) in viewBox space
+  dotGridPat.setAttribute('width', '12');
+  dotGridPat.setAttribute('height', '12');
+  dotGridPat.setAttribute('patternTransform', `translate(0,0)`);
+}
+
+// ══════════════════════════════════════════════════════════
+//  TEMPLATE SCREEN
+// ══════════════════════════════════════════════════════════
+function showOnboardTip() {
+  if (localStorage.getItem('bp-onboard')) return;
+  const tip = document.getElementById('onboard-tip');
+  tip.style.display = 'block';
+  setTimeout(() => { tip.style.display='none'; localStorage.setItem('bp-onboard','1'); }, 3500);
+}
+
+document.querySelectorAll('.tpl-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const tpl = card.dataset.tpl;
+    if (tpl === 'custom') {
+      enterPlanEditor(null);
+    } else {
+      document.getElementById(`${tpl}-modal`).classList.remove('hidden');
+    }
+  });
+});
+
+window.createFromTemplate = function(tpl) {
+  let polygon = [];
+  let ceilH = 108;
+
+  if (tpl === 'rect') {
+    const w = ftToIn(parseFloat(document.getElementById('rect-w').value));
+    const d = ftToIn(parseFloat(document.getElementById('rect-d').value));
+    ceilH = ftToIn(parseFloat(document.getElementById('rect-h').value));
+    polygon = [{x:0,y:0},{x:w,y:0},{x:w,y:d},{x:0,y:d}];
+  } else if (tpl === 'lshape') {
+    const mw = ftToIn(parseFloat(document.getElementById('l-mw').value));
+    const md = ftToIn(parseFloat(document.getElementById('l-md').value));
+    const ww = ftToIn(parseFloat(document.getElementById('l-ww').value));
+    const wd = ftToIn(parseFloat(document.getElementById('l-wd').value));
+    ceilH = ftToIn(parseFloat(document.getElementById('l-h').value));
+    // L = main rect bottom-left, + wing to the right of top
+    polygon = [{x:0,y:0},{x:mw+ww,y:0},{x:mw+ww,y:wd},{x:mw,y:wd},{x:mw,y:md},{x:0,y:md}];
+  } else if (tpl === 'ushape') {
+    const tw = ftToIn(parseFloat(document.getElementById('u-w').value));
+    const bd = ftToIn(parseFloat(document.getElementById('u-bd').value));
+    const wingD = ftToIn(parseFloat(document.getElementById('u-wd').value));
+    const wingW = ftToIn(parseFloat(document.getElementById('u-ww').value));
+    ceilH = ftToIn(parseFloat(document.getElementById('u-h').value));
+    const totalD = bd + wingD;
+    polygon = [
+      {x:0,y:0},{x:tw,y:0},{x:tw,y:totalD},
+      {x:tw-wingW,y:totalD},{x:tw-wingW,y:bd},
+      {x:wingW,y:bd},{x:wingW,y:totalD},
+      {x:0,y:totalD}
+    ];
+  } else if (tpl === 'tshape') {
+    const bw = ftToIn(parseFloat(document.getElementById('t-bw').value));
+    const bd = ftToIn(parseFloat(document.getElementById('t-bd').value));
+    const sw = ftToIn(parseFloat(document.getElementById('t-sw').value));
+    const sd = ftToIn(parseFloat(document.getElementById('t-sd').value));
+    ceilH = ftToIn(parseFloat(document.getElementById('t-h').value));
+    const stemX = (bw - sw) / 2;
+    polygon = [
+      {x:0,y:0},{x:bw,y:0},{x:bw,y:bd},
+      {x:stemX+sw,y:bd},{x:stemX+sw,y:bd+sd},
+      {x:stemX,y:bd+sd},{x:stemX,y:bd},
+      {x:0,y:bd}
+    ];
+  }
+
+  closeAllModals();
+  PLAN.polygon = polygon;
+  PLAN.ceilingH = ceilH;
+  document.getElementById('ceiling-ft').value = (ceilH/12).toFixed(1);
+
+  // Build walls from polygon
+  PLAN.walls = [];
+  for (let i=0;i<polygon.length;i++) {
+    const a = polygon[i], b = polygon[(i+1)%polygon.length];
+    PLAN.walls.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,thickness:3.5,openings:[]});
+  }
+  APP.isPolygonClosed = true;
+  APP.drawPoints = polygon.map(p=>({...p}));
+  enterPlanEditor(polygon);
+};
+
+// ══════════════════════════════════════════════════════════
+//  PLAN EDITOR
+// ══════════════════════════════════════════════════════════
+function enterPlanEditor(presetPolygon) {
+  document.getElementById('template-screen').style.display = 'none';
+  const ps = document.getElementById('plan-screen');
+  ps.style.display = 'flex';
+  ps.style.flexDirection = 'column';
+  APP.view = 'plan';
+
+  if (presetPolygon && presetPolygon.length) {
+    centerViewOnPolygon(presetPolygon);
+    renderPlanWalls();
+    checkPolygonClosed();
+  } else {
+    APP.drawPoints = [];
+    APP.isPolygonClosed = false;
+    PLAN.walls = [];
+    centerView();
+    renderPlanWalls();
+  }
+  updateViewBox();
+}
+
+window.goTemplates = function() {
+  document.getElementById('plan-screen').style.display = 'none';
+  document.getElementById('template-screen').style.display = 'flex';
+  APP.view = 'template';
+};
+
+function centerView() {
+  const wrap = document.getElementById('plan-canvas-wrap');
+  APP.zoom = 8;
+  APP.panX = (wrap.clientWidth || 1000) / 2;
+  APP.panY = (wrap.clientHeight || 700) / 2;
+  updateViewBox();
+}
+
+function centerViewOnPolygon(poly) {
+  if (!poly || !poly.length) { centerView(); return; }
+  const xs = poly.map(p=>p.x), ys = poly.map(p=>p.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const wrap = document.getElementById('plan-canvas-wrap');
+  const W = wrap.clientWidth || 1000, H = wrap.clientHeight || 700;
+  const polyW = maxX-minX, polyH = maxY-minY;
+  const ppi = Math.min((W*0.8)/polyW, (H*0.8)/polyH, 2);
+  APP.zoom = ppi * 12;
+  const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
+  APP.panX = W/2 - cx*ppi;
+  APP.panY = H/2 - cy*ppi;
+  updateViewBox();
+}
+
+window.setTool = function(t) {
+  APP.tool = t;
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tool-'+t)?.classList.add('active');
+  const hints = {
+    draw: 'Click to place wall points. Click first point to close polygon.',
+    select: 'Click wall or endpoint to select. Drag to move.',
+    opening: 'Click on a wall segment to add an opening.',
+    erase: 'Click a wall segment to delete it.'
+  };
+  const labels = { draw:'Draw Wall', select:'Select/Move', opening:'Add Opening', erase:'Erase Wall' };
+  document.getElementById('st-tool').textContent = 'Tool: ' + labels[t];
+  document.getElementById('st-hint').textContent = hints[t];
+  svg.style.cursor = t==='draw' ? 'crosshair' : 'default';
+};
+
+window.updateCeiling = function(val) {
+  PLAN.ceilingH = ftToIn(parseFloat(val)||9);
+  document.getElementById('sw-height').value = PLAN.ceilingH;
+};
+
+// ── SVG Rendering ──
+function makeWallId(i) { return `wall-${i}`; }
+
+function renderPlanWalls() {
+  svgWalls.innerHTML = '';
+  svgLabels.innerHTML = '';
+  svgDots.innerHTML = '';
+
+  // Draw polygon fill if closed
+  if (APP.isPolygonClosed && APP.drawPoints.length >= 3) {
+    const pts = APP.drawPoints.map(p=>`${p.x},${p.y}`).join(' ');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    poly.setAttribute('points', pts);
+    poly.setAttribute('fill', 'rgba(34,211,238,0.04)');
+    poly.setAttribute('stroke', 'none');
+    svgWalls.appendChild(poly);
+  }
+
+  PLAN.walls.forEach((w,i) => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('data-wall', i);
+
+    // Wall line
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',w.x1); line.setAttribute('y1',w.y1);
+    line.setAttribute('x2',w.x2); line.setAttribute('y2',w.y2);
+    line.setAttribute('stroke', APP.hoveredWall===i ? 'var(--accent)' : (APP.selectedWall===i ? '#22D3EE' : 'rgba(255,255,255,0.6)'));
+    line.setAttribute('stroke-width', APP.selectedWall===i ? '6' : '4');
+    line.setAttribute('stroke-linecap','round');
+    g.appendChild(line);
+
+    // Openings
+    (w.openings||[]).forEach(op => {
+      const ang = wallAngle(w);
+      const len = wallLength(w);
+      const t = op.center / len; // normalized position
+      const cx = w.x1 + (w.x2-w.x1)*t;
+      const cy = w.y1 + (w.y2-w.y1)*t;
+      const hw = op.width/2;
+      const dx = Math.cos(ang)*hw, dy = Math.sin(ang)*hw;
+      const gap = document.createElementNS('http://www.w3.org/2000/svg','line');
+      gap.setAttribute('x1',cx-dx); gap.setAttribute('y1',cy-dy);
+      gap.setAttribute('x2',cx+dx); gap.setAttribute('y2',cy+dy);
+      gap.setAttribute('stroke','var(--bg-void)'); gap.setAttribute('stroke-width','8');
+      g.appendChild(gap);
+      const dline = document.createElementNS('http://www.w3.org/2000/svg','line');
+      dline.setAttribute('x1',cx-dx); dline.setAttribute('y1',cy-dy);
+      dline.setAttribute('x2',cx+dx); dline.setAttribute('y2',cy+dy);
+      dline.setAttribute('stroke','rgba(34,211,238,0.5)'); dline.setAttribute('stroke-width','2');
+      dline.setAttribute('stroke-dasharray','4,3');
+      g.appendChild(dline);
+    });
+
+    // Hit area
+    const hitLine = document.createElementNS('http://www.w3.org/2000/svg','line');
+    hitLine.setAttribute('x1',w.x1); hitLine.setAttribute('y1',w.y1);
+    hitLine.setAttribute('x2',w.x2); hitLine.setAttribute('y2',w.y2);
+    hitLine.setAttribute('stroke','transparent'); hitLine.setAttribute('stroke-width','18');
+    hitLine.style.cursor = 'pointer';
+    hitLine.addEventListener('mouseenter',()=>{ APP.hoveredWall=i; renderPlanWalls(); });
+    hitLine.addEventListener('mouseleave',()=>{ APP.hoveredWall=null; renderPlanWalls(); });
+    hitLine.addEventListener('click',(e)=>handleWallClick(e,i));
+    g.appendChild(hitLine);
+
+    // Dimension label
+    const mx=(w.x1+w.x2)/2, my=(w.y1+w.y2)/2;
+    const ang = wallAngle(w);
+    const off = 14;
+    const lx = mx + Math.sin(ang)*(-off);
+    const ly = my - Math.cos(ang)*(-off);
+    const len = wallLength(w);
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x',lx); label.setAttribute('y',ly);
+    label.setAttribute('text-anchor','middle'); label.setAttribute('dominant-baseline','middle');
+    label.setAttribute('fill','rgba(255,255,255,0.7)'); label.setAttribute('font-size','8');
+    label.setAttribute('font-family','JetBrains Mono,monospace');
+    label.textContent = fmtIn(len);
+    svgLabels.appendChild(label);
+
+    svgWalls.appendChild(g);
+  });
+
+  // Endpoint dots
+  const pts = getPolygonPoints();
+  pts.forEach((p,i) => {
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx',p.x); circle.setAttribute('cy',p.y); circle.setAttribute('r','5');
+    circle.setAttribute('fill','var(--accent)'); circle.setAttribute('stroke','rgba(0,0,0,0.5)');
+    circle.setAttribute('stroke-width','1.5');
+    circle.style.cursor = 'grab';
+    circle.addEventListener('mousedown',(e)=>startDragEndpoint(e,i));
+    svgDots.appendChild(circle);
+  });
+
+  document.getElementById('st-walls').textContent = `Walls: ${PLAN.walls.length}`;
+}
+
+function getPolygonPoints() {
+  if (!PLAN.walls.length) return APP.drawPoints;
+  const pts = PLAN.walls.map(w=>({x:w.x1,y:w.y1}));
+  if (APP.isPolygonClosed) return pts;
+  if (PLAN.walls.length) pts.push({x:PLAN.walls[PLAN.walls.length-1].x2, y:PLAN.walls[PLAN.walls.length-1].y2});
+  return pts;
+}
+
+function handleWallClick(e, wallIdx) {
+  e.stopPropagation();
+  if (APP.tool === 'select') {
+    APP.selectedWall = wallIdx;
+    renderPlanWalls();
+  } else if (APP.tool === 'erase') {
+    eraseWall(wallIdx);
+  } else if (APP.tool === 'opening') {
+    APP.pendingOpeningWall = wallIdx;
+    const defaults = { garage:96, man:36, window:36 };
+    document.getElementById('op-width').value = defaults.garage;
+    document.getElementById('opening-modal').style.display = 'flex';
+  }
+}
+
+window.confirmOpening = function() {
+  const i = APP.pendingOpeningWall;
+  if (i===null||i===undefined) return;
+  const w = PLAN.walls[i];
+  const type = document.getElementById('op-type').value;
+  const width = parseFloat(document.getElementById('op-width').value)||36;
+  const len = wallLength(w);
+  if (!w.openings) w.openings=[];
+  w.openings.push({ type, width, center: len/2 });
+  document.getElementById('opening-modal').style.display='none';
+  APP.pendingOpeningWall = null;
+  renderPlanWalls();
+};
+
+function eraseWall(i) {
+  if (APP.isPolygonClosed) {
+    if (PLAN.walls.length <= 3) { alert("Can't remove walls from a closed polygon with only 3 walls."); return; }
+    // Remove wall, reconnect polygon
+    const removed = PLAN.walls.splice(i,1)[0];
+    APP.drawPoints.splice(i,1);
+    // Rebuild walls
+    rebuildWallsFromPoints();
+    checkPolygonClosed();
+    renderPlanWalls();
+  } else {
+    PLAN.walls.splice(i,1);
+    if (APP.drawPoints.length > PLAN.walls.length+1) APP.drawPoints.splice(i+1,1);
+    renderPlanWalls();
+  }
+}
+
+function rebuildWallsFromPoints() {
+  PLAN.walls = [];
+  const pts = APP.drawPoints;
+  const n = APP.isPolygonClosed ? pts.length : pts.length-1;
+  for(let i=0;i<n;i++){
+    const a=pts[i], b=pts[(i+1)%pts.length];
+    PLAN.walls.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,thickness:3.5,openings:[]});
+  }
+}
+
+function checkPolygonClosed() {
+  const closed = APP.isPolygonClosed;
+  document.getElementById('btn-view3d').disabled = !closed || APP.drawPoints.length < 3;
+}
+
+// ── SVG Mouse Events ──
+let svgMouseState = { down:false, startSvg:null, dragEndpointIdx:null };
+
+svg.addEventListener('mousemove', onSvgMove);
+svg.addEventListener('mousedown', onSvgDown);
+svg.addEventListener('mouseup', onSvgUp);
+svg.addEventListener('wheel', onSvgWheel, {passive:false});
+svg.addEventListener('dblclick', onSvgDblClick);
+
+function snapPt(pt, gridIn=6) {
+  return { x: snap(pt.x, gridIn), y: snap(pt.y, gridIn) };
+}
+
+function onSvgMove(e) {
+  if (APP.view !== 'plan') return;
+  const raw = svgPt(svg, e);
+  const snapped = snapPt(raw);
+
+  // Show snap cursor
+  const sc = document.getElementById('snap-cursor');
+  const {ppi} = getViewBox();
+  const wrap = document.getElementById('plan-canvas-wrap');
+  const rect = wrap.getBoundingClientRect();
+  sc.style.display = 'block';
+  sc.style.left = (e.clientX - rect.left) + 'px';
+  sc.style.top = (e.clientY - rect.top) + 'px';
+
+  // Middle mouse pan
+  if (svgMouseState.down && e.buttons===4) {
+    APP.panX += e.movementX;
+    APP.panY += e.movementY;
+    updateViewBox();
+    return;
+  }
+  // Space+drag pan
+  if (svgMouseState.down && APP.spaceDown) {
+    APP.panX += e.movementX;
+    APP.panY += e.movementY;
+    updateViewBox();
+    return;
+  }
+
+  // Endpoint drag
+  if (svgMouseState.dragEndpointIdx !== null) {
+    APP.drawPoints[svgMouseState.dragEndpointIdx] = {...snapped};
+    rebuildWallsFromPoints();
+    renderPlanWalls();
+    return;
+  }
+
+  // Draw tool: show rubber band
+  if (APP.tool === 'draw' && APP.drawPoints.length > 0 && !APP.isPolygonClosed) {
+    const last = APP.drawPoints[APP.drawPoints.length-1];
+    const first = APP.drawPoints[0];
+    const dToFirst = dist(snapped.x,snapped.y,first.x,first.y);
+
+    svgPreview.innerHTML = '';
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+
+    // Snap to 90° from last
+    const snap90 = snapTo90(last, snapped);
+    line.setAttribute('x1',last.x); line.setAttribute('y1',last.y);
+    line.setAttribute('x2',snap90.x); line.setAttribute('y2',snap90.y);
+    line.setAttribute('stroke','var(--accent)'); line.setAttribute('stroke-width','3');
+    line.setAttribute('stroke-dasharray','6,4'); line.setAttribute('opacity','0.7');
+    svgPreview.appendChild(line);
+
+    // Length badge
+    const len = dist(last.x,last.y,snap90.x,snap90.y);
+    if (len > 2) {
+      const mx=(last.x+snap90.x)/2, my=(last.y+snap90.y)/2;
+      const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      bg.setAttribute('x',mx-22); bg.setAttribute('y',my-9);
+      bg.setAttribute('width',44); bg.setAttribute('height',16);
+      bg.setAttribute('fill','rgba(4,4,11,0.85)'); bg.setAttribute('rx',4);
+      svgPreview.appendChild(bg);
+      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x',mx); txt.setAttribute('y',my+1);
+      txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
+      txt.setAttribute('fill','var(--accent)'); txt.setAttribute('font-size','7.5');
+      txt.setAttribute('font-family','JetBrains Mono,monospace');
+      txt.textContent = fmtIn(len);
+      svgPreview.appendChild(txt);
+    }
+
+    // Close indicator
+    if (dToFirst < 24 / (APP.zoom/12) && APP.drawPoints.length >= 3) {
+      const circ = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circ.setAttribute('cx',first.x); circ.setAttribute('cy',first.y); circ.setAttribute('r','8');
+      circ.setAttribute('fill','rgba(52,211,153,0.3)'); circ.setAttribute('stroke','#34D399'); circ.setAttribute('stroke-width','2');
+      svgPreview.appendChild(circ);
+    }
+  }
+}
+
+function snapTo90(from, to) {
+  const dx = to.x-from.x, dy = to.y-from.y;
+  if (Math.abs(dx) > Math.abs(dy)) return { x: snap(to.x,6), y: snap(from.y,6) };
+  return { x: snap(from.x,6), y: snap(to.y,6) };
+}
+
+function onSvgDown(e) {
+  svgMouseState.down = true;
+  if (e.button === 1) { e.preventDefault(); return; }
+  if (e.button !== 0) return;
+  const raw = svgPt(svg, e);
+  const snapped = snapPt(raw);
+
+  if (APP.tool === 'draw' && !APP.isPolygonClosed) {
+    // Check close
+    if (APP.drawPoints.length >= 3) {
+      const first = APP.drawPoints[0];
+      const d = dist(snapped.x,snapped.y,first.x,first.y);
+      if (d < 24 / (APP.zoom/12)) {
+        closePolygon();
+        return;
+      }
+    }
+    const snap90 = APP.drawPoints.length ? snapTo90(APP.drawPoints[APP.drawPoints.length-1], snapped) : snapped;
+    APP.drawPoints.push({...snap90});
+    if (APP.drawPoints.length >= 2) {
+      const pts = APP.drawPoints;
+      const n = pts.length;
+      const a = pts[n-2], b = pts[n-1];
+      PLAN.walls.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,thickness:3.5,openings:[]});
+    }
+    renderPlanWalls();
+    svgPreview.innerHTML = '';
+  }
+}
+
+function onSvgUp(e) {
+  svgMouseState.down = false;
+  if (svgMouseState.dragEndpointIdx !== null) {
+    svgMouseState.dragEndpointIdx = null;
+    renderPlanWalls();
+  }
+}
+
+function onSvgDblClick(e) {
+  if (APP.tool === 'draw' && !APP.isPolygonClosed && APP.drawPoints.length >= 3) {
+    closePolygon();
+  }
+}
+
+function onSvgWheel(e) {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 0.88;
+  const rect = document.getElementById('plan-canvas-wrap').getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const {ppi} = getViewBox();
+  const oldPpi = ppi;
+  APP.zoom = Math.max(2, Math.min(60, APP.zoom * factor));
+  const newPpi = APP.zoom / 12;
+  APP.panX = mx - (mx - APP.panX) * (newPpi / oldPpi);
+  APP.panY = my - (my - APP.panY) * (newPpi / oldPpi);
+  updateViewBox();
+}
+
+function startDragEndpoint(e, ptIdx) {
+  e.preventDefault(); e.stopPropagation();
+  svgMouseState.dragEndpointIdx = ptIdx;
+  svgMouseState.down = true;
+}
+
+function closePolygon() {
+  APP.isPolygonClosed = true;
+  // Close wall from last point back to first
+  if (APP.drawPoints.length >= 3) {
+    const pts = APP.drawPoints;
+    const last = pts[pts.length-1], first = pts[0];
+    PLAN.walls.push({x1:last.x,y1:last.y,x2:first.x,y2:first.y,thickness:3.5,openings:[]});
+    PLAN.polygon = pts.map(p=>({...p}));
+  }
+  svgPreview.innerHTML='';
+  renderPlanWalls();
+  checkPolygonClosed();
+}
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') APP.spaceDown = true;
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (APP.view==='plan' && APP.selectedWall!==null) { eraseWall(APP.selectedWall); APP.selectedWall=null; }
+    if (APP.view==='3d' && APP.selectedItem) { removeSelectedItem(); }
+  }
+  if (APP.view==='3d') {
+    if (e.key==='r') rotateSelected(Math.PI/2,'y');
+    if (e.key==='f') rotateSelected(Math.PI/2,'x');
+    if (e.key==='Escape') { cancelPlacement(); deselectAll(); }
+    if ((e.ctrlKey||e.metaKey) && e.key==='d') dupSelected(e);
+  }
+});
+window.addEventListener('keyup', e => { if (e.code==='Space') APP.spaceDown=false; });
+
+// ══════════════════════════════════════════════════════════
+//  ENTER 3D VIEW
+// ══════════════════════════════════════════════════════════
+let renderer, scene, camera, controls, raycaster, mouse3d;
+let floorMesh, wallMeshes=[], gizmoGroup, ghostMesh;
+let animFrame;
+
+window.enterView3D = function() {
+  document.getElementById('plan-screen').style.display='none';
+  const v3 = document.getElementById('view3d-screen');
+  v3.style.display = 'flex';
+  v3.style.flexDirection = 'column';
+  APP.view = '3d';
+
+  // Compute polygon centroid for bounding box
+  const xs = PLAN.polygon.map(p=>p.x), ys = PLAN.polygon.map(p=>p.y);
+  PLAN.floorW = Math.max(...xs)-Math.min(...xs);
+  PLAN.floorD = Math.max(...ys)-Math.min(...ys);
+
+  populateLumberPanel();
+  if (!renderer) initThree();
+  else {
+    buildRoom();
+    rebuildItems();
+  }
+  updateSelBar();
+};
+
+window.backToPlan = function() {
+  document.getElementById('view3d-screen').style.display='none';
+  document.getElementById('plan-screen').style.display='flex';
+  APP.view='plan';
+  cancelPlacement();
+};
+
+// ══════════════════════════════════════════════════════════
+//  THREE.JS INIT
+// ══════════════════════════════════════════════════════════
+function makeWoodTex() {
+  const c=document.createElement('canvas'); c.width=512; c.height=512;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#D6B87A'; ctx.fillRect(0,0,512,512);
+  for(let i=0;i<55;i++){
+    const y=Math.random()*512;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(512,y+Math.random()*4-2);
+    ctx.strokeStyle=`rgba(0,0,0,${0.13+Math.random()*0.2})`; ctx.lineWidth=Math.random()*2+0.5;
+    ctx.stroke();
+  }
+  for(let k=0;k<2;k++){
+    const kx=100+Math.random()*312, ky=80+Math.random()*352, kr=8+Math.random()*14;
+    const grad=ctx.createRadialGradient(kx,ky,0,kx,ky,kr);
+    grad.addColorStop(0,'rgba(90,55,20,0.6)'); grad.addColorStop(1,'rgba(90,55,20,0)');
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(kx,ky,kr,0,Math.PI*2); ctx.fill();
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(2,6); return t;
+}
+
+function makePlywoodTex() {
+  const c=document.createElement('canvas'); c.width=512; c.height=512;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#C8943C'; ctx.fillRect(0,0,512,512);
+  for(let i=0;i<64;i++){
+    const y=i*(512/64);
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(512,y+Math.random()*2-1);
+    ctx.strokeStyle=`rgba(0,0,0,${0.08+Math.random()*0.1})`; ctx.lineWidth=0.8; ctx.stroke();
+  }
+  for(let i=0;i<4;i++){
+    const x=60+Math.random()*392;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x+Math.random()*4-2,512);
+    ctx.strokeStyle='rgba(80,50,20,0.3)'; ctx.lineWidth=2+Math.random()*2; ctx.stroke();
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(1,1); return t;
+}
+
+let woodTex, plywoodTex, MATS;
+
+function initMaterials() {
+  woodTex = makeWoodTex();
+  plywoodTex = makePlywoodTex();
+  MATS = {
+    pine:    new THREE.MeshStandardMaterial({color:0xD4AA6A,roughness:0.92,metalness:0,map:woodTex}),
+    plywood: new THREE.MeshStandardMaterial({color:0xC28A40,roughness:0.94,metalness:0,map:plywoodTex}),
+    pineEnd: new THREE.MeshStandardMaterial({color:0xB8824A,roughness:0.96,metalness:0}),
+    osb:     new THREE.MeshStandardMaterial({color:0xD4A85A,roughness:0.98,metalness:0}),
+    ghost:   new THREE.MeshStandardMaterial({color:0x22D3EE,roughness:0.5,metalness:0,transparent:true,opacity:0.4}),
+    floor:   new THREE.MeshStandardMaterial({color:0x888899,roughness:0.9,metalness:0}),
+    wall:    new THREE.MeshStandardMaterial({color:0xE8E8E0,roughness:0.85,metalness:0}),
+    selected:new THREE.MeshStandardMaterial({color:0xD4AA6A,roughness:0.92,metalness:0,map:woodTex,emissive:0x22D3EE,emissiveIntensity:0.18}),
+  };
+}
+
+function lumber6Mat(type) {
+  // 6-face material: [right,left,top,bottom,front,back]
+  // front/back = end grain, others = face/edge
+  const face = type==='plywood' ? MATS.plywood : MATS.pine;
+  const end  = type==='plywood' ? MATS.plywood : MATS.pineEnd;
+  return [face,face,face,face,end,end];
+}
+
+function initThree() {
+  const canvas = document.getElementById('three-canvas');
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.9;
+  renderer.setClearColor(0x04040B);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x04040B);
+
+  const wrap = document.getElementById('three-wrap');
+  const W = wrap.clientWidth||800, H = wrap.clientHeight||600;
+  camera = new THREE.PerspectiveCamera(50, W/H, 1, 100000);
+
+  const cx = PLAN.floorW/2, cz = PLAN.floorD/2;
+  camera.position.set(cx, PLAN.ceilingH*1.4, cz+PLAN.floorD*1.2);
+  camera.lookAt(cx, 0, cz);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(cx, PLAN.ceilingH*0.3, cz);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 12;
+  controls.maxDistance = Math.max(PLAN.floorW,PLAN.floorD)*4;
+
+  initMaterials();
+  setupLights();
+  buildRoom();
+  rebuildItems();
+  setupRaycaster();
+  onResize3D();
+  window.addEventListener('resize', onResize3D);
+  animate();
+}
+
+function setupLights() {
+  scene.add(new THREE.AmbientLight(0xfff8f0, 0.5));
+  const dir = new THREE.DirectionalLight(0xfff5e8, 1.8);
+  dir.position.set(200,400,200); dir.castShadow=true;
+  dir.shadow.mapSize.set(2048,2048);
+  dir.shadow.camera.near=10; dir.shadow.camera.far=2000;
+  const s=Math.max(PLAN.floorW,PLAN.floorD)*0.8;
+  dir.shadow.camera.left=-s; dir.shadow.camera.right=s;
+  dir.shadow.camera.top=s; dir.shadow.camera.bottom=-s;
+  scene.add(dir);
+  scene.add(new THREE.HemisphereLight(0xfff4e0,0x888870,0.4));
+}
+
+function buildRoom() {
+  // Remove old floor/walls
+  wallMeshes.forEach(m=>scene.remove(m));
+  wallMeshes=[];
+  if (floorMesh) scene.remove(floorMesh);
+
+  const poly = PLAN.polygon;
+  if (!poly||poly.length<3) return;
+
+  // Floor
+  const shape = new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,p.y)));
+  const floorGeo = new THREE.ShapeGeometry(shape);
+  floorMesh = new THREE.Mesh(floorGeo, MATS.floor);
+  floorMesh.rotation.x = -Math.PI/2;
+  floorMesh.receiveShadow=true;
+  floorMesh.userData.isFloor=true;
+  scene.add(floorMesh);
+
+  // Walls
+  PLAN.walls.forEach(w=>{
+    const len = wallLength(w);
+    if (len<1) return;
+    const wallGeo = new THREE.BoxGeometry(len, PLAN.ceilingH, 3.5);
+    const wallMat = MATS.wall.clone();
+    const mesh = new THREE.Mesh(wallGeo, wallMat);
+    mesh.castShadow=true; mesh.receiveShadow=true;
+
+    const ang = wallAngle(w);
+    const cx=(w.x1+w.x2)/2, cz=(w.y1+w.y2)/2;
+    mesh.position.set(cx, PLAN.ceilingH/2, cz);
+    mesh.rotation.y = -ang;
+    mesh.userData.isWall=true;
+    scene.add(mesh);
+    wallMeshes.push(mesh);
+  });
+}
+
+function rebuildItems() {
+  // Remove existing item meshes
+  scene.children.filter(c=>c.userData.isItem).forEach(c=>scene.remove(c));
+  ITEMS.forEach(item => {
+    const mesh = buildItemMesh(item);
+    if (mesh) { scene.add(mesh); item._mesh=mesh; }
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  LUMBER CATALOG
+// ══════════════════════════════════════════════════════════
+const LUMBER_TYPES = [
+  {id:'2x4-8',  name:'2×4 × 8ft',  w:1.5, h:3.5,  l:96,  mat:'pine',    section:'Dimensional'},
+  {id:'2x4-12', name:'2×4 × 12ft', w:1.5, h:3.5,  l:144, mat:'pine',    section:'Dimensional'},
+  {id:'2x6-8',  name:'2×6 × 8ft',  w:1.5, h:5.5,  l:96,  mat:'pine',    section:'Dimensional'},
+  {id:'2x6-12', name:'2×6 × 12ft', w:1.5, h:5.5,  l:144, mat:'pine',    section:'Dimensional'},
+  {id:'2x8-8',  name:'2×8 × 8ft',  w:1.5, h:7.25, l:96,  mat:'pine',    section:'Dimensional'},
+  {id:'4x4-8',  name:'4×4 × 8ft',  w:3.5, h:3.5,  l:96,  mat:'pine',    section:'Dimensional'},
+  {id:'ply34',  name:'Plywood 3/4"',w:48,  h:0.75, l:96,  mat:'plywood', section:'Sheet Goods'},
+  {id:'ply12',  name:'Plywood 1/2"',w:48,  h:0.5,  l:96,  mat:'plywood', section:'Sheet Goods'},
+  {id:'osb',    name:'OSB 7/16"',   w:48,  h:0.4375,l:96, mat:'osb',     section:'Sheet Goods'},
+  {id:'1x4-8',  name:'1×4 × 8ft',  w:0.75,h:3.5,  l:96,  mat:'pine',    section:'Boards'},
+  {id:'1x6-8',  name:'1×6 × 8ft',  w:0.75,h:5.5,  l:96,  mat:'pine',    section:'Boards'},
+];
+
+function populateLumberPanel() {
+  const list = document.getElementById('lumber-list');
+  list.innerHTML='';
+  let curSection='';
+  LUMBER_TYPES.forEach(lt => {
+    if (lt.section !== curSection) {
+      curSection = lt.section;
+      const sec = document.createElement('div');
+      sec.className='lp-section'; sec.textContent=lt.section;
+      list.appendChild(sec);
+    }
+    const item = document.createElement('div');
+    item.className='lumber-item';
+    item.dataset.id=lt.id;
+    // Mini icon
+    const icoDiv = document.createElement('div');
+    icoDiv.className='li-icon';
+    icoDiv.style.background = lt.mat==='plywood'||lt.mat==='osb' ? '#C28A40' : '#D4AA6A';
+    icoDiv.style.border = '1px solid rgba(255,255,255,0.15)';
+    item.appendChild(icoDiv);
+    const info = document.createElement('div');
+    info.style.flex='1';
+    info.innerHTML=`<div class="li-name">${lt.name}</div><div class="li-dims">${lt.w}" × ${lt.h}" × ${lt.l}"</div>`;
+    item.appendChild(info);
+    item.addEventListener('click',()=>startPlacement(lt.id));
+    list.appendChild(item);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  PLACEMENT
+// ══════════════════════════════════════════════════════════
+function startPlacement(typeId) {
+  cancelPlacement();
+  APP.placingType = typeId;
+  document.querySelectorAll('.lumber-item').forEach(li=>{
+    li.classList.toggle('active', li.dataset.id===typeId);
+  });
+  document.getElementById('placement-cursor').style.display='block';
+  const lt = LUMBER_TYPES.find(x=>x.id===typeId);
+  if (!lt) return;
+  const geo = new THREE.BoxGeometry(lt.l, lt.h, lt.w);
+  ghostMesh = new THREE.Mesh(geo, MATS.ghost);
+  ghostMesh.userData.isGhost=true;
+  scene.add(ghostMesh);
+}
+
+function cancelPlacement() {
+  APP.placingType = null;
+  if (ghostMesh) { scene.remove(ghostMesh); ghostMesh=null; }
+  document.getElementById('placement-cursor').style.display='none';
+  document.querySelectorAll('.lumber-item').forEach(li=>li.classList.remove('active'));
+}
+
+function setupRaycaster() {
+  raycaster = new THREE.Raycaster();
+  mouse3d = new THREE.Vector2();
+  const canvas = renderer.domElement;
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mouse3d.x = ((e.clientX-rect.left)/rect.width)*2-1;
+    mouse3d.y = -((e.clientY-rect.top)/rect.height)*2+1;
+
+    if (APP.placingType && ghostMesh) {
+      const pos = getFloorPos();
+      if (pos) {
+        const lt = LUMBER_TYPES.find(x=>x.id===APP.placingType);
+        ghostMesh.position.set(pos.x, lt.h/2, pos.z);
+      }
+    }
+
+    // Hover gizmo
+    if (APP.selectedItem && gizmoGroup) moveGizmoWithItem();
+  });
+
+  canvas.addEventListener('click', e => {
+    if (APP.placingType) {
+      const pos = getFloorPos();
+      if (!pos) return;
+      const lt = LUMBER_TYPES.find(x=>x.id===APP.placingType);
+      const item = {
+        id: Date.now()+'_'+Math.random().toString(36).slice(2,6),
+        type: APP.placingType,
+        position: [snap(pos.x,1), lt.h/2, snap(pos.z,1)],
+        rotation: [0,0,0],
+        group: null,
+        _mesh: null,
+      };
+      ITEMS.push(item);
+      const mesh = buildItemMesh(item);
+      if (mesh) { scene.add(mesh); item._mesh=mesh; }
+      // Keep placing same type
+    } else {
+      // Selection
+      raycaster.setFromCamera(mouse3d, camera);
+      const itemMeshes = ITEMS.map(i=>i._mesh).filter(Boolean);
+      const hits = raycaster.intersectObjects(itemMeshes, false);
+      if (hits.length) {
+        const mesh = hits[0].object;
+        const item = ITEMS.find(i=>i._mesh===mesh);
+        if (item) selectItem(item);
+      } else {
+        deselectAll();
+      }
+    }
+  });
+
+  canvas.addEventListener('contextmenu', e=>{ e.preventDefault(); cancelPlacement(); });
+}
+
+function getFloorPos() {
+  raycaster.setFromCamera(mouse3d, camera);
+  const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+  const target = new THREE.Vector3();
+  raycaster.ray.intersectPlane(plane, target);
+  if (!target) return null;
+  // Snap to 1"
+  return { x: snap(target.x,1), z: snap(target.z,1) };
+}
+
+function buildItemMesh(item) {
+  const lt = LUMBER_TYPES.find(x=>x.id===item.type);
+  if (!lt) return null;
+  const geo = new THREE.BoxGeometry(lt.l, lt.h, lt.w);
+  const mats = lumber6Mat(lt.mat);
+  const mesh = new THREE.Mesh(geo, mats);
+  mesh.position.set(...item.position);
+  mesh.rotation.set(...item.rotation);
+  mesh.castShadow=true; mesh.receiveShadow=true;
+  mesh.userData.isItem=true;
+  mesh.userData.itemId=item.id;
+  return mesh;
+}
+
+// ── Selection ──
+function selectItem(item) {
+  deselectAll();
+  APP.selectedItem = item;
+  if (item._mesh) {
+    const lt = LUMBER_TYPES.find(x=>x.id===item.type);
+    const mats = lumber6Mat(lt.mat).map(m => {
+      const sel = m.clone();
+      sel.emissive = new THREE.Color(0x22D3EE);
+      sel.emissiveIntensity = 0.2;
+      return sel;
+    });
+    item._mesh.material = mats;
+  }
+  showGizmo(item);
+  updateSelBar();
+}
+
+function deselectAll() {
+  if (APP.selectedItem) {
+    const item = APP.selectedItem;
+    if (item._mesh) {
+      const lt = LUMBER_TYPES.find(x=>x.id===item.type);
+      item._mesh.material = lumber6Mat(lt.mat);
+    }
+  }
+  APP.selectedItem = null;
+  APP.selectedItems = [];
+  removeGizmo();
+  updateSelBar();
+}
+
+function updateSelBar() {
+  const nameEl = document.getElementById('sel-name');
+  const hintEl = document.getElementById('sel-hint');
+  const actEl = document.getElementById('sel-actions');
+  if (APP.selectedItem) {
+    const it = APP.selectedItem;
+    const lt = LUMBER_TYPES.find(x=>x.id===it.type);
+    nameEl.textContent = lt ? lt.name : it.type;
+    hintEl.textContent = `pos(${it.position.map(v=>v.toFixed(1)).join(',')})  R=rotate Y  F=flip X  Del=remove  Ctrl+D=dup`;
+    actEl.innerHTML=`
+      <button class="sel-action-btn" onclick="openRepeatModal()">Repeat…</button>
+      <button class="sel-action-btn" onclick="openGroupModal()">Group…</button>
+    `;
+  } else {
+    nameEl.textContent = 'No selection';
+    hintEl.textContent = 'Click a piece to select';
+    actEl.innerHTML='';
+  }
+}
+
+function removeSelectedItem() {
+  if (!APP.selectedItem) return;
+  const item = APP.selectedItem;
+  if (item._mesh) scene.remove(item._mesh);
+  const idx = ITEMS.indexOf(item);
+  if (idx>=0) ITEMS.splice(idx,1);
+  deselectAll();
+}
+
+function rotateSelected(angle, axis) {
+  if (!APP.selectedItem) return;
+  const it = APP.selectedItem;
+  if (axis==='y') it.rotation[1] = (it.rotation[1]||0)+angle;
+  if (axis==='x') it.rotation[0] = (it.rotation[0]||0)+angle;
+  if (it._mesh) it._mesh.rotation.set(...it.rotation);
+  moveGizmoWithItem();
+}
+
+function dupSelected(e) {
+  if (!APP.selectedItem) return;
+  e && e.preventDefault();
+  const src = APP.selectedItem;
+  const item = {
+    ...JSON.parse(JSON.stringify(src)),
+    id: Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    _mesh: null,
+  };
+  item.position[0] += 6;
+  ITEMS.push(item);
+  const mesh = buildItemMesh(item);
+  if (mesh) { scene.add(mesh); item._mesh=mesh; }
+  selectItem(item);
+}
+
+// ── Gizmo (transform arrows) ──
+function showGizmo(item) {
+  removeGizmo();
+  gizmoGroup = new THREE.Group();
+  const axes = [
+    {dir:new THREE.Vector3(1,0,0), color:0xFF5555, axis:'x'},
+    {dir:new THREE.Vector3(0,1,0), color:0x55FF55, axis:'y'},
+    {dir:new THREE.Vector3(0,0,1), color:0x5599FF, axis:'z'},
+  ];
+  axes.forEach(({dir,color,axis})=>{
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5,1.5,30,8),
+      new THREE.MeshBasicMaterial({color})
+    );
+    shaft.position.copy(dir.clone().multiplyScalar(20));
+    if (axis==='x') shaft.rotation.z=-Math.PI/2;
+    if (axis==='z') shaft.rotation.x=Math.PI/2;
+    shaft.userData.gizmoAxis=axis;
+
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(4,10,8),
+      new THREE.MeshBasicMaterial({color})
+    );
+    cone.position.copy(dir.clone().multiplyScalar(38));
+    if (axis==='x') cone.rotation.z=-Math.PI/2;
+    if (axis==='z') cone.rotation.x=Math.PI/2;
+    cone.userData.gizmoAxis=axis;
+
+    gizmoGroup.add(shaft,cone);
+  });
+  moveGizmoWithItem();
+  scene.add(gizmoGroup);
+
+  // Gizmo drag
+  const canvas = renderer.domElement;
+  let dragging=false, dragAxis=null, dragStart=null, itemStart=null;
+  function gizmoDown(e) {
+    raycaster.setFromCamera(mouse3d,camera);
+    const hits = raycaster.intersectObjects(gizmoGroup.children,false);
+    if (!hits.length) return;
+    const ax = hits[0].object.userData.gizmoAxis;
+    if (!ax) return;
+    dragging=true; dragAxis=ax;
+    dragStart = {x:e.clientX, y:e.clientY};
+    itemStart = [...(APP.selectedItem?.position||[0,0,0])];
+    e.stopPropagation();
+  }
+  function gizmoMove(e) {
+    if (!dragging||!APP.selectedItem) return;
+    const dx = (e.clientX-dragStart.x)*0.5;
+    const dy = -(e.clientY-dragStart.y)*0.5;
+    const it = APP.selectedItem;
+    if (dragAxis==='x') it.position[0]=snap(itemStart[0]+dx,1);
+    if (dragAxis==='y') it.position[1]=snap(itemStart[1]+dy,1);
+    if (dragAxis==='z') it.position[2]=snap(itemStart[2]+dx,1);
+    if (it._mesh) it._mesh.position.set(...it.position);
+    moveGizmoWithItem();
+  }
+  function gizmoUp() { dragging=false; }
+  canvas.addEventListener('mousedown',gizmoDown);
+  canvas.addEventListener('mousemove',gizmoMove);
+  canvas.addEventListener('mouseup',gizmoUp);
+  gizmoGroup._cleanup=()=>{
+    canvas.removeEventListener('mousedown',gizmoDown);
+    canvas.removeEventListener('mousemove',gizmoMove);
+    canvas.removeEventListener('mouseup',gizmoUp);
+  };
+}
+
+function moveGizmoWithItem() {
+  if (!gizmoGroup||!APP.selectedItem) return;
+  gizmoGroup.position.set(...APP.selectedItem.position);
+}
+
+function removeGizmo() {
+  if (gizmoGroup) {
+    if (gizmoGroup._cleanup) gizmoGroup._cleanup();
+    scene.remove(gizmoGroup);
+    gizmoGroup=null;
+  }
+}
+
+// ── Animate ──
+function animate() {
+  animFrame = requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene,camera);
+}
+
+function onResize3D() {
+  const wrap = document.getElementById('three-wrap');
+  const W=wrap.clientWidth, H=wrap.clientHeight;
+  if (!W||!H) return;
+  renderer.setSize(W,H,false);
+  camera.aspect=W/H; camera.updateProjectionMatrix();
+}
+
+// ══════════════════════════════════════════════════════════
+//  STUD WALL WIZARD
+// ══════════════════════════════════════════════════════════
+window.startStudWizard = function() {
+  APP.studWizardPoints=[];
+  document.getElementById('stud-wizard-modal').style.display='flex';
+  document.getElementById('sw-status').textContent='Click two points on the 3D floor to define the wall.';
+  document.getElementById('sw-build-btn').disabled=true;
+
+  const canvas=renderer.domElement;
+  function pickPoint(e){
+    const rect=canvas.getBoundingClientRect();
+    mouse3d.x=((e.clientX-rect.left)/rect.width)*2-1;
+    mouse3d.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    const pos=getFloorPos();
+    if(!pos) return;
+    APP.studWizardPoints.push([pos.x,pos.z]);
+    if(APP.studWizardPoints.length===1){
+      document.getElementById('sw-status').textContent='First point set. Click second point.';
+    } else if(APP.studWizardPoints.length>=2){
+      const p1=APP.studWizardPoints[0],p2=APP.studWizardPoints[1];
+      const len=dist(p1[0],p1[1],p2[0],p2[1]);
+      document.getElementById('sw-status').textContent=`Wall length: ${fmtIn(len)}. Configure and click Build.`;
+      document.getElementById('sw-build-btn').disabled=false;
+      canvas.removeEventListener('click',pickPoint);
+    }
+  }
+  canvas.addEventListener('click',pickPoint);
+  canvas._swPickPoint=pickPoint;
+};
+
+window.cancelStudWizard=function(){
+  document.getElementById('stud-wizard-modal').style.display='none';
+  const canvas=renderer.domElement;
+  if(canvas._swPickPoint){canvas.removeEventListener('click',canvas._swPickPoint);canvas._swPickPoint=null;}
+  APP.studWizardPoints=[];
+};
+
+window.buildStudWall=function(){
+  const pts=APP.studWizardPoints;
+  if(pts.length<2) return;
+  const [p1,p2]=pts;
+  const height=parseFloat(document.getElementById('sw-height').value)||96;
+  const spacing=parseFloat(document.getElementById('sw-spacing').value)||16;
+  const matType=document.getElementById('sw-material').value;
+  const lt=LUMBER_TYPES.find(x=>x.id===matType+'-8')||LUMBER_TYPES[0];
+  const wallW=lt.w, wallH=lt.h;
+
+  const wallLen=dist(p1[0],p1[1],p2[0],p2[1]);
+  const ang=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
+  const perpAng=ang+Math.PI/2;
+
+  function placeBoard(x,y,z,rx,ry,rz,len,type){
+    const blt=LUMBER_TYPES.find(t=>t.id===type)||lt;
+    const item={
+      id:Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      type:blt.id,
+      position:[x,y,z],
+      rotation:[rx,ry,rz],
+      group:'StudWall',
+      _mesh:null,
+      _customLen:len,
+    };
+    ITEMS.push(item);
+    // Custom length mesh
+    const geo=new THREE.BoxGeometry(len,blt.h,blt.w);
+    const mats=lumber6Mat(blt.mat.replace('2x4','pine').replace('2x6','pine'));
+    const mesh=new THREE.Mesh(geo,mats);
+    mesh.position.set(x,y,z);
+    mesh.rotation.set(rx,ry,rz);
+    mesh.castShadow=true;mesh.receiveShadow=true;
+    mesh.userData.isItem=true;mesh.userData.itemId=item.id;
+    scene.add(mesh);item._mesh=mesh;
+  }
+
+  const midX=(p1[0]+p2[0])/2, midZ=(p1[1]+p2[1])/2;
+
+  // Bottom plate
+  placeBoard(midX,wallH/2,midZ,0,-ang,0,wallLen,matType+'-8');
+  // Top plate
+  placeBoard(midX,height-wallH/2,midZ,0,-ang,0,wallLen,matType+'-8');
+
+  // Studs
+  const studCount=Math.floor((wallLen-wallW)/(spacing))+1;
+  for(let i=0;i<studCount;i++){
+    const t=(i*spacing+wallW/2)/wallLen;
+    if(t>1) break;
+    const sx=p1[0]+(p2[0]-p1[0])*t;
+    const sz=p1[1]+(p2[1]-p1[1])*t;
+    const studHeight=height-wallH*2;
+    const item2={
+      id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      type:matType+'-8',
+      position:[sx,wallH+studHeight/2,sz],
+      rotation:[0,-ang,0],
+      group:'StudWall',
+      _mesh:null,
+      _customLen:studHeight,
+    };
+    ITEMS.push(item2);
+    const geo2=new THREE.BoxGeometry(studHeight,wallH,wallW);
+    const mats2=lumber6Mat('pine');
+    const mesh2=new THREE.Mesh(geo2,mats2);
+    mesh2.position.set(...item2.position);
+    mesh2.rotation.set(...item2.rotation);
+    mesh2.castShadow=true;mesh2.receiveShadow=true;
+    mesh2.userData.isItem=true;mesh2.userData.itemId=item2.id;
+    scene.add(mesh2);item2._mesh=mesh2;
+  }
+
+  cancelStudWizard();
+};
+
+// ══════════════════════════════════════════════════════════
+//  REPEAT / GROUP / CUT LIST
+// ══════════════════════════════════════════════════════════
+window.openRepeatModal=function(){
+  if(!APP.selectedItem) return;
+  document.getElementById('repeat-modal').style.display='flex';
+};
+window.closeRepeatModal=function(){document.getElementById('repeat-modal').style.display='none';};
+window.doRepeat=function(){
+  if(!APP.selectedItem) return;
+  const dir=document.getElementById('rep-dir').value;
+  const spacing=parseFloat(document.getElementById('rep-spacing').value)||16;
+  const count=parseInt(document.getElementById('rep-count').value)||3;
+  const src=APP.selectedItem;
+  for(let i=1;i<=count;i++){
+    const item={
+      ...JSON.parse(JSON.stringify(src)),
+      id:Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      _mesh:null,
+    };
+    if(dir==='x') item.position[0]+=spacing*i;
+    if(dir==='y') item.position[1]+=spacing*i;
+    if(dir==='z') item.position[2]+=spacing*i;
+    ITEMS.push(item);
+    const mesh=buildItemMesh(item);
+    if(mesh){scene.add(mesh);item._mesh=mesh;}
+  }
+  closeRepeatModal();
+};
+
+window.openGroupModal=function(){
+  if(!APP.selectedItem&&!APP.selectedItems.length) return;
+  document.getElementById('group-modal').style.display='flex';
+  document.getElementById('group-name-in').focus();
+};
+window.confirmGroup=function(){
+  const name=document.getElementById('group-name-in').value.trim()||'Group';
+  const targets=APP.selectedItems.length?APP.selectedItems:[APP.selectedItem].filter(Boolean);
+  targets.forEach(it=>it.group=name);
+  document.getElementById('group-modal').style.display='none';
+  updateSelBar();
+};
+
+// ── Cut List ──
+window.toggleCutList=function(){
+  document.getElementById('cutlist-panel').classList.toggle('open');
+  if(document.getElementById('cutlist-panel').classList.contains('open')) buildCutList();
+};
+
+function buildCutList(){
+  const el=document.getElementById('cl-content');
+  el.innerHTML='';
+  // Group by material type
+  const byMat={};
+  ITEMS.forEach(item=>{
+    const lt=LUMBER_TYPES.find(x=>x.id===item.type);
+    if(!lt) return;
+    const key=lt.id;
+    if(!byMat[key]) byMat[key]={lt,pieces:[]};
+    const len=item._customLen||lt.l;
+    byMat[key].pieces.push({len,group:item.group||'ungrouped'});
+  });
+
+  // Purchase summary
+  const purchase={};
+
+  Object.values(byMat).forEach(({lt,pieces})=>{
+    const head=document.createElement('div');
+    head.className='cl-section-head';
+    head.textContent=`── ${lt.name} (${lt.w}" × ${lt.h}") ──`;
+    el.appendChild(head);
+
+    // Group pieces by length + group
+    const grouped={};
+    pieces.forEach(p=>{
+      const k=`${p.len}|${p.group}`;
+      grouped[k]=(grouped[k]||0)+1;
+    });
+    Object.entries(grouped).forEach(([k,qty])=>{
+      const [len,grp]=k.split('|');
+      const row=document.createElement('div'); row.className='cl-row';
+      row.innerHTML=`<span class="cl-qty">×${qty}</span><span class="cl-dim">${fmtIn(parseFloat(len))}</span><span class="cl-group">[${grp}]</span>`;
+      el.appendChild(row);
+    });
+
+    // Purchase: how many standard pieces needed
+    const stockLen=lt.l;
+    let totalInches=pieces.reduce((s,p)=>s+(item._customLen||stockLen),0);
+    const needed=Math.ceil(pieces.reduce((s,p)=>s+(p.len/stockLen),0));
+    if(!purchase[lt.id]) purchase[lt.id]={lt,needed:0};
+    purchase[lt.id].needed+=needed;
+  });
+
+  // Purchase list
+  if(Object.keys(purchase).length){
+    const head=document.createElement('div');
+    head.className='cl-section-head'; head.textContent='── Purchase List ──';
+    el.appendChild(head);
+    Object.values(purchase).forEach(({lt,needed})=>{
+      const row=document.createElement('div'); row.className='cl-row';
+      row.innerHTML=`<span class="cl-qty">×${needed}</span><span class="cl-dim">${lt.name}</span>`;
+      el.appendChild(row);
+    });
+  }
+}
+
+function getCutListText(){
+  let txt='';
+  const byMat={};
+  ITEMS.forEach(item=>{
+    const lt=LUMBER_TYPES.find(x=>x.id===item.type);
+    if(!lt) return;
+    const key=lt.id;
+    if(!byMat[key]) byMat[key]={lt,pieces:[]};
+    const len=item._customLen||lt.l;
+    byMat[key].pieces.push({len,group:item.group||'ungrouped'});
+  });
+  Object.values(byMat).forEach(({lt,pieces})=>{
+    txt+=`\n── ${lt.name} ──\n`;
+    const grouped={};
+    pieces.forEach(p=>{ const k=`${p.len}|${p.group}`; grouped[k]=(grouped[k]||0)+1; });
+    Object.entries(grouped).forEach(([k,qty])=>{
+      const [len,grp]=k.split('|');
+      txt+=`  ×${qty}  ${fmtIn(parseFloat(len))}  [${grp}]\n`;
+    });
+  });
+  return txt.trim();
+}
+
+window.copyCutList=function(){
+  navigator.clipboard.writeText(getCutListText()).then(()=>alert('Cut list copied!'));
+};
+
+window.exportCsv=function(){
+  let csv='Material,Width,Height,Length,Qty,Group\n';
+  ITEMS.forEach(item=>{
+    const lt=LUMBER_TYPES.find(x=>x.id===item.type);
+    if(!lt) return;
+    const len=item._customLen||lt.l;
+    csv+=`"${lt.name}",${lt.w},${lt.h},${fmtIn(len)},1,"${item.group||''}"\n`;
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='buildplan-cutlist.csv'; a.click();
+};
+
+// ══════════════════════════════════════════════════════════
+//  SAVE / LOAD
+// ══════════════════════════════════════════════════════════
+window.saveProject=function(){
+  const data={
+    version:1,
+    plan:{polygon:PLAN.polygon, walls:PLAN.walls.map(w=>({...w,openings:w.openings||[]})), ceilingH:PLAN.ceilingH},
+    items:ITEMS.map(it=>({type:it.type,position:it.position,rotation:it.rotation,group:it.group,_customLen:it._customLen})),
+  };
+  const a=document.createElement('a');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data,null,2));
+  a.download='buildplan.json'; a.click();
+};
+
+window.loadProject=function(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      PLAN.polygon=data.plan.polygon||[];
+      PLAN.walls=data.plan.walls||[];
+      PLAN.ceilingH=data.plan.ceilingH||108;
+      APP.drawPoints=PLAN.polygon.map(p=>({...p}));
+      APP.isPolygonClosed=PLAN.polygon.length>=3;
+      ITEMS.length=0;
+      (data.items||[]).forEach(it=>{
+        ITEMS.push({...it, id:Date.now()+'_'+Math.random().toString(36).slice(2,6), _mesh:null});
+      });
+      rebuildItems();
+      buildRoom();
+      document.getElementById('ceiling-ft').value=(PLAN.ceilingH/12).toFixed(1);
+    }catch(err){ alert('Failed to load: '+err.message); }
+    input.value='';
+  };
+  reader.readAsText(file);
+};
+
+// ══════════════════════════════════════════════════════════
+//  MOBILE LUMBER PANEL
+// ══════════════════════════════════════════════════════════
+window.toggleLumberPanel=function(){
+  const panel=document.getElementById('lumber-panel');
+  if(window.innerWidth<=767){
+    panel.classList.toggle('mobile-open');
+  } else {
+    panel.classList.toggle('collapsed');
+  }
+};
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+showOnboardTip();
+setTool('draw');
+// Show template screen
+document.getElementById('template-screen').style.display='flex';
+</script>
+</body>
+</html>

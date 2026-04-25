@@ -2114,10 +2114,15 @@ function setupRaycaster() {
     raycaster.setFromCamera(mouse3d,camera);
     const floorPt=new THREE.Vector3();
     if (!raycaster.ray.intersectPlane(floorPlane,floorPt)) return;
-    APP.selectedItems.forEach((it,i)=>{
+    const newPos = APP.selectedItems.map((it,i)=>{
       const off=itDragOffsets[i]||[0,0];
-      it.position[0]=snap(floorPt.x+off[0],1);
-      it.position[2]=snap(floorPt.z+off[1],1);
+      return [snap(floorPt.x+off[0],1), snap(floorPt.z+off[1],1)];
+    });
+    // Reject move if any item center would leave the room polygon
+    if (newPos.some(([nx,nz])=>!ptInRoom(nx,nz))) return;
+    APP.selectedItems.forEach((it,i)=>{
+      it.position[0]=newPos[i][0];
+      it.position[2]=newPos[i][1];
       if(it._mesh) it._mesh.position.set(...it.position);
     });
     if(gizmoGroup) moveGizmoWithItem();
@@ -2133,6 +2138,19 @@ function setupRaycaster() {
       setTimeout(()=>{APP._itemJustDragged=false;},80);
     }
   });
+}
+
+// Point-in-polygon test for room containment. wx/wz in world feet.
+// PLAN.polygon coords are in inches → divide by 12.
+function ptInRoom(wx, wz) {
+  const poly = PLAN.polygon;
+  let inside = false;
+  for (let i=0, j=poly.length-1; i<poly.length; j=i++) {
+    const xi=poly[i].x/12, zi=poly[i].y/12;
+    const xj=poly[j].x/12, zj=poly[j].y/12;
+    if (((zi>wz)!==(zj>wz)) && (wx < (xj-xi)*(wz-zi)/(zj-zi)+xi)) inside=!inside;
+  }
+  return inside;
 }
 
 function getFloorPos() {
@@ -2241,18 +2259,26 @@ function updateSelBar() {
     hintEl.textContent = grpCount > 1
       ? 'Drag gizmo to move entire unit — Del removes all'
       : 'Del=remove  Ctrl+D=dup';
+    const curYDeg = Math.round(((APP.selectedItem?.rotation[1]||0) * 180/Math.PI) % 360);
     actEl.innerHTML=`
-      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'x')" title="Rotate X (F)">↻X</button>
-      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'y')" title="Rotate Y (R)">↻Y</button>
-      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'z')" title="Rotate Z (Z) — stand upright">↻Z</button>
+      <button class="sel-action-btn" onclick="rotateSelectedDeg(-15,'y')" title="Rotate -15°">-15°</button>
+      <button class="sel-action-btn" onclick="rotateSelectedDeg(15,'y')" title="Rotate +15°">+15°</button>
+      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'y')" title="Rotate 90° Y (R)">↻90°</button>
+      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'x')" title="Tilt X (F)">↻X</button>
+      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'z')" title="Stand upright (Z)">↻Z</button>
+      <input id="angle-input" type="number" value="${curYDeg}" min="-360" max="360" step="1"
+        style="width:52px;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:5px;color:var(--text-primary);font-size:12px;padding:2px 4px;text-align:center;"
+        title="Y-angle in degrees — press Enter to apply"
+        onkeydown="if(event.key==='Enter'){setGroupAngleDeg(parseFloat(this.value));this.blur();}">
       <button class="sel-action-btn" onclick="openRepeatModal()">Repeat…</button>
       <button class="sel-action-btn" onclick="openGroupModal()">Group…</button>
     `;
   } else if (APP.selectedWall3d !== null) {
     const w = PLAN.walls[APP.selectedWall3d];
     const len = w ? (wallLength(w)/12).toFixed(1) : '?';
+    const wallAngDeg = w ? Math.round(Math.atan2(w.y2-w.y1, w.x2-w.x1)*180/Math.PI) : 0;
     nameEl.textContent = `Wall ${APP.selectedWall3d+1}  ·  ${len}ft${w&&w.interior?' (interior)':''}`;
-    hintEl.textContent = 'Edit height/thickness in panel →   Del=delete';
+    hintEl.textContent = `Angle: ${wallAngDeg}°  ·  Edit height/thickness in panel →   Del=delete`;
     actEl.innerHTML='';
   } else {
     nameEl.textContent = 'No selection';
@@ -2415,31 +2441,74 @@ function removeSelectedItem() {
 }
 
 function rotateSelected(angle, axis) {
-  if (!APP.selectedItem) return;
-  const it = APP.selectedItem;
-  if (axis==='y') it.rotation[1] = (it.rotation[1]||0)+angle;
-  if (axis==='x') it.rotation[0] = (it.rotation[0]||0)+angle;
-  if (axis==='z') it.rotation[2] = (it.rotation[2]||0)+angle;
-  if (it._mesh) it._mesh.rotation.set(...it.rotation);
-  APP.lastRotationByType[it.type] = [...it.rotation];
+  const targets = APP.selectedItems.length ? APP.selectedItems : (APP.selectedItem ? [APP.selectedItem] : []);
+  if (!targets.length) return;
+  if (targets.length === 1) {
+    const it = targets[0];
+    if (axis==='y') it.rotation[1] = (it.rotation[1]||0)+angle;
+    if (axis==='x') it.rotation[0] = (it.rotation[0]||0)+angle;
+    if (axis==='z') it.rotation[2] = (it.rotation[2]||0)+angle;
+    if (it._mesh) it._mesh.rotation.set(...it.rotation);
+    APP.lastRotationByType[it.type] = [...it.rotation];
+  } else {
+    // Rotate entire group as rigid body — orbit positions around group center
+    const cx = targets.reduce((s,it)=>s+it.position[0],0)/targets.length;
+    const cy = targets.reduce((s,it)=>s+it.position[1],0)/targets.length;
+    const cz = targets.reduce((s,it)=>s+it.position[2],0)/targets.length;
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+    targets.forEach(it => {
+      const dx=it.position[0]-cx, dy=it.position[1]-cy, dz=it.position[2]-cz;
+      if (axis==='y') { it.position[0]=cx+dx*cos-dz*sin; it.position[2]=cz+dx*sin+dz*cos; }
+      else if (axis==='x') { it.position[1]=cy+dy*cos-dz*sin; it.position[2]=cz+dy*sin+dz*cos; }
+      else if (axis==='z') { it.position[0]=cx+dx*cos-dy*sin; it.position[1]=cy+dx*sin+dy*cos; }
+      if (axis==='y') it.rotation[1]=(it.rotation[1]||0)+angle;
+      else if (axis==='x') it.rotation[0]=(it.rotation[0]||0)+angle;
+      else if (axis==='z') it.rotation[2]=(it.rotation[2]||0)+angle;
+      if (it._mesh) { it._mesh.position.set(...it.position); it._mesh.rotation.set(...it.rotation); }
+    });
+    APP.lastRotationByType[targets[0].type] = [...targets[0].rotation];
+  }
   moveGizmoWithItem();
-  if (document.getElementById('item-panel')?.style.display !== 'none') refreshItemPanel(it);
+  const panelItem = APP.selectedItem||targets[0];
+  if (document.getElementById('item-panel')?.style.display !== 'none') refreshItemPanel(panelItem);
 }
+
+window.rotateSelectedDeg = function(deg, axis) {
+  rotateSelected(deg * Math.PI/180, axis);
+};
+
+window.setGroupAngleDeg = function(deg) {
+  // Set absolute Y rotation of all selected items to 'deg', keeping relative offsets
+  const targets = APP.selectedItems.length ? APP.selectedItems : (APP.selectedItem ? [APP.selectedItem] : []);
+  if (!targets.length) return;
+  const baseAngle = targets[0].rotation[1]||0;
+  const targetAngle = deg * Math.PI/180;
+  const delta = targetAngle - baseAngle;
+  rotateSelected(delta, 'y');
+};
 
 function dupSelected(e) {
   if (!APP.selectedItem) return;
   e && e.preventDefault();
-  const src = APP.selectedItem;
-  const item = {
-    ...JSON.parse(JSON.stringify(src)),
-    id: Date.now()+'_'+Math.random().toString(36).slice(2,6),
-    _mesh: null,
-  };
-  item.position[0] += 6;
-  ITEMS.push(item);
-  const mesh = buildItemMesh(item);
-  if (mesh) { scene.add(mesh); item._mesh=mesh; }
-  selectItem(item);
+  const sources = APP.selectedItems.length > 1 ? APP.selectedItems : [APP.selectedItem];
+  const newGroupId = APP.selectedItem.group
+    ? APP.selectedItem.group+'_copy'+Date.now().toString(36).slice(-4)
+    : null;
+  let firstNew = null;
+  sources.forEach(src => {
+    const item = {
+      ...JSON.parse(JSON.stringify(src)),
+      id: Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      _mesh: null,
+    };
+    item.position[0] += 6;
+    if (src.group && newGroupId) item.group = newGroupId;
+    ITEMS.push(item);
+    const mesh = buildItemMesh(item);
+    if (mesh) { scene.add(mesh); item._mesh=mesh; }
+    if (!firstNew) firstNew = item;
+  });
+  if (firstNew) selectItem(firstNew);
 }
 
 // ── Gizmo (transform arrows) ──

@@ -69,11 +69,11 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 .nav-btn.primary:hover{opacity:.88;}
 .plan-appname{font-size:15px;font-weight:800;color:var(--accent);flex:1;text-align:center;}
 #plan-layout{flex:1;display:flex;overflow:hidden;}
-#plan-toolbar{width:52px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0;}
-.tool-btn{width:38px;height:38px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition);position:relative;}
+#plan-toolbar{width:72px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;flex-shrink:0;}
+.tool-btn{width:64px;height:52px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all var(--transition);position:relative;font-size:9px;font-family:Inter,sans-serif;letter-spacing:0.02em;}
 .tool-btn:hover{background:var(--bg-elevated);color:var(--text-secondary);}
 .tool-btn.active{background:var(--accent-dim);border-color:var(--border-glow);color:var(--accent);}
-.tool-sep{width:28px;height:1px;background:var(--border);margin:4px 0;}
+.tool-sep{width:48px;height:1px;background:var(--border);margin:4px 0;}
 #ceiling-ctrl{margin-top:auto;margin-bottom:8px;display:flex;flex-direction:column;align-items:center;gap:3px;}
 #ceiling-ctrl label{font-size:9px;color:var(--text-muted);text-align:center;line-height:1.2;}
 #ceiling-ft{width:38px;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:4px;color:var(--text-primary);font-size:11px;text-align:center;outline:none;font-family:'JetBrains Mono',monospace;}
@@ -81,6 +81,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 #plan-canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg-void);}
 #plan-svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;}
 #snap-cursor{position:absolute;pointer-events:none;display:none;transform:translate(-50%,-50%);}
+@keyframes pulse-amber{0%{r:9;opacity:1}100%{r:20;opacity:0}}
 #plan-status{height:28px;background:var(--bg-base);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:16px;font-size:11px;color:var(--text-muted);flex-shrink:0;}
 
 /* ── 3D View ── */
@@ -297,15 +298,19 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     <div id="plan-toolbar">
       <button class="tool-btn active" id="tool-draw" title="Draw Wall" onclick="setTool('draw')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span>Draw</span>
       </button>
-      <button class="tool-btn" id="tool-select" title="Select/Move" onclick="setTool('select')">
+      <button class="tool-btn" id="tool-select" title="Select/Edit Wall" onclick="setTool('select')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-3 7-4-17z"/></svg>
+        <span>Select</span>
       </button>
-      <button class="tool-btn" id="tool-opening" title="Add Opening" onclick="setTool('opening')">
+      <button class="tool-btn" id="tool-opening" title="Add Door/Window Opening" onclick="setTool('opening')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="1"/><line x1="8" y1="6" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="18"/></svg>
+        <span>Opening</span>
       </button>
-      <button class="tool-btn" id="tool-erase" title="Erase Wall" onclick="setTool('erase')">
+      <button class="tool-btn" id="tool-erase" title="Erase/Delete Wall" onclick="setTool('erase')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l9-9 8 8-1 1"/><path d="M6 11l8 8"/></svg>
+        <span>Erase</span>
       </button>
       <div class="tool-sep"></div>
       <div id="ceiling-ctrl">
@@ -392,10 +397,54 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
   <div id="view3d-navbar">
     <button class="nav-btn" onclick="backToPlan()">&#8592; Back to Plan</button>
     <div class="plan-appname">BuildPlan</div>
+    <button class="nav-btn" id="btn-draw-wall-3d" onclick="toggleWallDraw3d()">&#43; Draw Wall</button>
     <button class="nav-btn" onclick="toggleCutList()">Cut List</button>
     <button class="nav-btn" onclick="saveProject()">&#128190; Save</button>
     <label class="nav-btn" style="cursor:pointer">&#128194; Load<input type="file" accept=".json" class="hidden" id="load-input" onchange="loadProject(this)"></label>
   </div>
+
+  <!-- Wall properties panel (3D) -->
+  <div id="wall-panel-3d" style="display:none;position:absolute;top:52px;right:0;bottom:36px;width:230px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);padding:16px;z-index:200;flex-direction:column;gap:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);">Wall Properties</div>
+      <button onclick="deselectWall3d()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;">&#10005;</button>
+    </div>
+    <div id="wp3d-info" style="font-size:11px;color:var(--text-muted);padding:6px 8px;background:var(--bg-elevated);border-radius:6px;"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label style="font-size:11px;color:var(--text-muted);">HEIGHT (ft)</label>
+      <input id="wp3d-height" type="number" min="1" max="20" step="0.5"
+        style="background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:6px 8px;color:var(--text-primary);font-size:13px;font-family:JetBrains Mono,monospace;outline:none;"
+        onchange="applyWallHeight3d(this.value)">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label style="font-size:11px;color:var(--text-muted);">THICKNESS</label>
+      <select id="wp3d-thickness" onchange="applyWallThick3d(this.value)"
+        style="background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:6px 8px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;">
+        <option value="3.5">2×4 stud (3.5")</option>
+        <option value="5.5">2×6 stud (5.5")</option>
+        <option value="1.5">Partition (1.5")</option>
+        <option value="8">8" concrete block</option>
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label style="font-size:11px;color:var(--text-muted);">NUDGE POSITION</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <button onclick="nudgeWall3d(-12,0)" style="padding:5px;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:12px;">&#8592; 1ft</button>
+        <button onclick="nudgeWall3d(12,0)"  style="padding:5px;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:12px;">1ft &#8594;</button>
+        <button onclick="nudgeWall3d(0,-12)" style="padding:5px;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:12px;">&#8593; 1ft</button>
+        <button onclick="nudgeWall3d(0,12)"  style="padding:5px;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:12px;">1ft &#8595;</button>
+      </div>
+    </div>
+    <button id="wp3d-delete" onclick="deleteWall3d()"
+      style="padding:8px;border-radius:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#f87171;cursor:pointer;font-size:12px;font-family:inherit;">
+      Delete Wall
+    </button>
+    <button onclick="deselectWall3d()"
+      style="margin-top:auto;padding:7px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;">
+      Done
+    </button>
+  </div>
+
   <div id="view3d-layout">
     <div id="lumber-panel">
       <div id="lumber-panel-inner">
@@ -550,12 +599,16 @@ const APP = {
   tool: 'draw',
   selectedItem: null,
   selectedItems: [],   // multi-select
+  selectedWall3d: null,    // wall index selected in 3D view
+  drawingWall3d: false,    // draw-wall mode active in 3D
+  wallDraw3dStart: null,   // {x,z} first click for new wall in 3D
   placingType: null,   // lumber type being placed
   placingGhost: null,  // THREE.Mesh ghost
   studWizardPoints: [],
   pendingOpeningWall: null,
   drawPoints: [],      // in-progress polygon points (inches)
   isPolygonClosed: false,
+  interiorWallStart: null,  // {x,y} first click when drawing interior wall
   zoom: 8,             // px per foot
   panX: 0, panY: 0,
   isDragging: false,
@@ -599,6 +652,24 @@ function inchesToSvg(ix, iy) {
 
 function wallLength(w) {
   return dist(w.x1, w.y1, w.x2, w.y2);
+}
+
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx=x2-x1, dy=y2-y1, len2=dx*dx+dy*dy;
+  if (len2===0) return dist(px,py,x1,y1);
+  const t = Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/len2));
+  return dist(px,py,x1+t*dx,y1+t*dy);
+}
+
+function findWallAtPoint(svgX, svgY) {
+  const {ppi} = getViewBox();
+  // 14 inches at normal zoom (~37px); grows when zoomed out to keep minimum ~10px on screen
+  const tol = Math.max(14, 10 / ppi);
+  for (let i=0;i<PLAN.walls.length;i++) {
+    const w=PLAN.walls[i];
+    if (distToSegment(svgX,svgY,w.x1,w.y1,w.x2,w.y2) <= tol) return i;
+  }
+  return -1;
 }
 
 function wallAngle(w) {
@@ -747,6 +818,7 @@ function enterPlanEditor(presetPolygon) {
     renderPlanWalls();
   }
   updateViewBox();
+  updateStatusHint();
 }
 
 window.goTemplates = function() {
@@ -783,17 +855,35 @@ window.setTool = function(t) {
   APP.tool = t;
   document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tool-'+t)?.classList.add('active');
-  const hints = {
-    draw: 'Click to place wall points. Click first point to close polygon.',
-    select: 'Click wall or endpoint to select. Drag to move.',
-    opening: 'Click on a wall segment to add an opening.',
-    erase: 'Click a wall segment to delete it.'
-  };
+  updateStatusHint();
+  // Hide browser cursor in draw mode — snap cursor takes over
+  svg.style.cursor = t === 'draw' ? 'none' : 'default';
+  // Snap cursor only visible in draw mode
+  document.getElementById('snap-cursor').style.display = 'none';
+};
+
+function updateStatusHint() {
+  const t = APP.tool;
   const labels = { draw:'Draw Wall', select:'Select/Move', opening:'Add Opening', erase:'Erase Wall' };
   document.getElementById('st-tool').textContent = 'Tool: ' + labels[t];
-  document.getElementById('st-hint').textContent = hints[t];
-  svg.style.cursor = t==='draw' ? 'crosshair' : 'default';
-};
+  if (t === 'draw') {
+    if (APP.isPolygonClosed) {
+      if (APP.interiorWallStart) {
+        document.getElementById('st-hint').textContent = 'Now click the END point of the interior wall. Esc to cancel.';
+      } else {
+        document.getElementById('st-hint').textContent = 'Room closed — click START point of interior wall, then click END point.';
+      }
+    } else {
+      document.getElementById('st-hint').textContent = 'Click to place wall points. Click near first point to close the room. Esc to cancel.';
+    }
+  } else if (t === 'erase') {
+    document.getElementById('st-hint').textContent = 'Click directly on a wall to delete it.';
+  } else if (t === 'select') {
+    document.getElementById('st-hint').textContent = 'Click a wall to select. Drag endpoints to reshape.';
+  } else if (t === 'opening') {
+    document.getElementById('st-hint').textContent = 'Click a wall to add a door or window opening.';
+  }
+}
 
 window.updateCeiling = function(val) {
   PLAN.ceilingH = ftToIn(parseFloat(val)||9);
@@ -826,8 +916,13 @@ function renderPlanWalls() {
     const line = document.createElementNS('http://www.w3.org/2000/svg','line');
     line.setAttribute('x1',w.x1); line.setAttribute('y1',w.y1);
     line.setAttribute('x2',w.x2); line.setAttribute('y2',w.y2);
-    line.setAttribute('stroke', APP.hoveredWall===i ? 'var(--accent)' : (APP.selectedWall===i ? '#22D3EE' : 'rgba(255,255,255,0.6)'));
-    line.setAttribute('stroke-width', APP.selectedWall===i ? '6' : '4');
+    const isInterior = !!w.interior;
+    const baseColor = isInterior ? 'rgba(245,158,11,0.75)' : 'rgba(255,255,255,0.6)';
+    const hoverColor = isInterior ? '#fbbf24' : 'var(--accent)';
+    const selectColor = isInterior ? '#fcd34d' : '#22D3EE';
+    line.setAttribute('stroke', APP.hoveredWall===i ? hoverColor : (APP.selectedWall===i ? selectColor : baseColor));
+    line.setAttribute('stroke-width', APP.selectedWall===i ? '6' : (isInterior ? '3' : '4'));
+    if (isInterior) line.setAttribute('stroke-dasharray','8,3');
     line.setAttribute('stroke-linecap','round');
     g.appendChild(line);
 
@@ -862,7 +957,7 @@ function renderPlanWalls() {
     hitLine.style.cursor = 'pointer';
     hitLine.addEventListener('mouseenter',()=>{ APP.hoveredWall=i; renderPlanWalls(); });
     hitLine.addEventListener('mouseleave',()=>{ APP.hoveredWall=null; renderPlanWalls(); });
-    hitLine.addEventListener('click',(e)=>handleWallClick(e,i));
+    // NO click handler here — onSvgDown uses coordinate detection to avoid double-action bug
     g.appendChild(hitLine);
 
     // Dimension label
@@ -886,7 +981,7 @@ function renderPlanWalls() {
     svgWalls.appendChild(g);
   });
 
-  // Endpoint dots
+  // Exterior polygon endpoint dots (draggable)
   const pts = getPolygonPoints();
   pts.forEach((p,i) => {
     const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
@@ -896,6 +991,20 @@ function renderPlanWalls() {
     circle.style.cursor = 'grab';
     circle.addEventListener('mousedown',(e)=>startDragEndpoint(e,i));
     svgDots.appendChild(circle);
+  });
+
+  // Interior wall endpoint dots (amber, draggable)
+  PLAN.walls.forEach((w, wi) => {
+    if (!w.interior) return;
+    [[w.x1,w.y1,'start'],[w.x2,w.y2,'end']].forEach(([cx,cy,end]) => {
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',cx); dot.setAttribute('cy',cy); dot.setAttribute('r','5');
+      dot.setAttribute('fill','#f59e0b'); dot.setAttribute('stroke','rgba(0,0,0,0.5)');
+      dot.setAttribute('stroke-width','1.5');
+      dot.style.cursor = 'grab';
+      dot.addEventListener('mousedown',(e)=>startDragInteriorEndpoint(e,wi,end));
+      svgDots.appendChild(dot);
+    });
   });
 
   document.getElementById('st-walls').textContent = `Walls: ${PLAN.walls.length}`;
@@ -991,20 +1100,26 @@ function getPolygonPoints() {
   return pts;
 }
 
-function handleWallClick(e, wallIdx) {
-  e.stopPropagation();
-  if (APP.tool === 'select') {
+function handleWallAction(tool, wallIdx) {
+  if (tool === 'select') {
     APP.selectedWall = wallIdx;
     renderPlanWalls();
     showWallProps(wallIdx);
-  } else if (APP.tool === 'erase') {
+  } else if (tool === 'erase') {
     eraseWall(wallIdx);
-  } else if (APP.tool === 'opening') {
+  } else if (tool === 'opening') {
     APP.pendingOpeningWall = wallIdx;
     const defaults = { garage:96, man:36, window:36 };
     document.getElementById('op-width').value = defaults.garage;
     document.getElementById('opening-modal').style.display = 'flex';
   }
+}
+
+function handleWallClick(e, wallIdx) {
+  // Legacy element-level handler — kept as backup but primary path is now onSvgDown coordinate detection
+  if (APP.tool === 'draw') return;
+  e.stopPropagation();
+  handleWallAction(APP.tool, wallIdx);
 }
 
 window.confirmOpening = function() {
@@ -1022,9 +1137,21 @@ window.confirmOpening = function() {
 };
 
 function eraseWall(i) {
+  const w = PLAN.walls[i];
+  if (!w) return;
+
+  // Interior walls: just remove directly, no polygon surgery needed
+  if (w.interior) {
+    PLAN.walls.splice(i, 1);
+    if (APP.selectedWall === i) { APP.selectedWall = null; document.getElementById('wall-props').style.display='none'; }
+    renderPlanWalls();
+    return;
+  }
+
   if (APP.isPolygonClosed) {
-    if (PLAN.walls.length <= 3) {
-      alert("Can't remove walls below 3.");
+    const exteriorCount = PLAN.walls.filter(w2=>!w2.interior).length;
+    if (exteriorCount <= 3) {
+      alert("Can't remove exterior walls below 3.");
       return;
     }
     // Open the polygon at wall i: reorder drawPoints so wall i becomes the gap
@@ -1046,6 +1173,7 @@ function eraseWall(i) {
 }
 
 function rebuildWallsFromPoints() {
+  const interior = PLAN.walls.filter(w => w.interior);
   PLAN.walls = [];
   const pts = APP.drawPoints;
   const n = APP.isPolygonClosed ? pts.length : pts.length-1;
@@ -1053,6 +1181,7 @@ function rebuildWallsFromPoints() {
     const a=pts[i], b=pts[(i+1)%pts.length];
     PLAN.walls.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,thickness:3.5,openings:[]});
   }
+  PLAN.walls.push(...interior);
 }
 
 function checkPolygonClosed() {
@@ -1061,7 +1190,7 @@ function checkPolygonClosed() {
 }
 
 // ── SVG Mouse Events ──
-let svgMouseState = { down:false, startSvg:null, dragEndpointIdx:null };
+let svgMouseState = { down:false, startSvg:null, dragEndpointIdx:null, dragInteriorEndpoint:null };
 
 svg.addEventListener('mousemove', onSvgMove);
 svg.addEventListener('mousedown', onSvgDown);
@@ -1078,14 +1207,18 @@ function onSvgMove(e) {
   const raw = svgPt(svg, e);
   const snapped = snapPt(raw);
 
-  // Show snap cursor
+  // Show snap cursor only in draw mode (replaces the hidden CSS cursor)
   const sc = document.getElementById('snap-cursor');
   const {ppi} = getViewBox();
   const wrap = document.getElementById('plan-canvas-wrap');
   const rect = wrap.getBoundingClientRect();
-  sc.style.display = 'block';
-  sc.style.left = (e.clientX - rect.left) + 'px';
-  sc.style.top = (e.clientY - rect.top) + 'px';
+  if (APP.tool === 'draw') {
+    sc.style.display = 'block';
+    sc.style.left = (e.clientX - rect.left) + 'px';
+    sc.style.top = (e.clientY - rect.top) + 'px';
+  } else {
+    sc.style.display = 'none';
+  }
 
   // Middle mouse pan
   if (svgMouseState.down && e.buttons===4) {
@@ -1102,7 +1235,7 @@ function onSvgMove(e) {
     return;
   }
 
-  // Endpoint drag
+  // Exterior endpoint drag
   if (svgMouseState.dragEndpointIdx !== null) {
     APP.drawPoints[svgMouseState.dragEndpointIdx] = {...snapped};
     rebuildWallsFromPoints();
@@ -1110,7 +1243,52 @@ function onSvgMove(e) {
     return;
   }
 
-  // Draw tool: show rubber band
+  // Interior wall endpoint drag
+  if (svgMouseState.dragInteriorEndpoint !== null) {
+    const {wallIdx, end} = svgMouseState.dragInteriorEndpoint;
+    const w = PLAN.walls[wallIdx];
+    if (w) {
+      if (end === 'start') { w.x1 = snapped.x; w.y1 = snapped.y; }
+      else { w.x2 = snapped.x; w.y2 = snapped.y; }
+      renderPlanWalls();
+    }
+    return;
+  }
+
+  // Draw tool: interior wall preview (polygon already closed)
+  if (APP.tool === 'draw' && APP.isPolygonClosed && APP.interiorWallStart) {
+    const start = APP.interiorWallStart;
+    const snap90 = snapTo90(start, snapped);
+    svgPreview.innerHTML = '';
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',start.x); line.setAttribute('y1',start.y);
+    line.setAttribute('x2',snap90.x); line.setAttribute('y2',snap90.y);
+    line.setAttribute('stroke','#f59e0b'); line.setAttribute('stroke-width','3');
+    line.setAttribute('stroke-dasharray','6,4'); line.setAttribute('opacity','0.8');
+    svgPreview.appendChild(line);
+    const len = dist(start.x,start.y,snap90.x,snap90.y);
+    if (len > 2) {
+      const mx=(start.x+snap90.x)/2, my=(start.y+snap90.y)/2;
+      const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      bg.setAttribute('x',mx-22); bg.setAttribute('y',my-9); bg.setAttribute('width',44); bg.setAttribute('height',16);
+      bg.setAttribute('fill','rgba(4,4,11,0.85)'); bg.setAttribute('rx',4);
+      svgPreview.appendChild(bg);
+      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x',mx); txt.setAttribute('y',my+1);
+      txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
+      txt.setAttribute('fill','#f59e0b'); txt.setAttribute('font-size','7.5');
+      txt.setAttribute('font-family','JetBrains Mono,monospace');
+      txt.textContent = fmtIn(len);
+      svgPreview.appendChild(txt);
+    }
+    // Start point indicator
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',start.x); dot.setAttribute('cy',start.y); dot.setAttribute('r','5');
+    dot.setAttribute('fill','rgba(245,158,11,0.4)'); dot.setAttribute('stroke','#f59e0b'); dot.setAttribute('stroke-width','2');
+    svgPreview.appendChild(dot);
+  }
+
+  // Draw tool: show rubber band (exterior polygon not yet closed)
   if (APP.tool === 'draw' && APP.drawPoints.length > 0 && !APP.isPolygonClosed) {
     const last = APP.drawPoints[APP.drawPoints.length-1];
     const first = APP.drawPoints[0];
@@ -1168,6 +1346,20 @@ function onSvgDown(e) {
   const raw = svgPt(svg, e);
   const snapped = snapPt(raw);
 
+  if (APP.tool === 'draw' && APP.isPolygonClosed) {
+    placeInteriorWallPoint(snapped);
+    return;
+  }
+
+  // Select / Erase / Opening: use coordinate hit test (reliable vs SVG pointer-events on transparent strokes)
+  if (APP.tool === 'select' || APP.tool === 'erase' || APP.tool === 'opening') {
+    const hitIdx = findWallAtPoint(raw.x, raw.y);
+    if (hitIdx !== -1) {
+      handleWallAction(APP.tool, hitIdx);
+      return;
+    }
+  }
+
   if (APP.tool === 'draw' && !APP.isPolygonClosed) {
     // Check close
     if (APP.drawPoints.length >= 3) {
@@ -1197,6 +1389,10 @@ function onSvgUp(e) {
     svgMouseState.dragEndpointIdx = null;
     renderPlanWalls();
   }
+  if (svgMouseState.dragInteriorEndpoint !== null) {
+    svgMouseState.dragInteriorEndpoint = null;
+    renderPlanWalls();
+  }
 }
 
 function onSvgDblClick(e) {
@@ -1221,9 +1417,55 @@ function onSvgWheel(e) {
 }
 
 function startDragEndpoint(e, ptIdx) {
+  // In draw+closed mode: snap to this corner for interior wall, don't drag
+  if (APP.tool === 'draw' && APP.isPolygonClosed) {
+    e.stopPropagation();
+    const pt = APP.drawPoints[ptIdx];
+    placeInteriorWallPoint({...pt});
+    return;
+  }
   e.preventDefault(); e.stopPropagation();
   svgMouseState.dragEndpointIdx = ptIdx;
   svgMouseState.down = true;
+}
+
+function startDragInteriorEndpoint(e, wallIdx, end) {
+  // In draw+closed mode: snap to this endpoint for interior wall, don't drag
+  if (APP.tool === 'draw' && APP.isPolygonClosed) {
+    e.stopPropagation();
+    const w = PLAN.walls[wallIdx];
+    const pt = end === 'start' ? {x:w.x1,y:w.y1} : {x:w.x2,y:w.y2};
+    placeInteriorWallPoint(pt);
+    return;
+  }
+  e.preventDefault(); e.stopPropagation();
+  svgMouseState.dragInteriorEndpoint = { wallIdx, end };
+  svgMouseState.down = true;
+}
+
+function placeInteriorWallPoint(pt) {
+  if (!APP.interiorWallStart) {
+    APP.interiorWallStart = pt;
+    updateStatusHint();
+    // Show start marker immediately so user sees first click was registered
+    svgPreview.innerHTML = '';
+    const mk = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    mk.setAttribute('cx',pt.x); mk.setAttribute('cy',pt.y); mk.setAttribute('r','9');
+    mk.setAttribute('fill','rgba(245,158,11,0.25)'); mk.setAttribute('stroke','#f59e0b'); mk.setAttribute('stroke-width','2.5');
+    mk.style.animation = 'pulse-amber 0.8s ease-out';
+    svgPreview.appendChild(mk);
+    const mk2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    mk2.setAttribute('cx',pt.x); mk2.setAttribute('cy',pt.y); mk2.setAttribute('r','4');
+    mk2.setAttribute('fill','#f59e0b');
+    svgPreview.appendChild(mk2);
+  } else {
+    const snap90 = snapTo90(APP.interiorWallStart, pt);
+    PLAN.walls.push({x1:APP.interiorWallStart.x,y1:APP.interiorWallStart.y,x2:snap90.x,y2:snap90.y,thickness:3.5,openings:[],interior:true});
+    APP.interiorWallStart = null;
+    svgPreview.innerHTML = '';
+    renderPlanWalls();
+    updateStatusHint();
+  }
 }
 
 function closePolygon() {
@@ -1238,6 +1480,7 @@ function closePolygon() {
   svgPreview.innerHTML='';
   renderPlanWalls();
   checkPolygonClosed();
+  updateStatusHint();
 }
 
 window.addEventListener('keydown', e => {
@@ -1246,10 +1489,18 @@ window.addEventListener('keydown', e => {
     if (APP.view==='plan' && APP.selectedWall!==null) { eraseWall(APP.selectedWall); APP.selectedWall=null; }
     if (APP.view==='3d' && APP.selectedItem) { removeSelectedItem(); }
   }
+  if (e.key === 'Escape' && APP.view === 'plan') {
+    APP.interiorWallStart = null;
+    svgPreview.innerHTML = '';
+    updateStatusHint();
+  }
   if (APP.view==='3d') {
     if (e.key==='r') rotateSelected(Math.PI/2,'y');
     if (e.key==='f') rotateSelected(Math.PI/2,'x');
-    if (e.key==='Escape') { cancelPlacement(); deselectAll(); }
+    if (e.key==='Escape') {
+      if (APP.drawingWall3d) { toggleWallDraw3d(); }
+      else { cancelPlacement(); deselectAll(); }
+    }
     if ((e.ctrlKey||e.metaKey) && e.key==='d') dupSelected(e);
   }
 });
@@ -1260,6 +1511,7 @@ window.addEventListener('keyup', e => { if (e.code==='Space') APP.spaceDown=fals
 // ══════════════════════════════════════════════════════════
 let renderer, scene, camera, controls, raycaster, mouse3d;
 let floorMesh, wallMeshes=[], gizmoGroup, ghostMesh;
+let wall3dGhost=null, wall3dPreview=null;
 let animFrame;
 
 window.enterView3D = function() {
@@ -1392,6 +1644,7 @@ function initThree() {
   controls.minDistance = 12;
   controls.maxDistance = Math.max(PLAN.floorW,PLAN.floorD)*4;
 
+  window.camera = camera;
   initMaterials();
   setupLights();
   buildRoom();
@@ -1460,6 +1713,7 @@ function buildRoom() {
     scene.add(mesh);
     wallMeshes.push(mesh);
   });
+  window.wallMeshes = wallMeshes;
 }
 
 function rebuildItems() {
@@ -1560,11 +1814,49 @@ function setupRaycaster() {
       }
     }
 
+    // Wall draw preview
+    if (APP.drawingWall3d && APP.wallDraw3dStart) {
+      const pos = getFloorPos();
+      if (pos) {
+        const s = APP.wallDraw3dStart;
+        const dx = pos.x - s.x, dz = pos.z - s.z;
+        const len = Math.sqrt(dx*dx + dz*dz);
+        if (len > 1) {
+          if (wall3dPreview) scene.remove(wall3dPreview);
+          const geo = new THREE.BoxGeometry(len, PLAN.ceilingH, 3.5);
+          const mat = new THREE.MeshBasicMaterial({color:0xf59e0b, transparent:true, opacity:0.35, wireframe:false});
+          wall3dPreview = new THREE.Mesh(geo, mat);
+          wall3dPreview.position.set(s.x + dx/2, PLAN.ceilingH/2, s.z + dz/2);
+          wall3dPreview.rotation.y = -Math.atan2(dz, dx);
+          scene.add(wall3dPreview);
+        }
+      }
+    }
+
     // Hover gizmo
     if (APP.selectedItem && gizmoGroup) moveGizmoWithItem();
   });
 
   canvas.addEventListener('click', e => {
+    if (APP.drawingWall3d) {
+      const pos = getFloorPos();
+      if (!pos) return;
+      if (!APP.wallDraw3dStart) {
+        APP.wallDraw3dStart = pos;
+        // Show start marker
+        if (!wall3dGhost) { wall3dGhost = new THREE.Mesh(new THREE.SphereGeometry(3,8,8), new THREE.MeshBasicMaterial({color:0xf59e0b,transparent:true,opacity:0.7})); scene.add(wall3dGhost); }
+        wall3dGhost.position.set(pos.x, 2, pos.z);
+      } else {
+        const s = APP.wallDraw3dStart;
+        PLAN.walls.push({x1:s.x, y1:s.z, x2:pos.x, y2:pos.z, thickness:3.5, openings:[], interior:true});
+        APP.wallDraw3dStart = null;
+        if (wall3dGhost) { scene.remove(wall3dGhost); wall3dGhost=null; }
+        if (wall3dPreview) { scene.remove(wall3dPreview); wall3dPreview=null; }
+        buildRoom();
+        rebuildItems();
+      }
+      return;
+    }
     if (APP.placingType) {
       const pos = getFloorPos();
       if (!pos) return;
@@ -1582,17 +1874,22 @@ function setupRaycaster() {
       if (mesh) { scene.add(mesh); item._mesh=mesh; }
       // Keep placing same type
     } else {
-      // Selection
+      // Selection: items first, then walls
       raycaster.setFromCamera(mouse3d, camera);
       const itemMeshes = ITEMS.map(i=>i._mesh).filter(Boolean);
       const hits = raycaster.intersectObjects(itemMeshes, false);
       if (hits.length) {
         const mesh = hits[0].object;
         const item = ITEMS.find(i=>i._mesh===mesh);
-        if (item) selectItem(item);
-      } else {
-        deselectAll();
+        if (item) { selectItem(item); return; }
       }
+      // Check wall meshes
+      const wallHits = raycaster.intersectObjects(wallMeshes, false);
+      if (wallHits.length) {
+        const wIdx = wallMeshes.indexOf(wallHits[0].object);
+        if (wIdx >= 0) { selectWall3d(wIdx); return; }
+      }
+      deselectAll();
     }
   });
 
@@ -1651,6 +1948,14 @@ function deselectAll() {
   APP.selectedItem = null;
   APP.selectedItems = [];
   removeGizmo();
+  // Also clear wall selection
+  if (APP.selectedWall3d !== null) {
+    const wMesh = wallMeshes[APP.selectedWall3d];
+    if (wMesh) wMesh.material = MATS.wall;
+    APP.selectedWall3d = null;
+    const wp = document.getElementById('wall-panel-3d');
+    if (wp) wp.style.display='none';
+  }
   updateSelBar();
 }
 
@@ -1667,12 +1972,159 @@ function updateSelBar() {
       <button class="sel-action-btn" onclick="openRepeatModal()">Repeat…</button>
       <button class="sel-action-btn" onclick="openGroupModal()">Group…</button>
     `;
+  } else if (APP.selectedWall3d !== null) {
+    const w = PLAN.walls[APP.selectedWall3d];
+    const len = w ? (wallLength(w)/12).toFixed(1) : '?';
+    nameEl.textContent = `Wall ${APP.selectedWall3d+1}  ·  ${len}ft${w&&w.interior?' (interior)':''}`;
+    hintEl.textContent = 'Edit height/thickness in panel →   Del=delete';
+    actEl.innerHTML='';
   } else {
     nameEl.textContent = 'No selection';
-    hintEl.textContent = 'Click a piece to select';
+    hintEl.textContent = 'Click a piece or wall to select';
     actEl.innerHTML='';
   }
 }
+
+// ── 3D Wall Editing ──
+function selectWall3d(idx) {
+  deselectAll();
+  APP.selectedWall3d = idx;
+  const mesh = wallMeshes[idx];
+  if (mesh) {
+    const mat = MATS.wall.clone();
+    mat.color = new THREE.Color(0xffd580);
+    mat.emissive = new THREE.Color(0xf59e0b);
+    mat.emissiveIntensity = 0.45;
+    mesh.material = mat;
+  }
+  showWallPanel3d(idx);
+  updateSelBar();
+}
+
+window.deselectWall3d = function() {
+  if (APP.selectedWall3d !== null) {
+    const mesh = wallMeshes[APP.selectedWall3d];
+    if (mesh) mesh.material = MATS.wall;
+    APP.selectedWall3d = null;
+  }
+  const wp = document.getElementById('wall-panel-3d');
+  if (wp) wp.style.display = 'none';
+  updateSelBar();
+};
+
+function showWallPanel3d(idx) {
+  const w = PLAN.walls[idx];
+  if (!w) return;
+  const h = ((w.height || PLAN.ceilingH) / 12).toFixed(1);
+  const len = (wallLength(w)/12).toFixed(1);
+  document.getElementById('wp3d-height').value = h;
+  document.getElementById('wp3d-thickness').value = w.thickness || 3.5;
+  document.getElementById('wp3d-info').textContent = `Wall ${idx+1}  ·  ${len}ft long${w.interior ? '  ·  interior' : '  ·  exterior'}`;
+  // Disable delete for exterior walls (would open polygon)
+  const delBtn = document.getElementById('wp3d-delete');
+  if (delBtn) { delBtn.disabled = !w.interior; delBtn.title = w.interior ? 'Delete this interior wall' : 'Use plan view to remove exterior walls'; }
+  const wp = document.getElementById('wall-panel-3d');
+  if (wp) wp.style.display = 'flex';
+}
+
+window.applyWallHeight3d = function(val) {
+  const idx = APP.selectedWall3d;
+  if (idx === null || idx === undefined) return;
+  const newH = parseFloat(val) * 12;
+  if (isNaN(newH) || newH < 12) return;
+  PLAN.walls[idx].height = newH;
+  rebuildSingleWall3d(idx);
+};
+
+window.applyWallThick3d = function(val) {
+  const idx = APP.selectedWall3d;
+  if (idx === null || idx === undefined) return;
+  PLAN.walls[idx].thickness = parseFloat(val);
+  rebuildSingleWall3d(idx);
+};
+
+function rebuildSingleWall3d(idx) {
+  const w = PLAN.walls[idx];
+  const mesh = wallMeshes[idx];
+  if (!mesh || !w) return;
+  const len = wallLength(w);
+  if (len < 1) return;
+  const wH = w.height || PLAN.ceilingH;
+  const wT = w.thickness || 3.5;
+  mesh.geometry.dispose();
+  mesh.geometry = new THREE.BoxGeometry(len, wH, wT);
+  const ang = wallAngle(w);
+  const cx=(w.x1+w.x2)/2, cz=(w.y1+w.y2)/2;
+  mesh.position.set(cx, wH/2, cz);
+  mesh.rotation.y = -ang;
+  // Keep amber highlight
+  const mat = MATS.wall.clone();
+  mat.emissive = new THREE.Color(0xf59e0b);
+  mat.emissiveIntensity = 0.25;
+  mesh.material = mat;
+}
+
+window.nudgeWall3d = function(dx, dz) {
+  const idx = APP.selectedWall3d;
+  if (idx === null || idx === undefined) return;
+  const w = PLAN.walls[idx];
+  if (!w) return;
+  w.x1 += dx; w.x2 += dx;
+  w.y1 += dz; w.y2 += dz;
+  if (!w.interior) {
+    // Sync drawPoints for exterior wall
+    APP.drawPoints[idx] = {x: w.x1, y: w.y1};
+    APP.drawPoints[(idx+1) % APP.drawPoints.length] = {x: w.x2, y: w.y2};
+    // Also update adjacent walls
+    const prev = PLAN.walls[(idx - 1 + PLAN.walls.length) % PLAN.walls.length];
+    const next = PLAN.walls[(idx + 1) % PLAN.walls.length];
+    if (prev && !prev.interior) { prev.x2 = w.x1; prev.y2 = w.y1; }
+    if (next && !next.interior) { next.x1 = w.x2; next.y1 = w.y2; }
+  }
+  buildRoom();
+  rebuildItems();
+  // Re-select after rebuild
+  const newMesh = wallMeshes[idx];
+  if (newMesh) {
+    const mat = MATS.wall.clone();
+    mat.color = new THREE.Color(0xffd580);
+    mat.emissive = new THREE.Color(0xf59e0b);
+    mat.emissiveIntensity = 0.45;
+    newMesh.material = mat;
+  }
+  showWallPanel3d(idx);
+};
+
+window.deleteWall3d = function() {
+  const idx = APP.selectedWall3d;
+  if (idx === null || idx === undefined) return;
+  const w = PLAN.walls[idx];
+  if (!w || !w.interior) return; // only interior walls deletable from 3D
+  PLAN.walls.splice(idx, 1);
+  APP.selectedWall3d = null;
+  document.getElementById('wall-panel-3d').style.display = 'none';
+  buildRoom();
+  rebuildItems();
+  updateSelBar();
+};
+
+window.toggleWallDraw3d = function() {
+  APP.drawingWall3d = !APP.drawingWall3d;
+  APP.wallDraw3dStart = null;
+  if (wall3dGhost) { scene.remove(wall3dGhost); wall3dGhost=null; }
+  if (wall3dPreview) { scene.remove(wall3dPreview); wall3dPreview=null; }
+  const btn = document.getElementById('btn-draw-wall-3d');
+  if (btn) {
+    btn.style.background = APP.drawingWall3d ? 'rgba(245,158,11,0.2)' : '';
+    btn.style.borderColor = APP.drawingWall3d ? '#f59e0b' : '';
+    btn.style.color = APP.drawingWall3d ? '#f59e0b' : '';
+    btn.textContent = APP.drawingWall3d ? '✕ Cancel Draw' : '+ Draw Wall';
+  }
+  document.getElementById('placement-cursor').style.display = APP.drawingWall3d ? 'block' : 'none';
+  if (APP.drawingWall3d) {
+    document.getElementById('placement-cursor').textContent = 'Click floor for wall start — Click again for end — Esc to cancel';
+  }
+};
 
 function removeSelectedItem() {
   if (!APP.selectedItem) return;
@@ -2130,6 +2582,47 @@ window.PLAN  = PLAN;
 window.renderPlanWalls = renderPlanWalls;
 window.eraseWall = eraseWall;
 window.LUMBER_TYPES = LUMBER_TYPES;
+window.updateViewBox = updateViewBox;
+window.updateStatusHint = updateStatusHint;
+window.centerViewOnPolygon = centerViewOnPolygon;
+
+// Live build mode: poll /garage_plan.json when URL has #live
+if (location.hash === '#live') {
+  let lastPlanStr = '';
+  setInterval(async () => {
+    try {
+      const resp = await fetch('/garage_plan.json?t=' + Date.now());
+      if (!resp.ok) return;
+      const planStr = await resp.text();
+      if (planStr === lastPlanStr) return;
+      lastPlanStr = planStr;
+      const data = JSON.parse(planStr);
+      if (!data.plan || !data.plan.polygon?.length) return;
+      PLAN.polygon = data.plan.polygon;
+      PLAN.walls = data.plan.walls || [];
+      PLAN.ceilingH = data.plan.ceilingH || 108;
+      APP.drawPoints = PLAN.polygon.map(p=>({...p}));
+      APP.isPolygonClosed = PLAN.polygon.length >= 3;
+      ITEMS.length = 0;
+      (data.items||[]).forEach(it => ITEMS.push({...it, id:Date.now()+'_'+Math.random().toString(36).slice(2,6), _mesh:null}));
+      if (APP.view === 'plan') {
+        centerViewOnPolygon(PLAN.polygon);
+        renderPlanWalls();
+        updateStatusHint();
+        document.getElementById('btn-view3d').disabled = false;
+      } else if (APP.view === '3d') {
+        buildRoom();
+        rebuildItems();
+      } else {
+        // Still on template screen — jump straight to plan editor
+        enterPlanEditor(PLAN.polygon);
+        document.getElementById('btn-view3d').disabled = false;
+      }
+      const hft = (PLAN.ceilingH/12).toFixed(1);
+      document.getElementById('ceiling-ft').value = hft;
+    } catch(e) {}
+  }, 800);
+}
 </script>
 </body>
 </html>

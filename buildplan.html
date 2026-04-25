@@ -172,8 +172,22 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 @media(max-width:767px){
   #lumber-panel{position:fixed;bottom:-100%;left:0;right:0;width:100% !important;min-width:unset !important;height:55vh;border-right:none;border-top:1px solid var(--border-glow);z-index:700;transition:bottom .3s ease;}
   #lumber-panel.mobile-open{bottom:0;}
+  #lp-backdrop{display:block;}
+  #mobile-mat-fab{display:flex;}
+  #view3d-navbar .nav-btn:not(#btn-draw-wall-3d){font-size:11px;padding:4px 7px;}
+  #view3d-navbar .view-btn{font-size:11px;padding:3px 6px;}
   .tpl-grid{grid-template-columns:1fr 1fr;}
 }
+/* Mobile FAB — hidden on desktop */
+#mobile-mat-fab{display:none;position:fixed;bottom:52px;right:16px;z-index:800;
+  align-items:center;gap:8px;flex-direction:column;}
+#mobile-mat-fab button{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
+  font-size:20px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);}
+#mobile-mat-fab #fab-materials{background:var(--accent);color:#000;}
+#mobile-mat-fab #fab-wizard{background:var(--bg-surface);border:1px solid var(--accent);color:var(--accent);display:none;}
+/* Backdrop to close panel on tap-outside */
+#lp-backdrop{display:none;position:fixed;inset:0;z-index:695;background:rgba(0,0,0,.45);}
 .hidden{display:none !important;}
 </style>
 </head>
@@ -522,7 +536,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       <div id="lumber-panel-inner">
         <div class="lp-header">
           Materials
-          <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;" onclick="toggleLumberPanel()">&#8249;</button>
+          <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;" onclick="window.innerWidth<=767?closeLumberPanelMobile():toggleLumberPanel()">&#8249;</button>
         </div>
         <div id="lumber-list"></div>
         <div style="padding:8px;display:flex;flex-direction:column;gap:6px;">
@@ -536,6 +550,13 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       <div id="placement-cursor">Click to place &mdash; Esc to cancel</div>
       <div id="nav-hint" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text-muted);background:rgba(0,0,0,0.45);padding:3px 10px;border-radius:10px;pointer-events:none;white-space:nowrap;">Left drag: orbit &nbsp;·&nbsp; Right drag: pan &nbsp;·&nbsp; Scroll: zoom</div>
     </div>
+  </div>
+  <!-- Mobile: backdrop to close panel by tapping outside -->
+  <div id="lp-backdrop" onclick="closeLumberPanelMobile()"></div>
+  <!-- Mobile FAB -->
+  <div id="mobile-mat-fab">
+    <button id="fab-wizard" title="Shelf Wizard" onclick="startShelfWizard()">&#x1F4E6;</button>
+    <button id="fab-materials" title="Materials" onclick="toggleLumberPanel()">&#9776;</button>
   </div>
   <div id="sel-bar">
     <span id="sel-name" class="sel-name">No selection</span>
@@ -2832,10 +2853,23 @@ window.loadProject=function(input){
 window.toggleLumberPanel=function(){
   const panel=document.getElementById('lumber-panel');
   if(window.innerWidth<=767){
+    const opening=!panel.classList.contains('mobile-open');
     panel.classList.toggle('mobile-open');
+    const backdrop=document.getElementById('lp-backdrop');
+    const fabWiz=document.getElementById('fab-wizard');
+    if(backdrop) backdrop.style.display=opening?'block':'none';
+    if(fabWiz)   fabWiz.style.display=opening?'flex':'none';
   } else {
     panel.classList.toggle('collapsed');
   }
+};
+window.closeLumberPanelMobile=function(){
+  const panel=document.getElementById('lumber-panel');
+  panel.classList.remove('mobile-open');
+  const backdrop=document.getElementById('lp-backdrop');
+  const fabWiz=document.getElementById('fab-wizard');
+  if(backdrop) backdrop.style.display='none';
+  if(fabWiz)   fabWiz.style.display='none';
 };
 
 // ══════════════════════════════════════════════════════════

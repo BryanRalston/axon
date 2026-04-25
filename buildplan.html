@@ -548,7 +548,9 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     <div id="three-wrap">
       <canvas id="three-canvas"></canvas>
       <div id="placement-cursor">Click to place &mdash; Esc to cancel</div>
-      <div id="nav-hint" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text-muted);background:rgba(0,0,0,0.45);padding:3px 10px;border-radius:10px;pointer-events:none;white-space:nowrap;">Left drag: orbit &nbsp;·&nbsp; Right drag: pan &nbsp;·&nbsp; Scroll: zoom</div>
+      <!-- Room dimensions + piece count overlay -->
+      <div id="room-stats" style="position:absolute;top:8px;left:8px;font-size:11px;color:var(--text-muted);background:rgba(0,0,0,0.55);padding:5px 10px;border-radius:8px;pointer-events:none;line-height:1.7;z-index:10;"></div>
+      <div id="nav-hint" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text-muted);background:rgba(0,0,0,0.45);padding:3px 10px;border-radius:10px;pointer-events:none;white-space:nowrap;">Left drag: orbit &nbsp;·&nbsp; Right drag: pan &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Ctrl+Z: undo</div>
     </div>
   </div>
   <!-- Mobile: backdrop to close panel by tapping outside -->
@@ -1654,6 +1656,7 @@ window.addEventListener('keydown', e => {
       else { cancelPlacement(); deselectAll(); }
     }
     if ((e.ctrlKey||e.metaKey) && e.key==='d') dupSelected(e);
+    if ((e.ctrlKey||e.metaKey) && e.key==='z') { undoLast(); e.preventDefault(); }
   }
 });
 window.addEventListener('keyup', e => { if (e.code==='Space') APP.spaceDown=false; });
@@ -1665,6 +1668,16 @@ let renderer, scene, camera, controls, raycaster, mouse3d;
 let floorMesh, ceilMesh, wallMeshes=[], gizmoGroup, ghostMesh;
 let wall3dGhost=null, wall3dPreview=null;
 let animFrame;
+
+function updateRoomStats() {
+  const el = document.getElementById('room-stats');
+  if (!el) return;
+  const wFt=(PLAN.floorW/12).toFixed(1), dFt=(PLAN.floorD/12).toFixed(1), hFt=(PLAN.ceilingH/12).toFixed(1);
+  const nItems=ITEMS.length;
+  const nGroups=new Set(ITEMS.map(i=>i.group).filter(Boolean)).size;
+  el.innerHTML=`<span style="color:var(--text-primary);font-weight:700">${wFt}′ × ${dFt}′</span>&nbsp; ceiling <b>${hFt}′</b>`
+    +(nItems?`&nbsp;·&nbsp; ${nItems} piece${nItems!==1?'s':''}${nGroups?` / ${nGroups} unit${nGroups!==1?'s':''}`:''}`:``);
+}
 
 window.enterView3D = function() {
   document.getElementById('plan-screen').style.display='none';
@@ -1685,6 +1698,7 @@ window.enterView3D = function() {
     rebuildItems();
   }
   updateSelBar();
+  updateRoomStats();
 };
 
 window.backToPlan = function() {
@@ -2034,6 +2048,7 @@ function setupRaycaster() {
     if (APP.placingType) {
       const pos = getPlacementPos();
       if (!pos) return;
+      pushUndo();
       const lt = LUMBER_TYPES.find(x=>x.id===APP.placingType);
       const rot = [...(APP.lastRotationByType[APP.placingType] || [0,0,0])];
       const isVertical = Math.abs(Math.sin(rot[2])) > 0.7;
@@ -2047,6 +2062,7 @@ function setupRaycaster() {
         _mesh: null,
       };
       ITEMS.push(item);
+      updateRoomStats();
       const mesh = buildItemMesh(item);
       if (mesh) { scene.add(mesh); item._mesh=mesh; }
       // Keep placing same type
@@ -2184,6 +2200,55 @@ function getPlacementPos() {
   return { x: snap(target.x,1), z: snap(target.z,1), y: 0 };
 }
 
+// ── Group color coding ──
+const GROUP_PALETTE = [0xFB923C,0x34D399,0xF472B6,0xA78BFA,0xFBBF24,0x60A5FA,0x4ADE80,0xE879F9];
+const _grpColorMap = {};
+let _grpColorIdx = 0;
+function getGroupColor(g) {
+  if (!g) return null;
+  if (!_grpColorMap[g]) _grpColorMap[g]=GROUP_PALETTE[_grpColorIdx++%GROUP_PALETTE.length];
+  return _grpColorMap[g];
+}
+function applyItemMaterial(it, selected=false) {
+  if (!it._mesh) return;
+  const lt2=LUMBER_TYPES.find(x=>x.id===it.type);
+  if (!lt2) return;
+  if (selected) {
+    it._mesh.material=lumber6Mat(lt2.mat).map(m=>{const s=m.clone();s.emissive=new THREE.Color(0x22D3EE);s.emissiveIntensity=0.22;return s;});
+  } else if (it.group) {
+    const gc=getGroupColor(it.group);
+    it._mesh.material=lumber6Mat(lt2.mat).map(m=>{const s=m.clone();s.emissive=new THREE.Color(gc);s.emissiveIntensity=0.13;return s;});
+  } else {
+    it._mesh.material=lumber6Mat(lt2.mat);
+  }
+}
+
+// ── Undo ──
+const _undoStack=[];
+function pushUndo() {
+  _undoStack.push(ITEMS.map(it=>({
+    type:it.type,position:[...it.position],rotation:[...it.rotation],
+    group:it.group||null,_customLen:it._customLen||null,
+    _customDims:it._customDims?{...it._customDims}:null,id:it.id
+  })));
+  if (_undoStack.length>30) _undoStack.shift();
+}
+function undoLast() {
+  if (!_undoStack.length) return;
+  const state=_undoStack.pop();
+  ITEMS.forEach(it=>{if(it._mesh)scene.remove(it._mesh);});
+  ITEMS.length=0;
+  state.forEach(data=>{
+    const item={...data,_mesh:null};
+    ITEMS.push(item);
+    const mesh=buildItemMesh(item);
+    if(mesh){scene.add(mesh);item._mesh=mesh;}
+  });
+  deselectAll();
+  updateRoomStats();
+}
+window.undoLast=undoLast;
+
 function buildItemMesh(item) {
   const lt = LUMBER_TYPES.find(x=>x.id===item.type);
   if (!lt) return null;
@@ -2191,13 +2256,14 @@ function buildItemMesh(item) {
   const h = item._customDims?.h ?? lt.h;
   const w = item._customDims?.w ?? lt.w;
   const geo = new THREE.BoxGeometry(l, h, w);
-  const mats = lumber6Mat(lt.mat);
-  const mesh = new THREE.Mesh(geo, mats);
+  const mesh = new THREE.Mesh(geo, lumber6Mat(lt.mat));
   mesh.position.set(...item.position);
   mesh.rotation.set(...item.rotation);
   mesh.castShadow=true; mesh.receiveShadow=true;
   mesh.userData.isItem=true;
   mesh.userData.itemId=item.id;
+  // Apply group color tint immediately on creation
+  if (item.group) applyItemMaterial(item, false);
   return mesh;
 }
 
@@ -2210,26 +2276,14 @@ function selectItem(item) {
     ? ITEMS.filter(i => i.group === item.group)
     : [item];
   // Highlight all selected
-  APP.selectedItems.forEach(it => {
-    if (!it._mesh) return;
-    const lt2 = LUMBER_TYPES.find(x=>x.id===it.type);
-    if (!lt2) return;
-    it._mesh.material = lumber6Mat(lt2.mat).map(m=>{
-      const s=m.clone(); s.emissive=new THREE.Color(0x22D3EE); s.emissiveIntensity=0.2; return s;
-    });
-  });
+  APP.selectedItems.forEach(it => applyItemMaterial(it, true));
   showGizmo(item);
   updateSelBar();
   showItemPanel(item);
 }
 
 function deselectAll() {
-  APP.selectedItems.forEach(it => {
-    if (it._mesh) {
-      const lt2 = LUMBER_TYPES.find(x=>x.id===it.type);
-      if (lt2) it._mesh.material = lumber6Mat(lt2.mat);
-    }
-  });
+  APP.selectedItems.forEach(it => applyItemMaterial(it, false));
   APP.selectedItem = null;
   APP.selectedItems = [];
   removeGizmo();
@@ -2253,12 +2307,16 @@ function updateSelBar() {
     const it = APP.selectedItem;
     const lt = LUMBER_TYPES.find(x=>x.id===it.type);
     const grpCount = APP.selectedItems.length;
+    const sl = it._customDims?.l ?? it._customLen ?? lt?.l;
+    const sh = it._customDims?.h ?? lt?.h;
+    const sw = it._customDims?.w ?? lt?.w;
+    const dimStr = sl ? `  ${fmtIn(sl)} × ${sw}"×${sh}"` : '';
     nameEl.textContent = grpCount > 1
-      ? `${it.group} (${grpCount} pieces)`
-      : (lt ? lt.name : it.type);
+      ? `${it.group}  (${grpCount} pieces)`
+      : (lt ? lt.name + dimStr : it.type);
     hintEl.textContent = grpCount > 1
-      ? 'Drag gizmo to move entire unit — Del removes all'
-      : 'Del=remove  Ctrl+D=dup';
+      ? `Drag to move · Del removes all · Ctrl+Z undo`
+      : `Del=remove  Ctrl+D=dup  Ctrl+Z=undo`;
     const curYDeg = Math.round(((APP.selectedItem?.rotation[1]||0) * 180/Math.PI) % 360);
     actEl.innerHTML=`
       <button class="sel-action-btn" onclick="rotateSelectedDeg(-15,'y')" title="Rotate -15°">-15°</button>
@@ -2430,6 +2488,7 @@ window.toggleWallDraw3d = function() {
 
 function removeSelectedItem() {
   if (!APP.selectedItem) return;
+  pushUndo();
   // Remove all items in the group selection
   const toRemove = [...APP.selectedItems];
   toRemove.forEach(it => {
@@ -2438,6 +2497,7 @@ function removeSelectedItem() {
     if (idx>=0) ITEMS.splice(idx,1);
   });
   deselectAll();
+  updateRoomStats();
 }
 
 function rotateSelected(angle, axis) {
@@ -2780,35 +2840,51 @@ window.toggleCutList=function(){
   if(document.getElementById('cutlist-panel').classList.contains('open')) buildCutList();
 };
 
+// FFD bin-packing: count stock boards needed accounting for 1/8" kerf
+function countBoards(lengths, stockLen, kerf=0.125) {
+  if (!stockLen || !lengths.length) return 0;
+  const sorted=[...lengths].sort((a,b)=>b-a);
+  const bins=[];
+  for (const len of sorted) {
+    const cut=len+kerf;
+    if (cut>stockLen) { bins.push(0); continue; } // oversized: needs own piece
+    let placed=false;
+    for (let i=0;i<bins.length;i++) {
+      if (bins[i]>=cut) { bins[i]-=cut; placed=true; break; }
+    }
+    if (!placed) bins.push(stockLen-cut);
+  }
+  return bins.length;
+}
+
 function buildCutList(){
   const el=document.getElementById('cl-content');
   el.innerHTML='';
-  // Group by material type
-  const byMat={};
+  if (!ITEMS.length) { el.innerHTML='<div style="color:var(--text-muted);padding:12px;font-size:12px;">No pieces placed yet.</div>'; return; }
+
+  // Group by material cross-section (not stock id) so cuts of same dimension pool together
+  const bySection={};
   ITEMS.forEach(item=>{
     const lt=LUMBER_TYPES.find(x=>x.id===item.type);
     if(!lt) return;
-    const key=lt.id;
-    if(!byMat[key]) byMat[key]={lt,pieces:[]};
-    const len=item._customLen||lt.l;
-    byMat[key].pieces.push({len,group:item.group||'ungrouped'});
+    // Key by cross-section so different stock lengths of same board type pool
+    const sectionKey=`${lt.mat}|${lt.w}|${lt.h}`;
+    if(!bySection[sectionKey]) bySection[sectionKey]={lt,pieces:[],stockLen:lt.l};
+    const len=item._customDims?.l??item._customLen??lt.l;
+    bySection[sectionKey].pieces.push({len,group:item.group||'ungrouped'});
   });
 
-  // Purchase summary
-  const purchase={};
+  const purchase=[];
 
-  Object.values(byMat).forEach(({lt,pieces})=>{
+  Object.values(bySection).forEach(({lt,pieces,stockLen})=>{
     const head=document.createElement('div');
     head.className='cl-section-head';
-    head.textContent=`── ${lt.name} (${lt.w}" × ${lt.h}") ──`;
+    head.textContent=`── ${lt.name.replace(/ × \d+ft/,'')} (${lt.w}" × ${lt.h}") ──`;
     el.appendChild(head);
 
-    // Group pieces by length + group
+    // Group pieces by length+group for display
     const grouped={};
-    pieces.forEach(p=>{
-      const k=`${p.len}|${p.group}`;
-      grouped[k]=(grouped[k]||0)+1;
-    });
+    pieces.forEach(p=>{ const k=`${p.len}|${p.group}`; grouped[k]=(grouped[k]||0)+1; });
     Object.entries(grouped).forEach(([k,qty])=>{
       const [len,grp]=k.split('|');
       const row=document.createElement('div'); row.className='cl-row';
@@ -2816,24 +2892,30 @@ function buildCutList(){
       el.appendChild(row);
     });
 
-    // Purchase: how many standard pieces needed
-    const stockLen=lt.l;
-    let totalInches=pieces.reduce((s,p)=>s+p.len,0);
-    const needed=Math.ceil(pieces.reduce((s,p)=>s+(p.len/stockLen),0));
-    if(!purchase[lt.id]) purchase[lt.id]={lt,needed:0};
-    purchase[lt.id].needed+=needed;
+    // FFD purchase count
+    const needed=countBoards(pieces.map(p=>p.len), stockLen);
+    const totalIn=pieces.reduce((s,p)=>s+p.len,0);
+    const wasteIn=needed*stockLen-totalIn;
+    purchase.push({lt,needed,stockLen,wasteIn});
   });
 
-  // Purchase list
-  if(Object.keys(purchase).length){
+  // Purchase list with waste info
+  if(purchase.length){
     const head=document.createElement('div');
     head.className='cl-section-head'; head.textContent='── Purchase List ──';
     el.appendChild(head);
-    Object.values(purchase).forEach(({lt,needed})=>{
+    purchase.forEach(({lt,needed,stockLen,wasteIn})=>{
       const row=document.createElement('div'); row.className='cl-row';
-      row.innerHTML=`<span class="cl-qty">×${needed}</span><span class="cl-dim">${lt.name}</span>`;
+      const wasteStr=wasteIn>0?` <span style="color:var(--text-muted);font-size:10px;">(${fmtIn(Math.round(wasteIn))} waste)</span>`:'';
+      row.innerHTML=`<span class="cl-qty">×${needed}</span><span class="cl-dim">${lt.name}</span>${wasteStr}`;
       el.appendChild(row);
     });
+    // Total piece count
+    const totalPieces=ITEMS.length;
+    const summary=document.createElement('div');
+    summary.style.cssText='padding:8px 12px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:4px;';
+    summary.textContent=`${totalPieces} piece${totalPieces!==1?'s':''} total`;
+    el.appendChild(summary);
   }
 }
 
@@ -3132,6 +3214,7 @@ window.startShelfPlacement = function() {
 };
 
 window.buildShelfUnit = function(origin) {
+  pushUndo();
   const W  = parseFloat(document.getElementById('sh-width').value)||48;
   const D  = parseFloat(document.getElementById('sh-depth').value)||16;
   const H  = parseFloat(document.getElementById('sh-height').value)||84;
@@ -3141,7 +3224,7 @@ window.buildShelfUnit = function(origin) {
   const backId = document.getElementById('sh-back').value;
   const shelfHeights = Array.from(document.querySelectorAll('.sh-height-input'))
     .map(el=>parseFloat(el.value)).filter(v=>!isNaN(v)&&v>0&&v<H);
-  const grpName = 'Shelf Unit';
+  const grpName = 'Shelf-'+Date.now().toString(36).slice(-5);
   const ox=origin.x, oz=origin.z;
 
   const upLt = LUMBER_TYPES.find(t=>t.id===upId)||LUMBER_TYPES[0];
@@ -3202,6 +3285,11 @@ window.buildShelfUnit = function(origin) {
       place(ox+W/2, H/2, oz+bkThick/2, backId, {l:W, h:H, w:bkThick});
     }
   }
+  // Apply group color to all newly placed pieces, then select the unit
+  ITEMS.filter(it=>it.group===grpName&&it._mesh).forEach(it=>applyItemMaterial(it,false));
+  const anchor=ITEMS.find(it=>it.group===grpName);
+  if (anchor) selectItem(anchor);
+  updateRoomStats();
 };
 
 // Live build mode: poll /garage_plan.json when URL has #live

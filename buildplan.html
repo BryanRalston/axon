@@ -2100,29 +2100,31 @@ function buildItemMesh(item) {
 function selectItem(item) {
   deselectAll();
   APP.selectedItem = item;
-  if (item._mesh) {
-    const lt = LUMBER_TYPES.find(x=>x.id===item.type);
-    const mats = lumber6Mat(lt.mat).map(m => {
-      const sel = m.clone();
-      sel.emissive = new THREE.Color(0x22D3EE);
-      sel.emissiveIntensity = 0.2;
-      return sel;
+  // If item belongs to a group, select all group members
+  APP.selectedItems = item.group
+    ? ITEMS.filter(i => i.group === item.group)
+    : [item];
+  // Highlight all selected
+  APP.selectedItems.forEach(it => {
+    if (!it._mesh) return;
+    const lt2 = LUMBER_TYPES.find(x=>x.id===it.type);
+    if (!lt2) return;
+    it._mesh.material = lumber6Mat(lt2.mat).map(m=>{
+      const s=m.clone(); s.emissive=new THREE.Color(0x22D3EE); s.emissiveIntensity=0.2; return s;
     });
-    item._mesh.material = mats;
-  }
+  });
   showGizmo(item);
   updateSelBar();
   showItemPanel(item);
 }
 
 function deselectAll() {
-  if (APP.selectedItem) {
-    const item = APP.selectedItem;
-    if (item._mesh) {
-      const lt = LUMBER_TYPES.find(x=>x.id===item.type);
-      item._mesh.material = lumber6Mat(lt.mat);
+  APP.selectedItems.forEach(it => {
+    if (it._mesh) {
+      const lt2 = LUMBER_TYPES.find(x=>x.id===it.type);
+      if (lt2) it._mesh.material = lumber6Mat(lt2.mat);
     }
-  }
+  });
   APP.selectedItem = null;
   APP.selectedItems = [];
   removeGizmo();
@@ -2145,8 +2147,13 @@ function updateSelBar() {
   if (APP.selectedItem) {
     const it = APP.selectedItem;
     const lt = LUMBER_TYPES.find(x=>x.id===it.type);
-    nameEl.textContent = lt ? lt.name : it.type;
-    hintEl.textContent = `Del=remove  Ctrl+D=dup`;
+    const grpCount = APP.selectedItems.length;
+    nameEl.textContent = grpCount > 1
+      ? `${it.group} (${grpCount} pieces)`
+      : (lt ? lt.name : it.type);
+    hintEl.textContent = grpCount > 1
+      ? 'Drag gizmo to move entire unit — Del removes all'
+      : 'Del=remove  Ctrl+D=dup';
     actEl.innerHTML=`
       <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'x')" title="Rotate X (F)">↻X</button>
       <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'y')" title="Rotate Y (R)">↻Y</button>
@@ -2310,10 +2317,13 @@ window.toggleWallDraw3d = function() {
 
 function removeSelectedItem() {
   if (!APP.selectedItem) return;
-  const item = APP.selectedItem;
-  if (item._mesh) scene.remove(item._mesh);
-  const idx = ITEMS.indexOf(item);
-  if (idx>=0) ITEMS.splice(idx,1);
+  // Remove all items in the group selection
+  const toRemove = [...APP.selectedItems];
+  toRemove.forEach(it => {
+    if (it._mesh) scene.remove(it._mesh);
+    const idx = ITEMS.indexOf(it);
+    if (idx>=0) ITEMS.splice(idx,1);
+  });
   deselectAll();
 }
 
@@ -2378,9 +2388,9 @@ function showGizmo(item) {
   moveGizmoWithItem();
   scene.add(gizmoGroup);
 
-  // Gizmo drag
+  // Gizmo drag — moves all items in selectedItems together
   const canvas = renderer.domElement;
-  let dragging=false, dragAxis=null, dragStart=null, itemStart=null;
+  let dragging=false, dragAxis=null, dragStart=null, groupStarts=null;
   function gizmoDown(e) {
     raycaster.setFromCamera(mouse3d,camera);
     const hits = raycaster.intersectObjects(gizmoGroup.children,false);
@@ -2389,18 +2399,21 @@ function showGizmo(item) {
     if (!ax) return;
     dragging=true; dragAxis=ax;
     dragStart = {x:e.clientX, y:e.clientY};
-    itemStart = [...(APP.selectedItem?.position||[0,0,0])];
+    // Snapshot positions of all selected items
+    groupStarts = APP.selectedItems.map(it=>[...it.position]);
     e.stopPropagation();
   }
   function gizmoMove(e) {
     if (!dragging||!APP.selectedItem) return;
     const dx = (e.clientX-dragStart.x)*0.5;
     const dy = -(e.clientY-dragStart.y)*0.5;
-    const it = APP.selectedItem;
-    if (dragAxis==='x') it.position[0]=snap(itemStart[0]+dx,1);
-    if (dragAxis==='y') it.position[1]=snap(itemStart[1]+dy,1);
-    if (dragAxis==='z') it.position[2]=snap(itemStart[2]+dx,1);
-    if (it._mesh) it._mesh.position.set(...it.position);
+    APP.selectedItems.forEach((it,i) => {
+      const start = groupStarts[i]||[0,0,0];
+      if (dragAxis==='x') it.position[0]=snap(start[0]+dx,1);
+      if (dragAxis==='y') it.position[1]=snap(start[1]+dy,1);
+      if (dragAxis==='z') it.position[2]=snap(start[2]+dx,1);
+      if (it._mesh) it._mesh.position.set(...it.position);
+    });
     moveGizmoWithItem();
   }
   function gizmoUp() { dragging=false; }
@@ -2804,8 +2817,11 @@ window.applyItemPos = function(axis, val) {
   if (!APP.selectedItem) return;
   const v = parseFloat(val); if (isNaN(v)) return;
   const ax = {x:0,y:1,z:2}[axis];
-  APP.selectedItem.position[ax] = v;
-  if (APP.selectedItem._mesh) APP.selectedItem._mesh.position.set(...APP.selectedItem.position);
+  const delta = v - APP.selectedItem.position[ax];
+  APP.selectedItems.forEach(it => {
+    it.position[ax] += delta;
+    if (it._mesh) it._mesh.position.set(...it.position);
+  });
   moveGizmoWithItem();
 };
 
@@ -2979,23 +2995,28 @@ window.buildShelfUnit = function(origin) {
     scene.add(mesh);item._mesh=mesh;
   }
 
-  // Uprights: natural vertical box (ud along X, H tall, uw deep)
-  const upLeft  = ox + ud/2;
-  const upRight = ox + W - ud/2;
-  const upZ     = oz + D/2;
+  // Uprights: narrow face (uw) left-right, wide face (ud) front-to-back
+  // Always 4 corner posts — front-left, front-right, back-left, back-right
+  // For wall-mounted (nU===2): back posts only; freestanding (nU===4): all 4
+  const uXL = ox + uw/2;
+  const uXR = ox + W - uw/2;
+  const uZF = oz + ud/2;
+  const uZB = oz + D - ud/2;
   if (nU===2) {
-    place(upLeft,  H/2, upZ, upId, {l:ud, h:H, w:uw});
-    place(upRight, H/2, upZ, upId, {l:ud, h:H, w:uw});
+    // Two posts, one each side, positioned at rear (wall-mounted)
+    place(uXL, H/2, uZB, upId, {l:uw, h:H, w:ud});
+    place(uXR, H/2, uZB, upId, {l:uw, h:H, w:ud});
   } else {
-    place(upLeft,  H/2, oz+uw/2,   upId, {l:ud, h:H, w:uw});
-    place(upRight, H/2, oz+uw/2,   upId, {l:ud, h:H, w:uw});
-    place(upLeft,  H/2, oz+D-uw/2, upId, {l:ud, h:H, w:uw});
-    place(upRight, H/2, oz+D-uw/2, upId, {l:ud, h:H, w:uw});
+    // Four corner posts
+    place(uXL, H/2, uZF, upId, {l:uw, h:H, w:ud});
+    place(uXR, H/2, uZF, upId, {l:uw, h:H, w:ud});
+    place(uXL, H/2, uZB, upId, {l:uw, h:H, w:ud});
+    place(uXR, H/2, uZB, upId, {l:uw, h:H, w:ud});
   }
 
-  // Shelf boards at each height
+  // Shelf boards at each height — span full unit width and depth
   shelfHeights.forEach(sh => {
-    place(ox+W/2, sh+shThick/2, oz+shDepth/2, shId, {l:W, h:shThick, w:shDepth});
+    place(ox+W/2, sh+shThick/2, oz+D/2, shId, {l:W, h:shThick, w:D});
   });
 
   // Back panel

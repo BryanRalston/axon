@@ -1990,7 +1990,7 @@ function setupRaycaster() {
   });
 
   canvas.addEventListener('click', e => {
-    if (APP._gizmoJustDragged) return; // don't re-select after gizmo drag
+    if (APP._gizmoJustDragged || APP._itemJustDragged) return;
     if (APP.drawingWall3d) {
       const pos = getFloorPos();
       if (!pos) return;
@@ -2050,6 +2050,68 @@ function setupRaycaster() {
   });
 
   canvas.addEventListener('contextmenu', e=>{ e.preventDefault(); cancelPlacement(); });
+
+  // ── Direct item drag: click+drag to move the unit on the floor ──
+  const floorPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+  let itDrag=false, itDragMoved=false, itDragStart3=null, itDragOffsets=null;
+
+  canvas.addEventListener('mousedown', e => {
+    if (e.button!==0 || APP.placingType || APP.drawingWall3d) return;
+    // Let gizmo take priority — if a gizmo arrow is hit, don't start item drag
+    if (gizmoGroup) {
+      const gh = raycaster.intersectObjects(gizmoGroup.children, false);
+      if (gh.length) return;
+    }
+    // Raycast against items
+    const itemMeshes = ITEMS.map(i=>i._mesh).filter(m=>m&&!m.userData.isGhost);
+    const hits = raycaster.intersectObjects(itemMeshes, false);
+    if (!hits.length) return;
+    const hitItem = ITEMS.find(i=>i._mesh===hits[0].object);
+    if (!hitItem) return;
+    // Select (or keep current group selection if already selected)
+    if (!APP.selectedItems.includes(hitItem)) selectItem(hitItem);
+    // Grab point on floor plane
+    const grabPt = new THREE.Vector3();
+    raycaster.ray.intersectPlane(floorPlane, grabPt);
+    itDragOffsets = APP.selectedItems.map(it=>[
+      it.position[0]-grabPt.x,
+      it.position[2]-grabPt.z
+    ]);
+    itDrag=true; itDragMoved=false;
+    itDragStart3={x:e.clientX,y:e.clientY};
+    controls.enabled=false;
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (!itDrag) return;
+    const dx=e.clientX-itDragStart3.x, dy=e.clientY-itDragStart3.y;
+    if (!itDragMoved && Math.sqrt(dx*dx+dy*dy)<5) return;
+    itDragMoved=true;
+    const rect=canvas.getBoundingClientRect();
+    mouse3d.x=((e.clientX-rect.left)/rect.width)*2-1;
+    mouse3d.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(mouse3d,camera);
+    const floorPt=new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(floorPlane,floorPt)) return;
+    APP.selectedItems.forEach((it,i)=>{
+      const off=itDragOffsets[i]||[0,0];
+      it.position[0]=snap(floorPt.x+off[0],1);
+      it.position[2]=snap(floorPt.z+off[1],1);
+      if(it._mesh) it._mesh.position.set(...it.position);
+    });
+    if(gizmoGroup) moveGizmoWithItem();
+    if(document.getElementById('item-panel')?.style.display!=='none') refreshItemPanel(APP.selectedItem);
+  });
+
+  canvas.addEventListener('mouseup', e => {
+    if (!itDrag) return;
+    itDrag=false;
+    controls.enabled=true;
+    if (itDragMoved) {
+      APP._itemJustDragged=true;
+      setTimeout(()=>{APP._itemJustDragged=false;},80);
+    }
+  });
 }
 
 function getFloorPos() {

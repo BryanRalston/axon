@@ -534,6 +534,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     <div id="three-wrap">
       <canvas id="three-canvas"></canvas>
       <div id="placement-cursor">Click to place &mdash; Esc to cancel</div>
+      <div id="nav-hint" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text-muted);background:rgba(0,0,0,0.45);padding:3px 10px;border-radius:10px;pointer-events:none;white-space:nowrap;">Left drag: orbit &nbsp;·&nbsp; Right drag: pan &nbsp;·&nbsp; Scroll: zoom</div>
     </div>
   </div>
   <div id="sel-bar">
@@ -1762,17 +1763,19 @@ function initThree() {
   const roomCz = minY + PLAN.floorD/2;
   const roomR  = Math.max(PLAN.floorW, PLAN.floorD);
   camera.position.set(
-    roomCx + roomR * 0.85,
-    PLAN.ceilingH * 1.6,
-    minY + PLAN.floorD + roomR * 0.75
+    roomCx + roomR * 0.7,
+    PLAN.ceilingH * 0.75,
+    minY + PLAN.floorD + roomR * 0.85
   );
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(roomCx, PLAN.ceilingH * 0.25, roomCz);
+  controls.target.set(roomCx, PLAN.ceilingH * 0.4, roomCz);
   camera.lookAt(controls.target.x, controls.target.y, controls.target.z);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 12;
-  controls.maxDistance = Math.max(PLAN.floorW,PLAN.floorD)*4;
+  controls.maxDistance = Math.max(PLAN.floorW,PLAN.floorD)*6;
+  controls.maxPolarAngle = Math.PI * 0.92; // allow near-horizontal but not upside-down
+  controls.screenSpacePanning = false;
 
   window.camera = camera;
   initMaterials();
@@ -2880,22 +2883,21 @@ window.setView3D = function(mode) {
   const cz=(Math.min(...zs)+Math.max(...zs))/2;
   const midH = PLAN.ceilingH/2;
   const bigD = Math.max(PLAN.floorW||240, PLAN.floorD||240)*2.5;
+  // All views keep rotation enabled — they're camera presets, not lock modes
+  controls.enableRotate = true;
+  const roomR2 = Math.max(PLAN.floorW||240, PLAN.floorD||240);
   if (mode==='iso') {
-    camera.position.set(cx, PLAN.ceilingH*1.6, cz - bigD*0.5);
-    controls.target.set(cx, midH*0.4, cz);
-    controls.enableRotate=true;
+    camera.position.set(cx + roomR2*0.7, PLAN.ceilingH*0.75, cz + roomR2*0.85);
+    controls.target.set(cx, PLAN.ceilingH*0.4, cz);
   } else if (mode==='front') {
-    camera.position.set(cx, midH, cz - bigD);
-    controls.target.set(cx, midH, cz);
-    controls.enableRotate=false;
+    camera.position.set(cx, PLAN.ceilingH*0.5, cz - roomR2*1.4);
+    controls.target.set(cx, PLAN.ceilingH*0.4, cz);
   } else if (mode==='side') {
-    camera.position.set(cx + bigD, midH, cz);
-    controls.target.set(cx, midH, cz);
-    controls.enableRotate=false;
+    camera.position.set(cx + roomR2*1.4, PLAN.ceilingH*0.5, cz);
+    controls.target.set(cx, PLAN.ceilingH*0.4, cz);
   } else if (mode==='top') {
-    camera.position.set(cx, bigD*1.2, cz+1);
+    camera.position.set(cx, roomR2*1.6, cz + 1);
     controls.target.set(cx, 0, cz);
-    controls.enableRotate=false;
   }
   controls.update();
   document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));

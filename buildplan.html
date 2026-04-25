@@ -111,6 +111,30 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 #sel-bar .sel-hint{font-size:11px;color:var(--text-muted);}
 .sel-action-btn{padding:4px 10px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:11px;font-family:inherit;transition:all var(--transition);}
 .sel-action-btn:hover{border-color:var(--accent);color:var(--accent);}
+/* ── Item Properties Panel ── */
+#item-panel{position:absolute;top:52px;right:0;bottom:36px;width:240px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);padding:16px;z-index:200;flex-direction:column;gap:12px;overflow-y:auto;}
+.ip-row{display:flex;flex-direction:column;gap:5px;}
+.ip-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+.ip-input{background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:5px 8px;color:var(--text-primary);font-size:13px;font-family:'JetBrains Mono',monospace;outline:none;width:100%;box-sizing:border-box;}
+.ip-input:focus{border-color:var(--accent);}
+.ip-xyz{display:grid;grid-template-columns:18px 1fr;align-items:center;gap:4px;margin-bottom:4px;}
+.ip-axis{font-size:11px;font-weight:700;}
+.ip-orient-btn{padding:5px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:11px;font-family:inherit;transition:all var(--transition);}
+.ip-orient-btn:hover{border-color:var(--accent);color:var(--accent);}
+.ip-action-btn{padding:7px;border-radius:7px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;transition:all var(--transition);text-align:center;}
+.ip-action-btn:hover{border-color:var(--accent);color:var(--accent);}
+.ip-delete{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.4);color:#f87171;}
+.ip-delete:hover{background:rgba(239,68,68,.2);border-color:#f87171;color:#f87171;}
+/* ── View Toggle Buttons ── */
+.view-btn{padding:4px 9px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-muted);cursor:pointer;font-size:11px;font-family:inherit;transition:all var(--transition);}
+.view-btn:hover{color:var(--text-primary);}
+.view-btn.active{background:rgba(34,211,238,.15);border-color:var(--border-glow);color:var(--accent);}
+/* ── Shelf heights list ── */
+.sh-height-row{display:flex;align-items:center;gap:6px;}
+.sh-height-input{flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:6px;padding:5px 8px;color:var(--text-primary);font-size:13px;font-family:'JetBrains Mono',monospace;outline:none;}
+.sh-height-input:focus{border-color:var(--accent);}
+.sh-rm-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;}
+.sh-rm-btn:hover{color:#f87171;}
 
 /* ── Cut List Panel ── */
 #cutlist-panel{position:fixed;top:52px;right:-420px;bottom:0;width:400px;background:var(--bg-glass);backdrop-filter:blur(20px);border-left:1px solid var(--border-glow);z-index:1100;display:flex;flex-direction:column;transition:right .3s ease;}
@@ -397,6 +421,12 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
   <div id="view3d-navbar">
     <button class="nav-btn" onclick="backToPlan()">&#8592; Back to Plan</button>
     <div class="plan-appname">BuildPlan</div>
+    <div style="display:flex;gap:3px;margin:0 6px;">
+      <button class="view-btn active" id="vbtn-iso" onclick="setView3D('iso')">Iso</button>
+      <button class="view-btn" id="vbtn-front" onclick="setView3D('front')">Front</button>
+      <button class="view-btn" id="vbtn-side" onclick="setView3D('side')">Side</button>
+      <button class="view-btn" id="vbtn-top" onclick="setView3D('top')">Top</button>
+    </div>
     <button class="nav-btn" id="btn-draw-wall-3d" onclick="toggleWallDraw3d()">&#43; Draw Wall</button>
     <button class="nav-btn" onclick="toggleCutList()">Cut List</button>
     <button class="nav-btn" onclick="saveProject()">&#128190; Save</button>
@@ -445,6 +475,48 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     </button>
   </div>
 
+  <!-- Item Properties Panel -->
+  <div id="item-panel" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div id="ip-title" style="font-size:13px;font-weight:700;color:var(--text-primary);">Piece Properties</div>
+      <button onclick="deselectAll()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;">&#10005;</button>
+    </div>
+    <div id="ip-type" style="font-size:11px;color:var(--text-muted);padding:5px 8px;background:var(--bg-elevated);border-radius:6px;"></div>
+    <!-- Position -->
+    <div class="ip-row">
+      <div class="ip-label">Position (inches)</div>
+      <div class="ip-xyz"><span class="ip-axis" style="color:#FF5555">X</span><input class="ip-input" id="ip-x" type="number" step="0.5" onchange="applyItemPos('x',this.value)"></div>
+      <div class="ip-xyz"><span class="ip-axis" style="color:#55FF55">Y</span><input class="ip-input" id="ip-y" type="number" step="0.5" onchange="applyItemPos('y',this.value)"></div>
+      <div class="ip-xyz"><span class="ip-axis" style="color:#5599FF">Z</span><input class="ip-input" id="ip-z" type="number" step="0.5" onchange="applyItemPos('z',this.value)"></div>
+    </div>
+    <!-- Length -->
+    <div class="ip-row">
+      <div class="ip-label">Cut Length (inches)</div>
+      <input class="ip-input" id="ip-len" type="number" step="0.5" min="1" onchange="applyItemLen(this.value)">
+      <div id="ip-len-hint" style="font-size:10px;color:var(--text-muted);"></div>
+    </div>
+    <!-- Orient -->
+    <div class="ip-row">
+      <div class="ip-label">Quick Orient</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <button class="ip-orient-btn" onclick="setOrient('flat')">Lay Flat</button>
+        <button class="ip-orient-btn" onclick="setOrient('vertical')">Stand Upright</button>
+        <button class="ip-orient-btn" onclick="rotateSelected(Math.PI/2,'y')">&#x21BB; Spin Y</button>
+        <button class="ip-orient-btn" onclick="rotateSelected(Math.PI/2,'x')">&#x21BB; Tilt X</button>
+      </div>
+    </div>
+    <!-- Group -->
+    <div class="ip-row">
+      <div class="ip-label">Group Name</div>
+      <input class="ip-input" id="ip-group" type="text" placeholder="e.g. Shelf Unit A" onchange="applyItemGroup(this.value)">
+    </div>
+    <!-- Actions -->
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:5px;">
+      <button class="ip-action-btn" onclick="dupSelected()">Duplicate (Ctrl+D)</button>
+      <button class="ip-action-btn ip-delete" onclick="removeSelectedItem()">Delete Piece</button>
+    </div>
+  </div>
+
   <div id="view3d-layout">
     <div id="lumber-panel">
       <div id="lumber-panel-inner">
@@ -453,8 +525,9 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
           <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;" onclick="toggleLumberPanel()">&#8249;</button>
         </div>
         <div id="lumber-list"></div>
-        <div style="padding:8px;">
+        <div style="padding:8px;display:flex;flex-direction:column;gap:6px;">
           <button id="wizard-btn" onclick="startStudWizard()">&#9881; Stud Wall Wizard</button>
+          <button id="wizard-btn" style="border-color:rgba(34,211,238,.4);color:var(--accent);" onclick="startShelfWizard()">&#x1F4E6; Shelf Unit Wizard</button>
         </div>
       </div>
     </div>
@@ -553,6 +626,60 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 </div>
 
 <!-- ══════════════════════════════════════════
+     SHELF UNIT WIZARD MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="shelf-wizard-modal" style="display:none">
+  <div class="modal-card" style="max-height:85vh;overflow-y:auto;min-width:360px;">
+    <h2>&#x1F4E6; Shelf Unit Wizard</h2>
+    <p class="modal-sub">Configure your shelf unit, then click "Place on Floor" and click where you want it.</p>
+    <div class="dim-row"><label>Unit Width</label><input type="number" id="sh-width" value="48" min="12" max="240" step="1"><span style="color:var(--text-muted);font-size:12px">in</span></div>
+    <div class="dim-row"><label>Unit Depth</label><input type="number" id="sh-depth" value="16" min="6" max="96" step="1"><span style="color:var(--text-muted);font-size:12px">in</span></div>
+    <div class="dim-row"><label>Total Height</label><input type="number" id="sh-height" value="84" min="12" max="120" step="1"><span style="color:var(--text-muted);font-size:12px">in</span></div>
+    <div class="dim-row"><label>Uprights</label>
+      <select id="sh-uprights" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;outline:none;font-family:inherit;">
+        <option value="2">2 — wall-mounted</option>
+        <option value="4">4 — freestanding</option>
+      </select>
+    </div>
+    <div class="dim-row"><label>Upright Stock</label>
+      <select id="sh-upright-type" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;outline:none;font-family:inherit;">
+        <option value="2x4-8">2×4</option>
+        <option value="4x4-8">4×4</option>
+        <option value="2x6-8">2×6</option>
+      </select>
+    </div>
+    <div class="dim-row"><label>Shelf Board</label>
+      <select id="sh-shelf-type" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;outline:none;font-family:inherit;">
+        <option value="1x6-8">1×6 board</option>
+        <option value="2x6-8">2×6</option>
+        <option value="ply34">3/4" Plywood</option>
+        <option value="2x4-8">2×4</option>
+      </select>
+    </div>
+    <div class="dim-row"><label>Back Panel</label>
+      <select id="sh-back" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;outline:none;font-family:inherit;">
+        <option value="none">None</option>
+        <option value="ply12">1/2" Plywood</option>
+        <option value="osb">OSB</option>
+      </select>
+    </div>
+    <!-- Shelf heights -->
+    <div style="margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">Shelf Heights (inches from floor)</div>
+        <button onclick="addShelfHeight()" style="padding:3px 10px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--accent);cursor:pointer;font-size:12px;font-family:inherit;">+ Add</button>
+      </div>
+      <div id="sh-heights-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+    <div id="sh-status" style="font-size:12px;color:var(--text-muted);margin-top:10px;min-height:18px;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="cancelShelfWizard()">Cancel</button>
+      <button class="btn-primary" id="sh-place-btn" onclick="startShelfPlacement()">Place on Floor</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
      OPENING MODAL
 ══════════════════════════════════════════ -->
 <div class="modal-backdrop" id="opening-modal" style="display:none">
@@ -604,6 +731,7 @@ const APP = {
   wallDraw3dStart: null,   // {x,z} first click for new wall in 3D
   placingType: null,   // lumber type being placed
   placingGhost: null,  // THREE.Mesh ghost
+  lastRotationByType: {}, // typeId -> [rx,ry,rz] remembered per-type
   studWizardPoints: [],
   pendingOpeningWall: null,
   drawPoints: [],      // in-progress polygon points (inches)
@@ -1799,8 +1927,10 @@ function startPlacement(typeId) {
   document.getElementById('placement-cursor').style.display='block';
   const lt = LUMBER_TYPES.find(x=>x.id===typeId);
   if (!lt) return;
+  const rot = APP.lastRotationByType[typeId] || [0,0,0];
   const geo = new THREE.BoxGeometry(lt.l, lt.h, lt.w);
   ghostMesh = new THREE.Mesh(geo, MATS.ghost);
+  ghostMesh.rotation.set(...rot);
   ghostMesh.userData.isGhost=true;
   scene.add(ghostMesh);
 }
@@ -1823,10 +1953,13 @@ function setupRaycaster() {
     mouse3d.y = -((e.clientY-rect.top)/rect.height)*2+1;
 
     if (APP.placingType && ghostMesh) {
-      const pos = getFloorPos();
+      const pos = getPlacementPos();
       if (pos) {
         const lt = LUMBER_TYPES.find(x=>x.id===APP.placingType);
-        ghostMesh.position.set(pos.x, lt.h/2, pos.z);
+        const rot = APP.lastRotationByType[APP.placingType] || [0,0,0];
+        const isVertical = Math.abs(Math.sin(rot[2])) > 0.7;
+        const halfH = isVertical ? lt.l/2 : lt.h/2;
+        ghostMesh.position.set(pos.x, pos.y + halfH, pos.z);
       }
     }
 
@@ -1874,14 +2007,17 @@ function setupRaycaster() {
       return;
     }
     if (APP.placingType) {
-      const pos = getFloorPos();
+      const pos = getPlacementPos();
       if (!pos) return;
       const lt = LUMBER_TYPES.find(x=>x.id===APP.placingType);
+      const rot = [...(APP.lastRotationByType[APP.placingType] || [0,0,0])];
+      const isVertical = Math.abs(Math.sin(rot[2])) > 0.7;
+      const halfH = isVertical ? lt.l/2 : lt.h/2;
       const item = {
         id: Date.now()+'_'+Math.random().toString(36).slice(2,6),
         type: APP.placingType,
-        position: [snap(pos.x,1), lt.h/2, snap(pos.z,1)],
-        rotation: [0,0,0],
+        position: [snap(pos.x,1), pos.y + halfH, snap(pos.z,1)],
+        rotation: rot,
         group: null,
         _mesh: null,
       };
@@ -1918,13 +2054,38 @@ function getFloorPos() {
   const target = new THREE.Vector3();
   const hit = raycaster.ray.intersectPlane(plane, target);
   if (!hit) return null;
-  return { x: snap(target.x,1), z: snap(target.z,1) };
+  return { x: snap(target.x,1), z: snap(target.z,1), y: 0 };
+}
+
+function getPlacementPos() {
+  raycaster.setFromCamera(mouse3d, camera);
+  // First: check top surfaces of placed items
+  const itemMeshes = ITEMS.map(i=>i._mesh).filter(m=>m&&!m.userData.isGhost);
+  if (itemMeshes.length) {
+    const hits = raycaster.intersectObjects(itemMeshes, false);
+    if (hits.length) {
+      const h = hits[0];
+      const norm = h.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(h.object.matrixWorld));
+      if (norm.y > 0.6) {
+        return { x: snap(h.point.x,1), z: snap(h.point.z,1), y: h.point.y };
+      }
+    }
+  }
+  // Fall back to floor plane
+  const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+  const target = new THREE.Vector3();
+  const hitFloor = raycaster.ray.intersectPlane(plane, target);
+  if (!hitFloor) return null;
+  return { x: snap(target.x,1), z: snap(target.z,1), y: 0 };
 }
 
 function buildItemMesh(item) {
   const lt = LUMBER_TYPES.find(x=>x.id===item.type);
   if (!lt) return null;
-  const geo = new THREE.BoxGeometry(lt.l, lt.h, lt.w);
+  const l = item._customDims?.l ?? item._customLen ?? lt.l;
+  const h = item._customDims?.h ?? lt.h;
+  const w = item._customDims?.w ?? lt.w;
+  const geo = new THREE.BoxGeometry(l, h, w);
   const mats = lumber6Mat(lt.mat);
   const mesh = new THREE.Mesh(geo, mats);
   mesh.position.set(...item.position);
@@ -1951,6 +2112,7 @@ function selectItem(item) {
   }
   showGizmo(item);
   updateSelBar();
+  showItemPanel(item);
 }
 
 function deselectAll() {
@@ -1964,6 +2126,7 @@ function deselectAll() {
   APP.selectedItem = null;
   APP.selectedItems = [];
   removeGizmo();
+  document.getElementById('item-panel').style.display = 'none';
   // Also clear wall selection
   if (APP.selectedWall3d !== null) {
     const wMesh = wallMeshes[APP.selectedWall3d];
@@ -2161,7 +2324,9 @@ function rotateSelected(angle, axis) {
   if (axis==='x') it.rotation[0] = (it.rotation[0]||0)+angle;
   if (axis==='z') it.rotation[2] = (it.rotation[2]||0)+angle;
   if (it._mesh) it._mesh.rotation.set(...it.rotation);
+  APP.lastRotationByType[it.type] = [...it.rotation];
   moveGizmoWithItem();
+  if (document.getElementById('item-panel')?.style.display !== 'none') refreshItemPanel(it);
 }
 
 function dupSelected(e) {
@@ -2605,6 +2770,236 @@ window.LUMBER_TYPES = LUMBER_TYPES;
 window.updateViewBox = updateViewBox;
 window.updateStatusHint = updateStatusHint;
 window.centerViewOnPolygon = centerViewOnPolygon;
+
+// ── Item Properties Panel ──
+function showItemPanel(item) {
+  const lt = LUMBER_TYPES.find(x=>x.id===item.type);
+  document.getElementById('ip-title').textContent = lt ? lt.name : item.type;
+  const l = item._customDims?.l ?? item._customLen ?? lt?.l ?? 0;
+  document.getElementById('ip-type').textContent = lt
+    ? `${lt.w}" × ${lt.h}" · ${fmtIn(l)} long` : item.type;
+  document.getElementById('ip-x').value = item.position[0].toFixed(1);
+  document.getElementById('ip-y').value = item.position[1].toFixed(1);
+  document.getElementById('ip-z').value = item.position[2].toFixed(1);
+  document.getElementById('ip-len').value = (l||0).toFixed(1);
+  const stockLen = lt?.l ?? 0;
+  const hint = document.getElementById('ip-len-hint');
+  hint.textContent = (l && stockLen && l < stockLen) ? `Cut from ${fmtIn(stockLen)} stock` : '';
+  document.getElementById('ip-group').value = item.group || '';
+  document.getElementById('item-panel').style.display = 'flex';
+}
+
+function refreshItemPanel(item) {
+  if (!item) return;
+  document.getElementById('ip-x').value = item.position[0].toFixed(1);
+  document.getElementById('ip-y').value = item.position[1].toFixed(1);
+  document.getElementById('ip-z').value = item.position[2].toFixed(1);
+}
+
+window.applyItemPos = function(axis, val) {
+  if (!APP.selectedItem) return;
+  const v = parseFloat(val); if (isNaN(v)) return;
+  const ax = {x:0,y:1,z:2}[axis];
+  APP.selectedItem.position[ax] = v;
+  if (APP.selectedItem._mesh) APP.selectedItem._mesh.position.set(...APP.selectedItem.position);
+  moveGizmoWithItem();
+};
+
+window.applyItemLen = function(val) {
+  if (!APP.selectedItem) return;
+  const len = parseFloat(val); if (!len || len<=0) return;
+  const item = APP.selectedItem;
+  const lt = LUMBER_TYPES.find(x=>x.id===item.type);
+  if (!lt) return;
+  if (item._customDims) item._customDims.l = len;
+  else item._customDims = {l:len, h:lt.h, w:lt.w};
+  item._customLen = len;
+  if (item._mesh) scene.remove(item._mesh);
+  const mesh = buildItemMesh(item);
+  if (mesh) { scene.add(mesh); item._mesh=mesh; }
+  selectItem(item);
+  const hint = document.getElementById('ip-len-hint');
+  if (hint) hint.textContent = len < lt.l ? `Cut from ${fmtIn(lt.l)} stock` : '';
+};
+
+window.applyItemGroup = function(val) {
+  if (!APP.selectedItem) return;
+  APP.selectedItem.group = val;
+};
+
+window.setOrient = function(mode) {
+  if (!APP.selectedItem) return;
+  const it = APP.selectedItem;
+  const lt = LUMBER_TYPES.find(x=>x.id===it.type);
+  if (mode === 'flat') {
+    it.rotation = [0, it.rotation[1]||0, 0];
+  } else if (mode === 'vertical') {
+    it.rotation = [0, it.rotation[1]||0, Math.PI/2];
+    if (lt && it.position[1] < 12) it.position[1] = lt.l/2;
+    if (it._mesh) it._mesh.position.set(...it.position);
+  }
+  if (it._mesh) it._mesh.rotation.set(...it.rotation);
+  APP.lastRotationByType[it.type] = [...it.rotation];
+  moveGizmoWithItem();
+  refreshItemPanel(it);
+};
+
+// ── Elevation Views ──
+window.setView3D = function(mode) {
+  if (!renderer||!camera||!controls) return;
+  const xs=PLAN.polygon.map(p=>p.x), zs=PLAN.polygon.map(p=>p.y);
+  const cx=(Math.min(...xs)+Math.max(...xs))/2;
+  const cz=(Math.min(...zs)+Math.max(...zs))/2;
+  const midH = PLAN.ceilingH/2;
+  const bigD = Math.max(PLAN.floorW||240, PLAN.floorD||240)*2.5;
+  if (mode==='iso') {
+    camera.position.set(cx, PLAN.ceilingH*1.6, cz - bigD*0.5);
+    controls.target.set(cx, midH*0.4, cz);
+    controls.enableRotate=true;
+  } else if (mode==='front') {
+    camera.position.set(cx, midH, cz - bigD);
+    controls.target.set(cx, midH, cz);
+    controls.enableRotate=false;
+  } else if (mode==='side') {
+    camera.position.set(cx + bigD, midH, cz);
+    controls.target.set(cx, midH, cz);
+    controls.enableRotate=false;
+  } else if (mode==='top') {
+    camera.position.set(cx, bigD*1.2, cz+1);
+    controls.target.set(cx, 0, cz);
+    controls.enableRotate=false;
+  }
+  controls.update();
+  document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('vbtn-'+mode)?.classList.add('active');
+};
+
+// ── Shelf Unit Wizard ──
+const SHELF_DEFAULTS = [12,24,36,48,60,72];
+
+window.startShelfWizard = function() {
+  // Populate default shelf heights if list is empty
+  const list = document.getElementById('sh-heights-list');
+  if (!list.children.length) {
+    SHELF_DEFAULTS.forEach(h => addShelfHeight(h));
+  }
+  document.getElementById('shelf-wizard-modal').style.display='flex';
+};
+
+window.cancelShelfWizard = function() {
+  document.getElementById('shelf-wizard-modal').style.display='none';
+  document.getElementById('sh-status').textContent='';
+  const canvas = renderer?.domElement;
+  if (canvas?._shPickFn) { canvas.removeEventListener('click',canvas._shPickFn); canvas._shPickFn=null; }
+};
+
+window.addShelfHeight = function(val) {
+  const list = document.getElementById('sh-heights-list');
+  const row = document.createElement('div');
+  row.className='sh-height-row';
+  const inp = document.createElement('input');
+  inp.type='number'; inp.className='sh-height-input'; inp.min='1'; inp.max='120'; inp.step='1';
+  inp.value = val || '';
+  inp.placeholder = 'Height in inches';
+  const rm = document.createElement('button');
+  rm.className='sh-rm-btn'; rm.textContent='✕';
+  rm.onclick = () => row.remove();
+  row.appendChild(inp); row.appendChild(rm);
+  list.appendChild(row);
+  inp.focus();
+};
+
+window.removeShelfHeight = function(btn) {
+  btn.closest('.sh-height-row').remove();
+};
+
+window.startShelfPlacement = function() {
+  document.getElementById('sh-status').textContent = 'Click the floor where you want the shelf unit placed.';
+  document.getElementById('sh-place-btn').disabled = true;
+  const canvas = renderer.domElement;
+  function pickFloor(e) {
+    const rect=canvas.getBoundingClientRect();
+    mouse3d.x=((e.clientX-rect.left)/rect.width)*2-1;
+    mouse3d.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    const pos = getFloorPos();
+    if (!pos) return;
+    canvas.removeEventListener('click', pickFloor);
+    canvas._shPickFn = null;
+    document.getElementById('shelf-wizard-modal').style.display='none';
+    buildShelfUnit(pos);
+    document.getElementById('sh-place-btn').disabled = false;
+  }
+  canvas._shPickFn = pickFloor;
+  canvas.addEventListener('click', pickFloor);
+};
+
+window.buildShelfUnit = function(origin) {
+  const W  = parseFloat(document.getElementById('sh-width').value)||48;
+  const D  = parseFloat(document.getElementById('sh-depth').value)||16;
+  const H  = parseFloat(document.getElementById('sh-height').value)||84;
+  const nU = parseInt(document.getElementById('sh-uprights').value)||2;
+  const upId   = document.getElementById('sh-upright-type').value;
+  const shId   = document.getElementById('sh-shelf-type').value;
+  const backId = document.getElementById('sh-back').value;
+  const shelfHeights = Array.from(document.querySelectorAll('.sh-height-input'))
+    .map(el=>parseFloat(el.value)).filter(v=>!isNaN(v)&&v>0&&v<H);
+  const grpName = 'Shelf Unit';
+  const ox=origin.x, oz=origin.z;
+
+  const upLt = LUMBER_TYPES.find(t=>t.id===upId)||LUMBER_TYPES[0];
+  // Upright cross-section: uw = narrow (1.5"), ud = wide (3.5")
+  const uw = Math.min(upLt.w, upLt.h);
+  const ud = Math.max(upLt.w, upLt.h);
+
+  const shLt = LUMBER_TYPES.find(t=>t.id===shId)||LUMBER_TYPES[0];
+  // Shelf board flat dims: thickness = narrow dim, shelf depth = min(D, wide dim)
+  const shThick = Math.min(shLt.w, shLt.h);
+  const shDepth = Math.min(D, Math.max(shLt.w, shLt.h));
+
+  function place(x,y,z,typeId,dims) {
+    const lt2=LUMBER_TYPES.find(t=>t.id===typeId)||LUMBER_TYPES[0];
+    const item={
+      id:Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      type:typeId, position:[x,y,z], rotation:[0,0,0],
+      group:grpName, _mesh:null, _customDims:dims
+    };
+    ITEMS.push(item);
+    const geo=new THREE.BoxGeometry(dims.l,dims.h,dims.w);
+    const mesh=new THREE.Mesh(geo,lumber6Mat(lt2.mat));
+    mesh.position.set(x,y,z);
+    mesh.castShadow=true;mesh.receiveShadow=true;
+    mesh.userData.isItem=true;mesh.userData.itemId=item.id;
+    scene.add(mesh);item._mesh=mesh;
+  }
+
+  // Uprights: natural vertical box (ud along X, H tall, uw deep)
+  const upLeft  = ox + ud/2;
+  const upRight = ox + W - ud/2;
+  const upZ     = oz + D/2;
+  if (nU===2) {
+    place(upLeft,  H/2, upZ, upId, {l:ud, h:H, w:uw});
+    place(upRight, H/2, upZ, upId, {l:ud, h:H, w:uw});
+  } else {
+    place(upLeft,  H/2, oz+uw/2,   upId, {l:ud, h:H, w:uw});
+    place(upRight, H/2, oz+uw/2,   upId, {l:ud, h:H, w:uw});
+    place(upLeft,  H/2, oz+D-uw/2, upId, {l:ud, h:H, w:uw});
+    place(upRight, H/2, oz+D-uw/2, upId, {l:ud, h:H, w:uw});
+  }
+
+  // Shelf boards at each height
+  shelfHeights.forEach(sh => {
+    place(ox+W/2, sh+shThick/2, oz+shDepth/2, shId, {l:W, h:shThick, w:shDepth});
+  });
+
+  // Back panel
+  if (backId!=='none') {
+    const bkLt=LUMBER_TYPES.find(t=>t.id===backId);
+    if (bkLt) {
+      const bkThick=Math.min(bkLt.w,bkLt.h);
+      place(ox+W/2, H/2, oz+bkThick/2, backId, {l:W, h:H, w:bkThick});
+    }
+  }
+};
 
 // Live build mode: poll /garage_plan.json when URL has #live
 if (location.hash === '#live') {

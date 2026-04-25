@@ -637,8 +637,8 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     <div class="dim-row"><label>Total Height</label><input type="number" id="sh-height" value="84" min="12" max="120" step="1"><span style="color:var(--text-muted);font-size:12px">in</span></div>
     <div class="dim-row"><label>Uprights</label>
       <select id="sh-uprights" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;outline:none;font-family:inherit;">
-        <option value="2">2 — wall-mounted</option>
-        <option value="4">4 — freestanding</option>
+        <option value="2">2 — rear posts only (wall-mounted)</option>
+        <option value="4" selected>4 — front &amp; rear posts (freestanding)</option>
       </select>
     </div>
     <div class="dim-row"><label>Upright Stock</label>
@@ -1987,6 +1987,7 @@ function setupRaycaster() {
   });
 
   canvas.addEventListener('click', e => {
+    if (APP._gizmoJustDragged) return; // don't re-select after gizmo drag
     if (APP.drawingWall3d) {
       const pos = getFloorPos();
       if (!pos) return;
@@ -2399,8 +2400,8 @@ function showGizmo(item) {
     if (!ax) return;
     dragging=true; dragAxis=ax;
     dragStart = {x:e.clientX, y:e.clientY};
-    // Snapshot positions of all selected items
     groupStarts = APP.selectedItems.map(it=>[...it.position]);
+    controls.enabled = false; // stop OrbitControls fighting the drag
     e.stopPropagation();
   }
   function gizmoMove(e) {
@@ -2415,8 +2416,15 @@ function showGizmo(item) {
       if (it._mesh) it._mesh.position.set(...it.position);
     });
     moveGizmoWithItem();
+    // Update position panel
+    if (document.getElementById('item-panel')?.style.display !== 'none') refreshItemPanel(APP.selectedItem);
   }
-  function gizmoUp() { dragging=false; }
+  function gizmoUp() {
+    if (dragging) APP._gizmoJustDragged = true;
+    dragging=false;
+    controls.enabled = true;
+    setTimeout(()=>{ APP._gizmoJustDragged=false; }, 80);
+  }
   canvas.addEventListener('mousedown',gizmoDown);
   canvas.addEventListener('mousemove',gizmoMove);
   canvas.addEventListener('mouseup',gizmoUp);

@@ -888,6 +888,7 @@ function updateStatusHint() {
 window.updateCeiling = function(val) {
   PLAN.ceilingH = ftToIn(parseFloat(val)||9);
   document.getElementById('sw-height').value = PLAN.ceilingH;
+  if (APP.view === '3d') { buildRoom(); rebuildItems(); }
 };
 
 // ── SVG Rendering ──
@@ -1497,6 +1498,7 @@ window.addEventListener('keydown', e => {
   if (APP.view==='3d') {
     if (e.key==='r') rotateSelected(Math.PI/2,'y');
     if (e.key==='f') rotateSelected(Math.PI/2,'x');
+    if (e.key==='z') rotateSelected(Math.PI/2,'z');
     if (e.key==='Escape') {
       if (APP.drawingWall3d) { toggleWallDraw3d(); }
       else { cancelPlacement(); deselectAll(); }
@@ -1510,7 +1512,7 @@ window.addEventListener('keyup', e => { if (e.code==='Space') APP.spaceDown=fals
 //  ENTER 3D VIEW
 // ══════════════════════════════════════════════════════════
 let renderer, scene, camera, controls, raycaster, mouse3d;
-let floorMesh, wallMeshes=[], gizmoGroup, ghostMesh;
+let floorMesh, ceilMesh, wallMeshes=[], gizmoGroup, ghostMesh;
 let wall3dGhost=null, wall3dPreview=null;
 let animFrame;
 
@@ -1693,6 +1695,20 @@ function buildRoom() {
   floorMesh.receiveShadow=true;
   floorMesh.userData.isFloor=true;
   scene.add(floorMesh);
+
+  // Ceiling — same polygon, lifted to ceilingH, see-through
+  if (ceilMesh) scene.remove(ceilMesh);
+  const ceilGeo = new THREE.ShapeGeometry(new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,p.y))));
+  const ceilMat = new THREE.MeshStandardMaterial({
+    color: 0xc8d8e8, transparent: true, opacity: 0.18,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  ceilMesh = new THREE.Mesh(ceilGeo, ceilMat);
+  ceilMesh.rotation.x = Math.PI/2;
+  ceilMesh.position.y = PLAN.ceilingH;
+  ceilMesh.userData.isCeil = true;
+  ceilMesh.raycast = () => {};  // non-clickable
+  scene.add(ceilMesh);
 
   // Walls
   PLAN.walls.forEach(w=>{
@@ -1967,8 +1983,11 @@ function updateSelBar() {
     const it = APP.selectedItem;
     const lt = LUMBER_TYPES.find(x=>x.id===it.type);
     nameEl.textContent = lt ? lt.name : it.type;
-    hintEl.textContent = `pos(${it.position.map(v=>v.toFixed(1)).join(',')})  R=rotate Y  F=flip X  Del=remove  Ctrl+D=dup`;
+    hintEl.textContent = `Del=remove  Ctrl+D=dup`;
     actEl.innerHTML=`
+      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'x')" title="Rotate X (F)">↻X</button>
+      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'y')" title="Rotate Y (R)">↻Y</button>
+      <button class="sel-action-btn" onclick="rotateSelected(Math.PI/2,'z')" title="Rotate Z (Z) — stand upright">↻Z</button>
       <button class="sel-action-btn" onclick="openRepeatModal()">Repeat…</button>
       <button class="sel-action-btn" onclick="openGroupModal()">Group…</button>
     `;
@@ -2140,6 +2159,7 @@ function rotateSelected(angle, axis) {
   const it = APP.selectedItem;
   if (axis==='y') it.rotation[1] = (it.rotation[1]||0)+angle;
   if (axis==='x') it.rotation[0] = (it.rotation[0]||0)+angle;
+  if (axis==='z') it.rotation[2] = (it.rotation[2]||0)+angle;
   if (it._mesh) it._mesh.rotation.set(...it.rotation);
   moveGizmoWithItem();
 }

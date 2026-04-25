@@ -1828,7 +1828,7 @@ function buildRoom() {
   if (ceilMesh) scene.remove(ceilMesh);
   const ceilGeo = new THREE.ShapeGeometry(new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,p.y))));
   const ceilMat = new THREE.MeshStandardMaterial({
-    color: 0xc8d8e8, transparent: true, opacity: 0.18,
+    color: 0xc8d8e8, transparent: true, opacity: 0.38,
     side: THREE.DoubleSide, depthWrite: false,
   });
   ceilMesh = new THREE.Mesh(ceilGeo, ceilMat);
@@ -2770,6 +2770,10 @@ window.LUMBER_TYPES = LUMBER_TYPES;
 window.updateViewBox = updateViewBox;
 window.updateStatusHint = updateStatusHint;
 window.centerViewOnPolygon = centerViewOnPolygon;
+window.rotateSelected = rotateSelected;
+window.deselectAll = deselectAll;
+window.removeSelectedItem = removeSelectedItem;
+window.dupSelected = dupSelected;
 
 // ── Item Properties Panel ──
 function showItemPanel(item) {
@@ -2914,9 +2918,13 @@ window.removeShelfHeight = function(btn) {
 };
 
 window.startShelfPlacement = function() {
-  document.getElementById('sh-status').textContent = 'Click the floor where you want the shelf unit placed.';
-  document.getElementById('sh-place-btn').disabled = true;
+  // Close modal first — it blocks the canvas click
+  document.getElementById('shelf-wizard-modal').style.display='none';
   const canvas = renderer.domElement;
+  // Show a placement hint
+  const cursor = document.getElementById('placement-cursor');
+  cursor.textContent = 'Click the floor to place shelf unit — Esc to cancel';
+  cursor.style.display = 'block';
   function pickFloor(e) {
     const rect=canvas.getBoundingClientRect();
     mouse3d.x=((e.clientX-rect.left)/rect.width)*2-1;
@@ -2925,9 +2933,8 @@ window.startShelfPlacement = function() {
     if (!pos) return;
     canvas.removeEventListener('click', pickFloor);
     canvas._shPickFn = null;
-    document.getElementById('shelf-wizard-modal').style.display='none';
+    cursor.style.display = 'none';
     buildShelfUnit(pos);
-    document.getElementById('sh-place-btn').disabled = false;
   }
   canvas._shPickFn = pickFloor;
   canvas.addEventListener('click', pickFloor);

@@ -170,24 +170,24 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 
 /* Mobile */
 @media(max-width:767px){
-  #lumber-panel{position:fixed;bottom:-100%;left:0;right:0;width:100% !important;min-width:unset !important;height:55vh;border-right:none;border-top:1px solid var(--border-glow);z-index:700;transition:bottom .3s ease;}
+  #lumber-panel{position:fixed;bottom:-100%;left:0;right:0;width:100% !important;min-width:unset !important;height:60vh;border-right:none;border-top:1px solid var(--border-glow);z-index:700;transition:bottom .3s ease;}
   #lumber-panel.mobile-open{bottom:0;}
-  #lp-backdrop{display:block;}
   #mobile-mat-fab{display:flex;}
   #view3d-navbar .nav-btn:not(#btn-draw-wall-3d){font-size:11px;padding:4px 7px;}
   #view3d-navbar .view-btn{font-size:11px;padding:3px 6px;}
   .tpl-grid{grid-template-columns:1fr 1fr;}
 }
-/* Mobile FAB — hidden on desktop */
-#mobile-mat-fab{display:none;position:fixed;bottom:52px;right:16px;z-index:800;
-  align-items:center;gap:8px;flex-direction:column;}
-#mobile-mat-fab button{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
-  font-size:20px;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 16px rgba(0,0,0,.5);}
+/* Mobile FAB — hidden on desktop, shown by media query above */
+/* position:absolute inside #view3d-screen (which is fixed;inset:0) = same as fixed but reliable on Android */
+#mobile-mat-fab{display:none;position:absolute;bottom:80px;right:16px;z-index:800;
+  align-items:center;gap:10px;flex-direction:column;}
+#mobile-mat-fab button{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
+  font-size:22px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);touch-action:manipulation;}
 #mobile-mat-fab #fab-materials{background:var(--accent);color:#000;}
-#mobile-mat-fab #fab-wizard{background:var(--bg-surface);border:1px solid var(--accent);color:var(--accent);display:none;}
-/* Backdrop to close panel on tap-outside */
-#lp-backdrop{display:none;position:fixed;inset:0;z-index:695;background:rgba(0,0,0,.45);}
+#mobile-mat-fab #fab-wizard{background:var(--bg-surface);border:2px solid var(--accent);color:var(--accent);display:none;}
+/* Backdrop — controlled by JS only, never shown by CSS */
+#lp-backdrop{display:none;position:absolute;inset:0;z-index:695;background:rgba(0,0,0,.5);touch-action:manipulation;}
 .hidden{display:none !important;}
 </style>
 </head>

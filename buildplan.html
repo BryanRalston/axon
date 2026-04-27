@@ -3364,8 +3364,15 @@ async function openSettings() {
   try {
     const r = await fetch(getServerBase()+'/api/buildplan/config');
     const cfg = await r.json();
-    document.getElementById('settings-status').textContent = cfg.hasMeshyKey ? '✓ Meshy key is set on server' : 'No Meshy key on server yet';
-  } catch { document.getElementById('settings-status').textContent = '⚠ Could not reach server'; }
+    let msg = cfg.hasMeshyKey ? '✓ Meshy key set · ' : 'No Meshy key · ';
+    // Show local IP hint from server
+    try {
+      const st = await fetch(getServerBase()+'/api/status');
+      const sd = await st.json();
+      if (sd.network) msg += `LAN: http://${sd.network}:3142`;
+    } catch {}
+    document.getElementById('settings-status').textContent = msg;
+  } catch { document.getElementById('settings-status').textContent = '⚠ Could not reach Cortex server — check the URL below'; }
 }
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
 async function saveSettings() {
@@ -3634,7 +3641,7 @@ if (location.hash === '#live') {
     <div style="display:flex;flex-direction:column;gap:6px;">
       <label>Cortex Server URL</label>
       <input type="text" id="setting-server-url" placeholder="http://localhost:3142" autocomplete="off">
-      <div style="font-size:11px;color:var(--text-muted);">Leave blank when using locally. Set to your Cloudflare tunnel URL when on WiFi.</div>
+      <div style="font-size:11px;color:var(--text-muted);">On this device: leave blank. On phone/tablet over WiFi: enter <code style="background:#1a1a2e;padding:1px 4px;border-radius:3px;">http://192.168.x.x:3142</code> (your PC's LAN IP) or your Cloudflare tunnel URL.</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;">
       <label>Meshy.ai API Key <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(for Photo → 3D model, stored on server)</span></label>

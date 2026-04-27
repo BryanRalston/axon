@@ -3389,7 +3389,7 @@ async function saveSettings() {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({meshyKey:mk})
       });
-    } catch(e) { alert('Could not save Meshy key to server: '+e.message); return; }
+    } catch {}
   }
   closeSettings();
 }
@@ -3415,15 +3415,8 @@ async function openPhotoScan() {
   try {
     const r = await fetch(getServerBase()+'/api/buildplan/config', {signal: AbortSignal.timeout(4000)});
     if (!r.ok) throw new Error('bad');
-    banner.style.display='none';
   } catch {
-    const stored = localStorage.getItem('bp_server_url');
-    const isPhone = !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1');
-    if (isPhone && !stored) {
-      banner.innerHTML = '⚠ <b>Server not reachable.</b> You\'re on a remote device — enter your PC\'s LAN IP in Settings so photos can route through Cortex.<br><button onclick="closePhotoModal();openSettings();" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:var(--accent);color:#000;font-size:12px;cursor:pointer;">Open Settings</button>';
-    } else {
-      banner.innerHTML = '⚠ <b>Cannot reach Cortex server</b> — make sure it\'s running at <code>' + getServerBase() + '</code>.<br><button onclick="closePhotoModal();openSettings();" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:var(--accent);color:#000;font-size:12px;cursor:pointer;">Settings</button>';
-    }
+    banner.innerHTML = '⚠ <b>Cannot reach Cortex server.</b> Set your Cortex server URL in Settings — use your Cloudflare tunnel URL or LAN IP (<code>http://192.168.12.198:3142</code>).<br><button onclick="closePhotoModal();openSettings();" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:var(--accent);color:#000;font-size:12px;cursor:pointer;">Open Settings</button>';
     banner.style.display='block';
     document.getElementById('btn-analyze-photo').disabled=true;
   }
@@ -3475,10 +3468,7 @@ window.analyzeRoomPhoto = async function() {
   try {
     const res = await fetch(getServerBase()+'/api/buildplan/scan-room',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        images: _photos.map(p=>p.base64),
-        mimeTypes: _photos.map(p=>p.mime)
-      })
+      body: JSON.stringify({ images:_photos.map(p=>p.base64), mimeTypes:_photos.map(p=>p.mime) })
     });
     if (!res.ok) { const e=await res.json(); throw new Error(e.error||res.statusText); }
     const result = await res.json();

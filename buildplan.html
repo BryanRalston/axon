@@ -189,6 +189,36 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 /* Backdrop — controlled by JS only, never shown by CSS */
 #lp-backdrop{display:none;position:absolute;inset:0;z-index:695;background:rgba(0,0,0,.5);touch-action:manipulation;}
 .hidden{display:none !important;}
+/* ── Photo / Settings UI ── */
+#settings-btn{position:absolute;top:14px;right:16px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;padding:6px 10px;font-size:16px;z-index:10;}
+#settings-btn:hover{color:var(--accent);border-color:var(--accent);}
+.photo-card{background:rgba(34,211,238,.06);border:1px dashed rgba(34,211,238,.4);}
+.photo-card:hover{background:rgba(34,211,238,.12);border-color:var(--accent);}
+.photo-card svg .cam{fill:rgba(34,211,238,.5);}
+#settings-modal,#photo-modal,#glb-modal{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);}
+#settings-modal.open,#photo-modal.open,#glb-modal.open{display:flex;}
+.ai-card{background:var(--bg-surface);border:1px solid var(--border-glow);border-radius:16px;padding:24px;width:min(480px,92vw);max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;}
+.ai-card h2{font-size:16px;font-weight:700;color:var(--text-primary);margin:0;}
+.ai-card .sub{font-size:12px;color:var(--text-muted);margin-top:-8px;}
+.ai-card label{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.07em;text-transform:uppercase;}
+.ai-card input[type=text],.ai-card input[type=password]{width:100%;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:13px;font-family:JetBrains Mono,monospace;outline:none;box-sizing:border-box;}
+.ai-card input:focus{border-color:var(--accent);}
+.ai-row{display:flex;gap:8px;}
+#photo-preview-wrap{border-radius:10px;overflow:hidden;max-height:200px;display:none;background:var(--bg-elevated);}
+#photo-preview-wrap img{width:100%;object-fit:cover;max-height:200px;display:block;}
+.dim-result-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.dim-result-box{background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;}
+.dim-result-box .dr-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;}
+.dim-result-box input{width:100%;background:none;border:none;color:var(--text-primary);font-size:22px;font-weight:700;font-family:JetBrains Mono,monospace;text-align:center;outline:none;padding:4px 0;}
+.dim-result-box .dr-unit{font-size:11px;color:var(--text-muted);}
+#analysis-notes{font-size:12px;color:var(--text-muted);background:var(--bg-elevated);border-radius:8px;padding:10px;line-height:1.5;}
+.ai-status{font-size:12px;color:var(--accent);display:flex;align-items:center;gap:8px;}
+.ai-spinner{width:14px;height:14px;border:2px solid rgba(34,211,238,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#import-3d-overlay{position:absolute;inset:0;z-index:900;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+#import-3d-overlay.active{display:flex;}
+#import-3d-overlay .msg{color:var(--text-primary);font-size:14px;}
+.ref-badge{position:absolute;font-size:9px;background:rgba(34,211,238,.2);border:1px solid rgba(34,211,238,.4);color:var(--accent);border-radius:4px;padding:1px 5px;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -197,6 +227,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
      TEMPLATE PICKER SCREEN
 ══════════════════════════════════════════ -->
 <div id="template-screen">
+  <button id="settings-btn" onclick="openSettings()" title="API Keys & Settings">&#9881;</button>
   <h1>Build<span>Plan</span></h1>
   <p class="subtitle">Design your space, build your structure.</p>
   <div class="tpl-grid">
@@ -231,6 +262,18 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       </svg>
       <div class="tname">T-Shape</div>
       <div class="tdesc">T-shaped room</div>
+    </div>
+    <!-- Photo Scan -->
+    <div class="tpl-card photo-card" style="grid-column:span 2;" onclick="openPhotoScan()">
+      <svg width="80" height="60" viewBox="0 0 80 60">
+        <rect x="8" y="14" width="64" height="40" rx="6" fill="none" class="cam" stroke="rgba(34,211,238,.5)" stroke-width="2"/>
+        <circle cx="40" cy="34" r="10" fill="none" stroke="rgba(34,211,238,.5)" stroke-width="2"/>
+        <circle cx="40" cy="34" r="4" fill="rgba(34,211,238,.4)"/>
+        <rect x="28" y="8" width="12" height="6" rx="2" fill="rgba(34,211,238,.4)"/>
+        <circle cx="64" cy="20" r="3" fill="rgba(34,211,238,.3)"/>
+      </svg>
+      <div class="tname">&#128247; Scan from Photo</div>
+      <div class="tdesc">Upload a room photo — AI extracts dimensions</div>
     </div>
     <!-- Custom -->
     <div class="tpl-card" data-tpl="custom" style="grid-column:span 2;">
@@ -443,6 +486,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     </div>
     <button class="nav-btn" id="btn-draw-wall-3d" onclick="toggleWallDraw3d()">&#43; Draw Wall</button>
     <button class="nav-btn" onclick="toggleCutList()">Cut List</button>
+    <label class="nav-btn" style="cursor:pointer" title="Import GLB/photo for reference">&#128444; Import<input type="file" accept=".glb,.gltf,image/*" class="hidden" id="import3d-input" onchange="handleImport3D(this)"></label>
     <button class="nav-btn" onclick="saveProject()">&#128190; Save</button>
     <label class="nav-btn" style="cursor:pointer">&#128194; Load<input type="file" accept=".json" class="hidden" id="load-input" onchange="loadProject(this)"></label>
   </div>
@@ -552,6 +596,12 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       <div id="room-stats" style="position:absolute;top:8px;left:8px;font-size:11px;color:var(--text-muted);background:rgba(0,0,0,0.55);padding:5px 10px;border-radius:8px;pointer-events:none;line-height:1.7;z-index:10;"></div>
       <div id="nav-hint" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text-muted);background:rgba(0,0,0,0.45);padding:3px 10px;border-radius:10px;pointer-events:none;white-space:nowrap;">Left drag: orbit &nbsp;·&nbsp; Right drag: pan &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Ctrl+Z: undo</div>
     </div>
+  </div>
+  <!-- 3D import loading overlay -->
+  <div id="import-3d-overlay">
+    <div class="ai-spinner" style="width:32px;height:32px;border-width:3px;"></div>
+    <div class="msg" id="import-3d-msg">Generating 3D model…</div>
+    <div style="font-size:11px;color:var(--text-muted);" id="import-3d-sub"></div>
   </div>
   <!-- Mobile: backdrop to close panel by tapping outside -->
   <div id="lp-backdrop" onclick="closeLumberPanelMobile()"></div>
@@ -733,6 +783,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ══════════════════════════════════════════════════════════
 //  STATE
@@ -3292,6 +3343,305 @@ window.buildShelfUnit = function(origin) {
   updateRoomStats();
 };
 
+// ══════════════════════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════════════════════
+function openSettings() {
+  document.getElementById('setting-anthropic-key').value = localStorage.getItem('bp_anthropic_key')||'';
+  document.getElementById('setting-meshy-key').value = localStorage.getItem('bp_meshy_key')||'';
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function saveSettings() {
+  const ak = document.getElementById('setting-anthropic-key').value.trim();
+  const mk = document.getElementById('setting-meshy-key').value.trim();
+  if (ak) localStorage.setItem('bp_anthropic_key', ak); else localStorage.removeItem('bp_anthropic_key');
+  if (mk) localStorage.setItem('bp_meshy_key', mk); else localStorage.removeItem('bp_meshy_key');
+  closeSettings();
+  alert('Settings saved.');
+}
+window.openSettings=openSettings; window.closeSettings=closeSettings; window.saveSettings=saveSettings;
+
+// ══════════════════════════════════════════════════════════
+//  PHOTO → ROOM ANALYSIS  (Anthropic Vision)
+// ══════════════════════════════════════════════════════════
+let _photoBase64='', _photoMime='';
+
+function openPhotoScan() {
+  const k=localStorage.getItem('bp_anthropic_key');
+  if (!k) {
+    if (confirm('An Anthropic API key is needed for photo analysis.\nOpen settings to add it?')) openSettings();
+    return;
+  }
+  document.getElementById('photo-preview-wrap').style.display='none';
+  document.getElementById('analysis-status').style.display='none';
+  document.getElementById('analysis-results').style.display='none';
+  document.getElementById('btn-analyze-photo').disabled=true;
+  document.getElementById('btn-use-dims').style.display='none';
+  document.getElementById('btn-analyze-photo').style.display='';
+  _photoBase64=''; _photoMime='';
+  document.getElementById('photo-modal').classList.add('open');
+}
+function closePhotoModal() { document.getElementById('photo-modal').classList.remove('open'); }
+window.openPhotoScan=openPhotoScan; window.closePhotoModal=closePhotoModal;
+
+window.previewRoomPhoto = function(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    document.getElementById('photo-preview-img').src = dataUrl;
+    document.getElementById('photo-preview-wrap').style.display='block';
+    // Extract base64 and mime
+    const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (m) { _photoMime=m[1]; _photoBase64=m[2]; }
+    document.getElementById('btn-analyze-photo').disabled=false;
+  };
+  reader.readAsDataURL(file);
+};
+
+window.analyzeRoomPhoto = async function() {
+  if (!_photoBase64) return;
+  const apiKey = localStorage.getItem('bp_anthropic_key');
+  if (!apiKey) { alert('Add your Anthropic API key in Settings first.'); return; }
+
+  document.getElementById('analysis-status').style.display='flex';
+  document.getElementById('analysis-status-text').textContent='Analyzing photo…';
+  document.getElementById('analysis-results').style.display='none';
+  document.getElementById('btn-analyze-photo').disabled=true;
+
+  const prompt = `You are analyzing a photo of a room or garage to help with construction planning.
+
+Carefully examine the photo and estimate:
+1. The room's approximate WIDTH (left-right)
+2. The room's approximate DEPTH (front-back)
+3. The CEILING HEIGHT
+4. Any notable features (garage doors, man doors, windows, pillars)
+
+Use context clues: standard door height is ~6.8ft, a car is ~6ft wide, ceiling lights, wall outlets, etc.
+
+Return ONLY valid JSON with no explanation:
+{
+  "width_ft": <number>,
+  "depth_ft": <number>,
+  "ceiling_ft": <number>,
+  "confidence": "high|medium|low",
+  "shape": "rectangle|L-shape|other",
+  "features": ["<feature description>"],
+  "notes": "<brief one-sentence note about the room>"
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-iab': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        messages:[{
+          role:'user',
+          content:[
+            {type:'image', source:{type:'base64', media_type:_photoMime, data:_photoBase64}},
+            {type:'text', text:prompt}
+          ]
+        }]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || res.statusText);
+    }
+    const data = await res.json();
+    const text = data.content[0].text;
+    // Extract JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Could not parse response');
+    const result = JSON.parse(jsonMatch[0]);
+
+    document.getElementById('analysis-status').style.display='none';
+    document.getElementById('dr-width').value = result.width_ft||20;
+    document.getElementById('dr-depth').value = result.depth_ft||22;
+    document.getElementById('dr-ceiling').value = result.ceiling_ft||9;
+    document.getElementById('analysis-notes').innerHTML =
+      `<b>Confidence:</b> ${result.confidence||'medium'} &nbsp;·&nbsp; <b>Shape:</b> ${result.shape||'rectangle'}<br>`
+      + (result.notes||'')
+      + (result.features?.length ? '<br><b>Features detected:</b> ' + result.features.join(', ') : '');
+    document.getElementById('analysis-results').style.display='block';
+    document.getElementById('btn-use-dims').style.display='';
+    document.getElementById('btn-analyze-photo').style.display='none';
+  } catch(err) {
+    document.getElementById('analysis-status').style.display='none';
+    document.getElementById('btn-analyze-photo').disabled=false;
+    alert('Analysis failed: ' + err.message + '\n\nCheck your API key in Settings.');
+  }
+};
+
+window.applyPhotoRoom = function() {
+  const w = parseFloat(document.getElementById('dr-width').value)||20;
+  const d = parseFloat(document.getElementById('dr-depth').value)||22;
+  const h = parseFloat(document.getElementById('dr-ceiling').value)||9;
+  closePhotoModal();
+  // Pre-fill rect modal and create
+  document.getElementById('rect-w').value = w;
+  document.getElementById('rect-d').value = d;
+  document.getElementById('rect-h').value = h;
+  createFromTemplate('rect');
+};
+
+// ══════════════════════════════════════════════════════════
+//  IMPORT 3D MODEL  (GLB/GLTF or Photo→Meshy)
+// ══════════════════════════════════════════════════════════
+const _importedModels = [];
+let _meshyPollTimer = null;
+
+window.handleImport3D = function(input) {
+  const file = input.files[0]; if (!file) return;
+  input.value = '';
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext==='glb'||ext==='gltf') {
+    loadGLBFile(file);
+  } else {
+    // It's an image — try Meshy if key available, else offer advice
+    const meshyKey = localStorage.getItem('bp_meshy_key');
+    if (meshyKey) {
+      photoToMeshy(file, meshyKey);
+    } else {
+      if (confirm('To convert a photo to a 3D model, a free Meshy.ai API key is needed.\n\nOpen Settings to add it?\n\n(You can also import .glb files directly if you already have a 3D model.)')) {
+        openSettings();
+      }
+    }
+  }
+};
+
+function showImportOverlay(msg, sub) {
+  document.getElementById('import-3d-overlay').classList.add('active');
+  document.getElementById('import-3d-msg').textContent = msg;
+  document.getElementById('import-3d-sub').textContent = sub||'';
+}
+function hideImportOverlay() {
+  document.getElementById('import-3d-overlay').classList.remove('active');
+}
+
+function loadGLBFile(file) {
+  showImportOverlay('Loading 3D model…', file.name);
+  const url = URL.createObjectURL(file);
+  const loader = new GLTFLoader();
+  loader.load(url, gltf => {
+    URL.revokeObjectURL(url);
+    placeImportedModel(gltf.scene, file.name.replace(/\.[^.]+$/, ''));
+    hideImportOverlay();
+  }, undefined, err => {
+    URL.revokeObjectURL(url);
+    hideImportOverlay();
+    alert('Failed to load model: ' + err.message);
+  });
+}
+
+function placeImportedModel(modelScene, name) {
+  // Auto-scale: fit to reasonable size (max 20ft = 240 inches on any axis)
+  const box = new THREE.Box3().setFromObject(modelScene);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  if (maxDim > 0 && maxDim > 240) {
+    const scale = 240/maxDim;
+    modelScene.scale.setScalar(scale);
+  }
+  // Center at floor level in room
+  box.setFromObject(modelScene);
+  const center = box.getCenter(new THREE.Vector3());
+  const roomCx = (PLAN.floorW/12)/2, roomCz = (PLAN.floorD/12)/2;
+  modelScene.position.set(roomCx - center.x, -box.min.y, roomCz - center.z);
+  modelScene.userData.isImported = true;
+  modelScene.userData.importName = name;
+  scene.add(modelScene);
+  _importedModels.push(modelScene);
+  // Make it draggable by wrapping in same item-like system is complex;
+  // for now it's a fixed reference. Show a note.
+  const note = document.createElement('div');
+  note.className='ref-badge';
+  note.textContent = '📦 '+name+' (ref)';
+  note.style.cssText='position:fixed;bottom:42px;left:12px;z-index:200;';
+  document.getElementById('view3d-screen').appendChild(note);
+  setTimeout(()=>note.remove(), 4000);
+}
+
+async function photoToMeshy(file, apiKey) {
+  document.getElementById('glb-status-msg').textContent='Uploading photo to Meshy.ai…';
+  document.getElementById('glb-progress').textContent='';
+  document.getElementById('glb-modal').classList.add('open');
+
+  try {
+    // Convert to base64 data URL
+    const dataUrl = await new Promise((res,rej)=>{
+      const reader=new FileReader();
+      reader.onload=e=>res(e.target.result);
+      reader.onerror=rej;
+      reader.readAsDataURL(file);
+    });
+
+    // Submit image-to-3d job
+    const submitRes = await fetch('https://api.meshy.ai/openapi/v1/image-to-3d', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+apiKey,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        image_url: dataUrl,
+        enable_pbr: false,
+        ai_model: 'meshy-4'
+      })
+    });
+    if (!submitRes.ok) {
+      const e=await submitRes.json();
+      throw new Error(e.message||submitRes.statusText);
+    }
+    const job = await submitRes.json();
+    const jobId = job.result;
+    document.getElementById('glb-status-msg').textContent='Processing 3D model…';
+
+    // Poll for completion
+    let attempts=0;
+    _meshyPollTimer = setInterval(async()=>{
+      attempts++;
+      try {
+        const pollRes = await fetch(`https://api.meshy.ai/openapi/v1/image-to-3d/${jobId}`,{
+          headers:{'Authorization':'Bearer '+apiKey}
+        });
+        const status = await pollRes.json();
+        const pct = status.progress||0;
+        document.getElementById('glb-progress').textContent=`${pct}% complete (est. 1–3 min)`;
+        if (status.status==='SUCCEEDED') {
+          clearInterval(_meshyPollTimer);
+          const glbUrl = status.model_urls?.glb;
+          if (!glbUrl) throw new Error('No GLB URL in response');
+          document.getElementById('glb-status-msg').textContent='Loading into scene…';
+          const loader = new GLTFLoader();
+          loader.load(glbUrl, gltf=>{
+            document.getElementById('glb-modal').classList.remove('open');
+            placeImportedModel(gltf.scene, file.name.replace(/\.[^.]+$/,''));
+          }, undefined, e=>{ document.getElementById('glb-modal').classList.remove('open'); alert('Model load failed: '+e.message); });
+        } else if (status.status==='FAILED'||attempts>120) {
+          clearInterval(_meshyPollTimer);
+          document.getElementById('glb-modal').classList.remove('open');
+          alert('3D generation failed. Try a clearer photo with good lighting.');
+        }
+      } catch(e) { clearInterval(_meshyPollTimer); document.getElementById('glb-modal').classList.remove('open'); alert('Poll error: '+e.message); }
+    }, 5000);
+  } catch(err) {
+    document.getElementById('glb-modal').classList.remove('open');
+    alert('Meshy error: '+err.message);
+  }
+}
+window.cancelMeshy = function() {
+  if (_meshyPollTimer) clearInterval(_meshyPollTimer);
+  document.getElementById('glb-modal').classList.remove('open');
+};
+
+// ══════════════════════════════════════════════════════════
+
 // Live build mode: poll /garage_plan.json when URL has #live
 if (location.hash === '#live') {
   let lastPlanStr = '';
@@ -3330,5 +3680,95 @@ if (location.hash === '#live') {
   }, 800);
 }
 </script>
+
+<!-- ══════════════════════════════════════════
+     SETTINGS MODAL
+══════════════════════════════════════════ -->
+<div id="settings-modal">
+  <div class="ai-card">
+    <h2>&#9881; Settings</h2>
+    <p class="sub">API keys are stored locally in your browser — never sent to any server except the respective API.</p>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label>Anthropic API Key <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(for Photo → Room analysis)</span></label>
+      <input type="password" id="setting-anthropic-key" placeholder="sk-ant-…" autocomplete="off">
+      <div style="font-size:11px;color:var(--text-muted);">Get yours at <b>console.anthropic.com</b> → API Keys</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label>Meshy.ai API Key <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(for Photo → 3D model)</span></label>
+      <input type="password" id="setting-meshy-key" placeholder="msy_…" autocomplete="off">
+      <div style="font-size:11px;color:var(--text-muted);">Free tier at <b>meshy.ai</b> → API → generate key. ~200 credits/month free.</div>
+    </div>
+    <div class="ai-row">
+      <button class="btn-secondary" onclick="closeSettings()" style="flex:1">Cancel</button>
+      <button class="btn-primary" onclick="saveSettings()" style="flex:1">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PHOTO → ROOM MODAL
+══════════════════════════════════════════ -->
+<div id="photo-modal">
+  <div class="ai-card">
+    <h2>&#128247; Scan Room from Photo</h2>
+    <p class="sub">Upload a photo of your room or garage. AI will estimate dimensions to pre-fill the planner.</p>
+
+    <div id="photo-preview-wrap"><img id="photo-preview-img" src="" alt=""></div>
+
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label>Room Photo</label>
+      <label class="btn-secondary" style="cursor:pointer;text-align:center;padding:10px;">
+        &#128247; Choose Photo
+        <input type="file" accept="image/*" class="hidden" id="room-photo-input" onchange="previewRoomPhoto(this)">
+      </label>
+    </div>
+
+    <div id="analysis-status" style="display:none;" class="ai-status">
+      <div class="ai-spinner"></div>
+      <span id="analysis-status-text">Analyzing photo…</span>
+    </div>
+
+    <div id="analysis-results" style="display:none;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Detected dimensions — edit if needed:</div>
+      <div class="dim-result-grid">
+        <div class="dim-result-box">
+          <div class="dr-label">Width</div>
+          <input type="number" id="dr-width" step="0.5" min="4" max="200">
+          <div class="dr-unit">feet</div>
+        </div>
+        <div class="dim-result-box">
+          <div class="dr-label">Depth</div>
+          <input type="number" id="dr-depth" step="0.5" min="4" max="200">
+          <div class="dr-unit">feet</div>
+        </div>
+        <div class="dim-result-box">
+          <div class="dr-label">Ceiling</div>
+          <input type="number" id="dr-ceiling" step="0.5" min="6" max="20">
+          <div class="dr-unit">feet</div>
+        </div>
+      </div>
+      <div id="analysis-notes"></div>
+    </div>
+
+    <div class="ai-row">
+      <button class="btn-secondary" onclick="closePhotoModal()" style="flex:1">Cancel</button>
+      <button class="btn-primary" id="btn-analyze-photo" onclick="analyzeRoomPhoto()" style="flex:1" disabled>Analyze Photo</button>
+      <button class="btn-primary" id="btn-use-dims" onclick="applyPhotoRoom()" style="display:none;flex:1">Use These Dims →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PHOTO → 3D MODEL MODAL  (shown during Meshy processing)
+══════════════════════════════════════════ -->
+<div id="glb-modal">
+  <div class="ai-card" style="text-align:center;align-items:center;">
+    <h2>&#128444; Generating 3D Model</h2>
+    <div class="ai-spinner" style="width:40px;height:40px;border-width:3px;margin:8px auto;"></div>
+    <div id="glb-status-msg" style="color:var(--text-muted);font-size:13px;">Submitting photo to Meshy.ai…</div>
+    <div id="glb-progress" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+    <button class="btn-secondary" onclick="cancelMeshy()" style="margin-top:8px;">Cancel</button>
+  </div>
+</div>
 </body>
 </html>

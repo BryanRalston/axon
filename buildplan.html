@@ -3344,157 +3344,146 @@ window.buildShelfUnit = function(origin) {
 };
 
 // ══════════════════════════════════════════════════════════
-//  SETTINGS
+//  SETTINGS  (server URL + server-side Meshy key)
 // ══════════════════════════════════════════════════════════
-function openSettings() {
-  document.getElementById('setting-anthropic-key').value = localStorage.getItem('bp_anthropic_key')||'';
-  document.getElementById('setting-meshy-key').value = localStorage.getItem('bp_meshy_key')||'';
+function getServerBase() {
+  const stored = localStorage.getItem('bp_server_url');
+  if (stored) return stored.replace(/\/$/,'');
+  // Auto-detect: if served from Cortex server use same origin, else localhost
+  const origin = window.location.origin;
+  if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('192.168')) return origin;
+  if (origin.includes('github.io')) return 'http://localhost:3142';
+  return origin;
+}
+
+async function openSettings() {
+  document.getElementById('setting-server-url').value = localStorage.getItem('bp_server_url')||'';
+  document.getElementById('setting-meshy-key').value = '';
+  document.getElementById('settings-status').textContent = 'Checking server…';
   document.getElementById('settings-modal').classList.add('open');
+  try {
+    const r = await fetch(getServerBase()+'/api/buildplan/config');
+    const cfg = await r.json();
+    document.getElementById('settings-status').textContent = cfg.hasMeshyKey ? '✓ Meshy key is set on server' : 'No Meshy key on server yet';
+  } catch { document.getElementById('settings-status').textContent = '⚠ Could not reach server'; }
 }
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
-function saveSettings() {
-  const ak = document.getElementById('setting-anthropic-key').value.trim();
+async function saveSettings() {
+  const url = document.getElementById('setting-server-url').value.trim();
   const mk = document.getElementById('setting-meshy-key').value.trim();
-  if (ak) localStorage.setItem('bp_anthropic_key', ak); else localStorage.removeItem('bp_anthropic_key');
-  if (mk) localStorage.setItem('bp_meshy_key', mk); else localStorage.removeItem('bp_meshy_key');
+  if (url) localStorage.setItem('bp_server_url', url); else localStorage.removeItem('bp_server_url');
+  if (mk) {
+    try {
+      await fetch(getServerBase()+'/api/buildplan/config',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({meshyKey:mk})
+      });
+    } catch(e) { alert('Could not save Meshy key to server: '+e.message); return; }
+  }
   closeSettings();
-  alert('Settings saved.');
 }
 window.openSettings=openSettings; window.closeSettings=closeSettings; window.saveSettings=saveSettings;
 
 // ══════════════════════════════════════════════════════════
-//  PHOTO → ROOM ANALYSIS  (Anthropic Vision)
+//  PHOTO → ROOM ANALYSIS  (multi-photo, via Cortex server)
 // ══════════════════════════════════════════════════════════
-let _photoBase64='', _photoMime='';
+const _photos = []; // [{base64, mime, thumb}]
 
 function openPhotoScan() {
-  const k=localStorage.getItem('bp_anthropic_key');
-  if (!k) {
-    if (confirm('An Anthropic API key is needed for photo analysis.\nOpen settings to add it?')) openSettings();
-    return;
-  }
-  document.getElementById('photo-preview-wrap').style.display='none';
+  _photos.length = 0;
+  renderPhotoStrip();
   document.getElementById('analysis-status').style.display='none';
   document.getElementById('analysis-results').style.display='none';
   document.getElementById('btn-analyze-photo').disabled=true;
   document.getElementById('btn-use-dims').style.display='none';
   document.getElementById('btn-analyze-photo').style.display='';
-  _photoBase64=''; _photoMime='';
   document.getElementById('photo-modal').classList.add('open');
 }
 function closePhotoModal() { document.getElementById('photo-modal').classList.remove('open'); }
 window.openPhotoScan=openPhotoScan; window.closePhotoModal=closePhotoModal;
 
-window.previewRoomPhoto = function(input) {
-  const file = input.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const dataUrl = e.target.result;
-    document.getElementById('photo-preview-img').src = dataUrl;
-    document.getElementById('photo-preview-wrap').style.display='block';
-    // Extract base64 and mime
-    const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (m) { _photoMime=m[1]; _photoBase64=m[2]; }
-    document.getElementById('btn-analyze-photo').disabled=false;
-  };
-  reader.readAsDataURL(file);
+function renderPhotoStrip() {
+  const strip = document.getElementById('photo-strip');
+  strip.style.display = _photos.length ? 'flex' : 'none';
+  strip.innerHTML = _photos.map((p,i)=>`
+    <div style="position:relative;flex-shrink:0;">
+      <img src="${p.thumb}" style="height:64px;width:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+      <button onclick="_photos.splice(${i},1);renderPhotoStrip();document.getElementById('btn-analyze-photo').disabled=!_photos.length;"
+        style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;border:none;background:rgba(200,50,50,.9);color:#fff;font-size:10px;cursor:pointer;padding:0;line-height:1;">✕</button>
+    </div>`).join('');
+}
+window.renderPhotoStrip = renderPhotoStrip;
+
+window.addRoomPhotos = function(input) {
+  const files = [...input.files]; input.value='';
+  const remaining = 4 - _photos.length;
+  files.slice(0, remaining).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (m) {
+        _photos.push({base64:m[2], mime:m[1], thumb:dataUrl});
+        renderPhotoStrip();
+        document.getElementById('btn-analyze-photo').disabled = false;
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+window.clearRoomPhotos = function() {
+  _photos.length = 0; renderPhotoStrip();
+  document.getElementById('btn-analyze-photo').disabled = true;
 };
 
 window.analyzeRoomPhoto = async function() {
-  if (!_photoBase64) return;
-  const apiKey = localStorage.getItem('bp_anthropic_key');
-  if (!apiKey) { alert('Add your Anthropic API key in Settings first.'); return; }
-
+  if (!_photos.length) return;
   document.getElementById('analysis-status').style.display='flex';
-  document.getElementById('analysis-status-text').textContent='Analyzing photo…';
+  document.getElementById('analysis-status-text').textContent=`Analyzing ${_photos.length} photo${_photos.length>1?'s':''}…`;
   document.getElementById('analysis-results').style.display='none';
   document.getElementById('btn-analyze-photo').disabled=true;
-
-  const prompt = `You are analyzing a photo of a room or garage to help with construction planning.
-
-Carefully examine the photo and estimate:
-1. The room's approximate WIDTH (left-right)
-2. The room's approximate DEPTH (front-back)
-3. The CEILING HEIGHT
-4. Any notable features (garage doors, man doors, windows, pillars)
-
-Use context clues: standard door height is ~6.8ft, a car is ~6ft wide, ceiling lights, wall outlets, etc.
-
-Return ONLY valid JSON with no explanation:
-{
-  "width_ft": <number>,
-  "depth_ft": <number>,
-  "ceiling_ft": <number>,
-  "confidence": "high|medium|low",
-  "shape": "rectangle|L-shape|other",
-  "features": ["<feature description>"],
-  "notes": "<brief one-sentence note about the room>"
-}`;
-
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-        'anthropic-dangerous-direct-browser-iab': 'true'
-      },
+    const res = await fetch(getServerBase()+'/api/buildplan/scan-room',{
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 512,
-        messages:[{
-          role:'user',
-          content:[
-            {type:'image', source:{type:'base64', media_type:_photoMime, data:_photoBase64}},
-            {type:'text', text:prompt}
-          ]
-        }]
+        images: _photos.map(p=>p.base64),
+        mimeTypes: _photos.map(p=>p.mime)
       })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || res.statusText);
-    }
-    const data = await res.json();
-    const text = data.content[0].text;
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Could not parse response');
-    const result = JSON.parse(jsonMatch[0]);
-
+    if (!res.ok) { const e=await res.json(); throw new Error(e.error||res.statusText); }
+    const result = await res.json();
     document.getElementById('analysis-status').style.display='none';
     document.getElementById('dr-width').value = result.width_ft||20;
     document.getElementById('dr-depth').value = result.depth_ft||22;
     document.getElementById('dr-ceiling').value = result.ceiling_ft||9;
     document.getElementById('analysis-notes').innerHTML =
       `<b>Confidence:</b> ${result.confidence||'medium'} &nbsp;·&nbsp; <b>Shape:</b> ${result.shape||'rectangle'}<br>`
-      + (result.notes||'')
-      + (result.features?.length ? '<br><b>Features detected:</b> ' + result.features.join(', ') : '');
+      +(result.notes||'')
+      +(result.features?.length ? '<br><b>Detected:</b> '+result.features.join(', ') : '');
     document.getElementById('analysis-results').style.display='block';
     document.getElementById('btn-use-dims').style.display='';
     document.getElementById('btn-analyze-photo').style.display='none';
   } catch(err) {
     document.getElementById('analysis-status').style.display='none';
     document.getElementById('btn-analyze-photo').disabled=false;
-    alert('Analysis failed: ' + err.message + '\n\nCheck your API key in Settings.');
+    alert('Analysis failed: '+err.message+'\n\nMake sure your Cortex server is running and reachable.\nCheck Server URL in Settings.');
   }
 };
 
 window.applyPhotoRoom = function() {
-  const w = parseFloat(document.getElementById('dr-width').value)||20;
-  const d = parseFloat(document.getElementById('dr-depth').value)||22;
-  const h = parseFloat(document.getElementById('dr-ceiling').value)||9;
+  const w=parseFloat(document.getElementById('dr-width').value)||20;
+  const d=parseFloat(document.getElementById('dr-depth').value)||22;
+  const h=parseFloat(document.getElementById('dr-ceiling').value)||9;
   closePhotoModal();
-  // Pre-fill rect modal and create
-  document.getElementById('rect-w').value = w;
-  document.getElementById('rect-d').value = d;
-  document.getElementById('rect-h').value = h;
+  document.getElementById('rect-w').value=w;
+  document.getElementById('rect-d').value=d;
+  document.getElementById('rect-h').value=h;
   createFromTemplate('rect');
 };
 
 // ══════════════════════════════════════════════════════════
-//  IMPORT 3D MODEL  (GLB/GLTF or Photo→Meshy)
+//  IMPORT 3D MODEL  (GLB direct or Photo→Meshy via server)
 // ══════════════════════════════════════════════════════════
 const _importedModels = [];
 let _meshyPollTimer = null;
@@ -3506,139 +3495,93 @@ window.handleImport3D = function(input) {
   if (ext==='glb'||ext==='gltf') {
     loadGLBFile(file);
   } else {
-    // It's an image — try Meshy if key available, else offer advice
-    const meshyKey = localStorage.getItem('bp_meshy_key');
-    if (meshyKey) {
-      photoToMeshy(file, meshyKey);
-    } else {
-      if (confirm('To convert a photo to a 3D model, a free Meshy.ai API key is needed.\n\nOpen Settings to add it?\n\n(You can also import .glb files directly if you already have a 3D model.)')) {
-        openSettings();
-      }
-    }
+    photoToMeshyViaServer(file);
   }
 };
 
 function showImportOverlay(msg, sub) {
   document.getElementById('import-3d-overlay').classList.add('active');
-  document.getElementById('import-3d-msg').textContent = msg;
-  document.getElementById('import-3d-sub').textContent = sub||'';
+  document.getElementById('import-3d-msg').textContent=msg;
+  document.getElementById('import-3d-sub').textContent=sub||'';
 }
-function hideImportOverlay() {
-  document.getElementById('import-3d-overlay').classList.remove('active');
-}
+function hideImportOverlay() { document.getElementById('import-3d-overlay').classList.remove('active'); }
 
 function loadGLBFile(file) {
   showImportOverlay('Loading 3D model…', file.name);
   const url = URL.createObjectURL(file);
   const loader = new GLTFLoader();
-  loader.load(url, gltf => {
-    URL.revokeObjectURL(url);
-    placeImportedModel(gltf.scene, file.name.replace(/\.[^.]+$/, ''));
-    hideImportOverlay();
-  }, undefined, err => {
-    URL.revokeObjectURL(url);
-    hideImportOverlay();
-    alert('Failed to load model: ' + err.message);
-  });
+  loader.load(url, gltf=>{ URL.revokeObjectURL(url); placeImportedModel(gltf.scene, file.name.replace(/\.[^.]+$/,'')); hideImportOverlay(); },
+    undefined, err=>{ URL.revokeObjectURL(url); hideImportOverlay(); alert('Load failed: '+err.message); });
 }
 
 function placeImportedModel(modelScene, name) {
-  // Auto-scale: fit to reasonable size (max 20ft = 240 inches on any axis)
   const box = new THREE.Box3().setFromObject(modelScene);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
-  if (maxDim > 0 && maxDim > 240) {
-    const scale = 240/maxDim;
-    modelScene.scale.setScalar(scale);
-  }
-  // Center at floor level in room
+  if (maxDim>0 && maxDim>240) modelScene.scale.setScalar(240/maxDim);
   box.setFromObject(modelScene);
   const center = box.getCenter(new THREE.Vector3());
-  const roomCx = (PLAN.floorW/12)/2, roomCz = (PLAN.floorD/12)/2;
-  modelScene.position.set(roomCx - center.x, -box.min.y, roomCz - center.z);
-  modelScene.userData.isImported = true;
-  modelScene.userData.importName = name;
-  scene.add(modelScene);
-  _importedModels.push(modelScene);
-  // Make it draggable by wrapping in same item-like system is complex;
-  // for now it's a fixed reference. Show a note.
-  const note = document.createElement('div');
-  note.className='ref-badge';
-  note.textContent = '📦 '+name+' (ref)';
-  note.style.cssText='position:fixed;bottom:42px;left:12px;z-index:200;';
+  const roomCx=(PLAN.floorW/12)/2, roomCz=(PLAN.floorD/12)/2;
+  modelScene.position.set(roomCx-center.x, -box.min.y, roomCz-center.z);
+  modelScene.userData.isImported=true; modelScene.userData.importName=name;
+  scene.add(modelScene); _importedModels.push(modelScene);
+  const note=document.createElement('div'); note.className='ref-badge';
+  note.textContent='📦 '+name+' (ref)'; note.style.cssText='position:absolute;bottom:42px;left:12px;z-index:200;';
   document.getElementById('view3d-screen').appendChild(note);
-  setTimeout(()=>note.remove(), 4000);
+  setTimeout(()=>note.remove(),4000);
 }
 
-async function photoToMeshy(file, apiKey) {
-  document.getElementById('glb-status-msg').textContent='Uploading photo to Meshy.ai…';
+async function photoToMeshyViaServer(file) {
+  const base64 = await new Promise((res,rej)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{ const m=e.target.result.match(/^data:([^;]+);base64,(.+)$/); m?res({mime:m[1],data:m[2]}):rej(new Error('Read failed')); };
+    reader.onerror=rej; reader.readAsDataURL(file);
+  });
+
+  document.getElementById('glb-status-msg').textContent='Submitting to Meshy.ai via Cortex server…';
   document.getElementById('glb-progress').textContent='';
   document.getElementById('glb-modal').classList.add('open');
 
   try {
-    // Convert to base64 data URL
-    const dataUrl = await new Promise((res,rej)=>{
-      const reader=new FileReader();
-      reader.onload=e=>res(e.target.result);
-      reader.onerror=rej;
-      reader.readAsDataURL(file);
+    const r = await fetch(getServerBase()+'/api/buildplan/photo-to-3d',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({image:base64.data, mimeType:base64.mime})
     });
-
-    // Submit image-to-3d job
-    const submitRes = await fetch('https://api.meshy.ai/openapi/v1/image-to-3d', {
-      method:'POST',
-      headers:{'Authorization':'Bearer '+apiKey,'Content-Type':'application/json'},
-      body: JSON.stringify({
-        image_url: dataUrl,
-        enable_pbr: false,
-        ai_model: 'meshy-4'
-      })
-    });
-    if (!submitRes.ok) {
-      const e=await submitRes.json();
-      throw new Error(e.message||submitRes.statusText);
+    if (!r.ok) {
+      const e=await r.json();
+      if (e.error?.includes('No Meshy')) {
+        document.getElementById('glb-modal').classList.remove('open');
+        if (confirm('No Meshy.ai key on server.\nOpen Settings to add one? (Free at meshy.ai)')) openSettings();
+        return;
+      }
+      throw new Error(e.error||r.statusText);
     }
-    const job = await submitRes.json();
-    const jobId = job.result;
+    const {jobId} = await r.json();
     document.getElementById('glb-status-msg').textContent='Processing 3D model…';
-
-    // Poll for completion
     let attempts=0;
-    _meshyPollTimer = setInterval(async()=>{
+    _meshyPollTimer=setInterval(async()=>{
       attempts++;
       try {
-        const pollRes = await fetch(`https://api.meshy.ai/openapi/v1/image-to-3d/${jobId}`,{
-          headers:{'Authorization':'Bearer '+apiKey}
-        });
-        const status = await pollRes.json();
-        const pct = status.progress||0;
-        document.getElementById('glb-progress').textContent=`${pct}% complete (est. 1–3 min)`;
-        if (status.status==='SUCCEEDED') {
+        const pr=await fetch(getServerBase()+'/api/buildplan/photo-to-3d/'+jobId);
+        const st=await pr.json();
+        document.getElementById('glb-progress').textContent=`${st.progress||0}% complete (est. 1–3 min)`;
+        if (st.status==='SUCCEEDED') {
           clearInterval(_meshyPollTimer);
-          const glbUrl = status.model_urls?.glb;
-          if (!glbUrl) throw new Error('No GLB URL in response');
           document.getElementById('glb-status-msg').textContent='Loading into scene…';
-          const loader = new GLTFLoader();
-          loader.load(glbUrl, gltf=>{
+          new GLTFLoader().load(st.glbUrl, gltf=>{
             document.getElementById('glb-modal').classList.remove('open');
             placeImportedModel(gltf.scene, file.name.replace(/\.[^.]+$/,''));
           }, undefined, e=>{ document.getElementById('glb-modal').classList.remove('open'); alert('Model load failed: '+e.message); });
-        } else if (status.status==='FAILED'||attempts>120) {
+        } else if (st.status==='FAILED'||attempts>120) {
           clearInterval(_meshyPollTimer);
           document.getElementById('glb-modal').classList.remove('open');
-          alert('3D generation failed. Try a clearer photo with good lighting.');
+          alert('3D generation failed. Try a clearer photo.');
         }
-      } catch(e) { clearInterval(_meshyPollTimer); document.getElementById('glb-modal').classList.remove('open'); alert('Poll error: '+e.message); }
-    }, 5000);
-  } catch(err) {
-    document.getElementById('glb-modal').classList.remove('open');
-    alert('Meshy error: '+err.message);
-  }
+      } catch(e){ clearInterval(_meshyPollTimer); document.getElementById('glb-modal').classList.remove('open'); alert('Poll error: '+e.message); }
+    },5000);
+  } catch(err) { document.getElementById('glb-modal').classList.remove('open'); alert('Error: '+err.message); }
 }
-window.cancelMeshy = function() {
-  if (_meshyPollTimer) clearInterval(_meshyPollTimer);
-  document.getElementById('glb-modal').classList.remove('open');
-};
+window.cancelMeshy=function(){ if(_meshyPollTimer)clearInterval(_meshyPollTimer); document.getElementById('glb-modal').classList.remove('open'); };
 
 // ══════════════════════════════════════════════════════════
 
@@ -3687,17 +3630,18 @@ if (location.hash === '#live') {
 <div id="settings-modal">
   <div class="ai-card">
     <h2>&#9881; Settings</h2>
-    <p class="sub">API keys are stored locally in your browser — never sent to any server except the respective API.</p>
+    <p class="sub">Photo analysis routes through your Cortex server — no API keys needed in the browser.</p>
     <div style="display:flex;flex-direction:column;gap:6px;">
-      <label>Anthropic API Key <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(for Photo → Room analysis)</span></label>
-      <input type="password" id="setting-anthropic-key" placeholder="sk-ant-…" autocomplete="off">
-      <div style="font-size:11px;color:var(--text-muted);">Get yours at <b>console.anthropic.com</b> → API Keys</div>
+      <label>Cortex Server URL</label>
+      <input type="text" id="setting-server-url" placeholder="http://localhost:3142" autocomplete="off">
+      <div style="font-size:11px;color:var(--text-muted);">Leave blank when using locally. Set to your Cloudflare tunnel URL when on WiFi.</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;">
-      <label>Meshy.ai API Key <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(for Photo → 3D model)</span></label>
+      <label>Meshy.ai API Key <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(for Photo → 3D model, stored on server)</span></label>
       <input type="password" id="setting-meshy-key" placeholder="msy_…" autocomplete="off">
-      <div style="font-size:11px;color:var(--text-muted);">Free tier at <b>meshy.ai</b> → API → generate key. ~200 credits/month free.</div>
+      <div style="font-size:11px;color:var(--text-muted);">Free tier at <b>meshy.ai</b> → API → generate key. Saved to your Cortex server, not the browser.</div>
     </div>
+    <div id="settings-status" style="font-size:12px;color:var(--text-muted);"></div>
     <div class="ai-row">
       <button class="btn-secondary" onclick="closeSettings()" style="flex:1">Cancel</button>
       <button class="btn-primary" onclick="saveSettings()" style="flex:1">Save</button>
@@ -3713,15 +3657,17 @@ if (location.hash === '#live') {
     <h2>&#128247; Scan Room from Photo</h2>
     <p class="sub">Upload a photo of your room or garage. AI will estimate dimensions to pre-fill the planner.</p>
 
-    <div id="photo-preview-wrap"><img id="photo-preview-img" src="" alt=""></div>
+    <!-- Multi-photo preview strip -->
+    <div id="photo-strip" style="display:none;display:flex;gap:6px;overflow-x:auto;padding:4px 0;min-height:70px;align-items:center;flex-wrap:nowrap;"></div>
 
-    <div style="display:flex;flex-direction:column;gap:6px;">
-      <label>Room Photo</label>
-      <label class="btn-secondary" style="cursor:pointer;text-align:center;padding:10px;">
-        &#128247; Choose Photo
-        <input type="file" accept="image/*" class="hidden" id="room-photo-input" onchange="previewRoomPhoto(this)">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label class="btn-secondary" style="cursor:pointer;text-align:center;padding:8px 12px;flex:1;">
+        &#128247; Add Photo(s)
+        <input type="file" accept="image/*" multiple class="hidden" id="room-photo-input" onchange="addRoomPhotos(this)">
       </label>
+      <button class="btn-secondary" onclick="clearRoomPhotos()" style="padding:8px 10px;font-size:12px;" title="Clear all photos">&#10005;</button>
     </div>
+    <div style="font-size:11px;color:var(--text-muted);">Add 1–4 photos from different angles for best results.</div>
 
     <div id="analysis-status" style="display:none;" class="ai-status">
       <div class="ai-spinner"></div>

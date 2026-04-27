@@ -3359,20 +3359,24 @@ function getServerBase() {
 async function openSettings() {
   document.getElementById('setting-server-url').value = localStorage.getItem('bp_server_url')||'';
   document.getElementById('setting-meshy-key').value = '';
-  document.getElementById('settings-status').textContent = 'Checking server…';
+  document.getElementById('settings-status').innerHTML = 'Checking server…';
   document.getElementById('settings-modal').classList.add('open');
   try {
-    const r = await fetch(getServerBase()+'/api/buildplan/config');
-    const cfg = await r.json();
-    let msg = cfg.hasMeshyKey ? '✓ Meshy key set · ' : 'No Meshy key · ';
-    // Show local IP hint from server
-    try {
-      const st = await fetch(getServerBase()+'/api/status');
-      const sd = await st.json();
-      if (sd.network) msg += `LAN: http://${sd.network}:3142`;
-    } catch {}
-    document.getElementById('settings-status').textContent = msg;
-  } catch { document.getElementById('settings-status').textContent = '⚠ Could not reach Cortex server — check the URL below'; }
+    const [cfgR, stR] = await Promise.all([
+      fetch(getServerBase()+'/api/buildplan/config', {signal: AbortSignal.timeout(4000)}),
+      fetch(getServerBase()+'/api/status', {signal: AbortSignal.timeout(4000)})
+    ]);
+    const cfg = await cfgR.json();
+    const st = await stR.json();
+    const lanIp = st.network ? `http://${st.network}:3142` : null;
+    let html = cfg.hasMeshyKey ? '✓ Connected · Meshy key set' : '✓ Connected · No Meshy key';
+    if (lanIp) {
+      html += `<br><span style="color:var(--text-muted)">On phone/tablet set URL to: <b style="color:var(--accent);cursor:pointer;" onclick="document.getElementById('setting-server-url').value='${lanIp}'">${lanIp}</b> (tap to fill)</span>`;
+    }
+    document.getElementById('settings-status').innerHTML = html;
+  } catch {
+    document.getElementById('settings-status').innerHTML = '⚠ Could not reach Cortex server — check the URL field below';
+  }
 }
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
 async function saveSettings() {
@@ -3396,7 +3400,7 @@ window.openSettings=openSettings; window.closeSettings=closeSettings; window.sav
 // ══════════════════════════════════════════════════════════
 const _photos = []; // [{base64, mime, thumb}]
 
-function openPhotoScan() {
+async function openPhotoScan() {
   _photos.length = 0;
   renderPhotoStrip();
   document.getElementById('analysis-status').style.display='none';
@@ -3405,6 +3409,24 @@ function openPhotoScan() {
   document.getElementById('btn-use-dims').style.display='none';
   document.getElementById('btn-analyze-photo').style.display='';
   document.getElementById('photo-modal').classList.add('open');
+  // Proactively check server reachability
+  const banner = document.getElementById('server-warn-banner');
+  banner.style.display='none';
+  try {
+    const r = await fetch(getServerBase()+'/api/buildplan/config', {signal: AbortSignal.timeout(4000)});
+    if (!r.ok) throw new Error('bad');
+    banner.style.display='none';
+  } catch {
+    const stored = localStorage.getItem('bp_server_url');
+    const isPhone = !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1');
+    if (isPhone && !stored) {
+      banner.innerHTML = '⚠ <b>Server not reachable.</b> You\'re on a remote device — enter your PC\'s LAN IP in Settings so photos can route through Cortex.<br><button onclick="closePhotoModal();openSettings();" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:var(--accent);color:#000;font-size:12px;cursor:pointer;">Open Settings</button>';
+    } else {
+      banner.innerHTML = '⚠ <b>Cannot reach Cortex server</b> — make sure it\'s running at <code>' + getServerBase() + '</code>.<br><button onclick="closePhotoModal();openSettings();" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:none;background:var(--accent);color:#000;font-size:12px;cursor:pointer;">Settings</button>';
+    }
+    banner.style.display='block';
+    document.getElementById('btn-analyze-photo').disabled=true;
+  }
 }
 function closePhotoModal() { document.getElementById('photo-modal').classList.remove('open'); }
 window.openPhotoScan=openPhotoScan; window.closePhotoModal=closePhotoModal;
@@ -3663,6 +3685,7 @@ if (location.hash === '#live') {
   <div class="ai-card">
     <h2>&#128247; Scan Room from Photo</h2>
     <p class="sub">Upload a photo of your room or garage. AI will estimate dimensions to pre-fill the planner.</p>
+    <div id="server-warn-banner" style="display:none;background:rgba(255,160,0,.12);border:1px solid rgba(255,160,0,.4);border-radius:8px;padding:10px 12px;font-size:12px;color:#ffa040;line-height:1.5;"></div>
 
     <!-- Multi-photo preview strip -->
     <div id="photo-strip" style="display:none;display:flex;gap:6px;overflow-x:auto;padding:4px 0;min-height:70px;align-items:center;flex-wrap:nowrap;"></div>

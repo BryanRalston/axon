@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shelf Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-void: #050508;
+    --bg-base: #09090B;
+    --bg-panel: #0D0D10;
+    --bg-card: #121216;
+    --bg-glass: rgba(255,255,255,0.03);
+    --border: rgba(34,211,238,0.12);
+    --border-glow: rgba(34,211,238,0.25);
+    --accent: #22D3EE;
+    --accent-dim: rgba(34,211,238,0.6);
+    --accent-bg: rgba(34,211,238,0.08);
+    --text: #E4E4E7;
+    --text-muted: #71717A;
+    --text-dim: #3F3F46;
+    --danger: #EF4444;
+    --warn: #F59E0B;
+    --success: #22C55E;
+    --radius: 8px;
+    --panel-w-left: 260px;
+    --panel-w-right: 320px;
+  }
+
+  html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: var(--bg-void); color: var(--text); font-size: 13px; }
+
+  /* ─── TOOLBAR ─── */
+  #toolbar {
+    height: 44px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  #toolbar .logo { font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; white-space: nowrap; }
+  #unit-name-input {
+    background: var(--bg-glass);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 3px 8px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 140px;
+  }
+  #unit-name-input:focus { outline: none; border-color: var(--accent-dim); }
+  .toolbar-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .toolbar-spacer { flex: 1; }
+  .tb-select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 4px 24px 4px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2371717A'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+  }
+  .tb-select:focus { outline: none; border-color: var(--accent-dim); }
+  .tb-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tb-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .tb-btn:disabled { opacity: 0.35; cursor: default; }
+  .tb-btn.active { background: var(--accent-bg); border-color: var(--accent-dim); color: var(--accent); }
+
+  /* ─── MAIN LAYOUT ─── */
+  #app {
+    display: flex;
+    height: calc(100vh - 44px);
+    overflow: hidden;
+  }
+
+  /* ─── LEFT PANEL ─── */
+  #panel-left {
+    width: var(--panel-w-left);
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 10px 12px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  /* Step indicator */
+  #step-bar {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #step-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  #step-prompt {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  #step-progress {
+    height: 3px;
+    background: var(--bg-card);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #step-progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  /* Action buttons */
+  #step-actions {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .action-btn {
+    width: 100%;
+    padding: 7px 12px;
+    background: var(--accent-bg);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .action-btn:hover { background: rgba(34,211,238,0.15); }
+  .action-btn.highlighted { background: rgba(34,211,238,0.18); border-color: var(--accent); box-shadow: 0 0 12px rgba(34,211,238,0.2); }
+  .action-btn.secondary { background: var(--bg-card); border-color: var(--border); color: var(--text-muted); }
+  .action-btn.secondary:hover { color: var(--text); border-color: var(--border-glow); }
+  .action-btn.danger { border-color: rgba(239,68,68,0.4); color: var(--danger); background: rgba(239,68,68,0.06); }
+  .action-btn.success-btn { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.4); color: var(--success); }
+
+  /* Parts list */
+  #parts-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  #parts-list::-webkit-scrollbar { width: 4px; }
+  #parts-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .part-card {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .part-card:hover { border-color: var(--border-glow); }
+  .part-card.selected { border-color: var(--accent); background: var(--accent-bg); }
+  .part-card .part-eye {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .part-card .part-eye:hover { color: var(--accent); }
+  .part-card .part-eye.hidden { color: var(--text-dim); opacity: 0.4; }
+  .part-card .part-info { flex: 1; min-width: 0; }
+  .part-card .part-label { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .part-card .part-dims { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .part-card .part-del {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .part-card .part-del:hover { color: var(--danger); }
+
+  .parts-group-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 6px 4px 3px;
+  }
+
+  #mode-toggle {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #mode-toggle button {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 11px;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+  }
+  #mode-toggle button:hover { color: var(--accent); }
+
+  /* ─── CENTER ─── */
+  #viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-void);
+  }
+  #three-canvas { display: block; width: 100%; height: 100%; }
+  #tooltip {
+    position: absolute;
+    top: 0; left: 0;
+    background: rgba(9,9,11,0.9);
+    border: 1px solid var(--border-glow);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 11px;
+    color: var(--accent);
+    pointer-events: none;
+    display: none;
+    z-index: 50;
+  }
+
+  /* Shelf placement ghost overlay */
+  #shelf-place-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    display: none;
+    z-index: 40;
+  }
+  #shelf-place-hud {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(9,9,11,0.92);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: all;
+    display: none;
+    z-index: 45;
+  }
+  #shelf-place-hud label { font-size: 12px; color: var(--text-muted); }
+  #shelf-height-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 4px;
+    color: var(--accent);
+    padding: 4px 8px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    width: 80px;
+  }
+  #shelf-height-input:focus { outline: none; border-color: var(--accent); }
+  #shelf-place-info { font-size: 11px; color: var(--text-muted); }
+
+  /* ─── RIGHT PANEL ─── */
+  #panel-right {
+    width: var(--panel-w-right);
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .panel-tab {
+    flex: 1;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .panel-tab:hover:not(.active) { color: var(--text); }
+
+  .tab-content { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .tab-content.active { display: flex; }
+
+  /* Selected piece properties */
+  #props-pane {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #props-pane.empty { display: none; }
+  .props-title { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+  .prop-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .prop-label { font-size: 11px; color: var(--text-muted); width: 60px; flex-shrink: 0; }
+  .prop-input {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 3px 7px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .prop-input:focus { outline: none; border-color: var(--accent-dim); }
+  .prop-unit { font-size: 10px; color: var(--text-dim); width: 16px; flex-shrink: 0; }
+
+  /* Cut list */
+  #cutlist-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+  }
+  #cutlist-pane::-webkit-scrollbar { width: 4px; }
+  #cutlist-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .cutlist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .cutlist-table th {
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .cutlist-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(34,211,238,0.05);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .cutlist-table tr:hover td { background: var(--bg-glass); }
+  .cutlist-table .td-label { font-family: 'Inter', sans-serif; color: var(--text); }
+  .cutlist-table .td-dim { color: var(--text-muted); }
+
+  .cutlist-summary {
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .summary-label { color: var(--text-muted); }
+  .summary-value { color: var(--text); font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+  .summary-value.accent { color: var(--accent); }
+
+  /* Sheet layout SVG */
+  #sheet-layout-wrap {
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+  #sheet-svg-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; overflow-x: auto; }
+
+  .cutlist-btns {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .cutlist-btns .action-btn { flex: 1; text-align: center; }
+
+  /* Drill template */
+  #drill-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #drill-pane::-webkit-scrollbar { width: 4px; }
+  #drill-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  #drill-svg-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; overflow: auto; }
+
+  /* ─── MODAL ─── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,5,8,0.85);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+  .modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-glow);
+    border-radius: 12px;
+    padding: 28px 32px;
+    width: 460px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+  }
+  .modal h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .modal .modal-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .form-input {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { outline: none; border-color: var(--accent-dim); }
+  .form-select {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2371717A'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  .form-select:focus { outline: none; border-color: var(--accent-dim); }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+  .form-row .form-group.narrow { flex: 0 0 90px; }
+  .style-radios { display: flex; gap: 10px; }
+  .style-radio { flex: 1; }
+  .style-radio input { display: none; }
+  .style-radio label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .style-radio input:checked + label {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+  .style-radio label:hover { border-color: var(--border-glow); }
+  .style-icon { font-size: 28px; }
+  .btn-primary {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-top: 8px;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+
+  /* Confirm modal */
+  #confirm-modal .modal { max-width: 340px; }
+  #confirm-modal h3 { font-size: 15px; margin-bottom: 8px; }
+  #confirm-modal p { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+  .confirm-btns { display: flex; gap: 8px; }
+  .confirm-btns button { flex: 1; padding: 8px; border-radius: 6px; font-family: inherit; font-size: 13px; cursor: pointer; font-weight: 500; }
+  .btn-cancel { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-confirm { background: var(--danger); border: none; color: #fff; }
+
+  /* Export modal */
+  #export-modal .modal { max-width: 500px; }
+  #export-code { width: 100%; height: 160px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 10px; resize: none; margin: 10px 0; }
+
+  /* Resume modal */
+  #resume-modal .confirm-btns { justify-content: center; }
+
+  /* Print styles */
+  @media print {
+    #toolbar, #panel-left, #panel-right, #viewport { display: none !important; }
+    #print-area { display: block !important; }
+  }
+  #print-area { display: none; }
+
+  /* Notification toast */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-glow);
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-size: 12px;
+    color: var(--accent);
+    z-index: 500;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    opacity: 0;
+  }
+  #toast.show { opacity: 1; }
+
+  /* Shelf height input visible when placing */
+  #shelf-place-hud.visible { display: flex !important; }
+  #shelf-place-overlay.visible { display: block !important; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="logo">SHELF BUILDER</span>
+  <input type="text" id="unit-name-input" value="My Shelf" title="Unit name">
+  <div class="toolbar-sep"></div>
+  <select class="tb-select" id="tb-material" title="Material">
+    <option value="plywood">3/4" Plywood (Birch)</option>
+    <option value="mdf">3/4" MDF</option>
+    <option value="melamine">3/4" Melamine</option>
+    <option value="pine">Pine Boards</option>
+  </select>
+  <select class="tb-select" id="tb-style" title="Style">
+    <option value="frameless">Frameless</option>
+    <option value="faceframe">Face Frame</option>
+  </select>
+  <div class="toolbar-sep"></div>
+  <button class="tb-btn" id="btn-undo" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+  <button class="tb-btn" id="btn-redo" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+  <div class="toolbar-sep"></div>
+  <button class="tb-btn" id="btn-explode">⊞ Explode</button>
+  <button class="tb-btn" id="btn-reset-cam">⊹ Reset View</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- LEFT PANEL -->
+  <div id="panel-left">
+    <div class="panel-header">Assembly</div>
+
+    <div id="step-bar">
+      <div id="step-label">Step 1 — Setup</div>
+      <div id="step-prompt">Configure your unit in the wizard to begin.</div>
+      <div id="step-progress"><div id="step-progress-bar" style="width:11%"></div></div>
+    </div>
+
+    <div id="step-actions">
+      <!-- Populated by JS based on current step -->
+    </div>
+
+    <div id="parts-list">
+      <div style="color:var(--text-dim);font-size:11px;padding:12px 4px;">No parts yet. Start by completing the setup wizard.</div>
+    </div>
+
+    <div id="mode-toggle">
+      <button id="btn-mode-toggle">Switch to Free Mode</button>
+    </div>
+  </div>
+
+  <!-- CENTER VIEWPORT -->
+  <div id="viewport">
+    <canvas id="three-canvas"></canvas>
+    <div id="tooltip"></div>
+    <div id="shelf-place-overlay"></div>
+    <div id="shelf-place-hud">
+      <label>Height from floor:</label>
+      <input type="number" id="shelf-height-input" step="0.125" min="0" value="24">
+      <span style="font-size:12px;color:var(--text-muted)">in</span>
+      <span id="shelf-place-info"></span>
+      <button class="action-btn" id="btn-confirm-shelf" style="width:auto;padding:6px 14px;">Place ↵</button>
+      <button class="action-btn secondary" id="btn-cancel-shelf" style="width:auto;padding:6px 14px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="panel-right">
+    <div class="panel-tabs">
+      <div class="panel-tab active" data-tab="cutlist">Cut List</div>
+      <div class="panel-tab" data-tab="drill">Drill Template</div>
+    </div>
+
+    <!-- Selected piece props (appears above tab content) -->
+    <div id="props-pane" class="empty">
+      <div class="props-title">Selected Piece</div>
+      <div class="prop-row">
+        <span class="prop-label">Label</span>
+        <input class="prop-input" id="prop-label" type="text">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">Width</span>
+        <input class="prop-input" id="prop-w" type="number" step="0.125">
+        <span class="prop-unit">in</span>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">Height</span>
+        <input class="prop-input" id="prop-h" type="number" step="0.125">
+        <span class="prop-unit">in</span>
+      </div>
+      <div class="prop-row" id="prop-y-row">
+        <span class="prop-label">Y pos</span>
+        <input class="prop-input" id="prop-y" type="number" step="0.125">
+        <span class="prop-unit">in</span>
+      </div>
+    </div>
+
+    <!-- CUT LIST TAB -->
+    <div class="tab-content active" id="tab-cutlist">
+      <div id="cutlist-pane">
+        <table class="cutlist-table" id="cl-table">
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Len</th>
+              <th>Wid</th>
+              <th>Thk</th>
+            </tr>
+          </thead>
+          <tbody id="cl-body">
+            <tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:20px">No parts yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="sheet-layout-wrap">
+        <div class="section-label">Sheet Layout</div>
+        <div id="sheet-svg-container"></div>
+      </div>
+
+      <div class="cutlist-summary" id="cutlist-summary">
+        <div class="summary-row">
+          <span class="summary-label">Sheet Goods</span>
+          <span class="summary-value" id="sum-sheets">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Est. Cost</span>
+          <span class="summary-value accent" id="sum-cost">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Est. Weight</span>
+          <span class="summary-value" id="sum-weight">—</span>
+        </div>
+      </div>
+
+      <div class="cutlist-btns">
+        <button class="action-btn" id="btn-print-cutlist" style="text-align:center">Print</button>
+        <button class="action-btn secondary" id="btn-export-csv" style="text-align:center">CSV</button>
+        <button class="action-btn" id="btn-export-buildplan" style="text-align:center">BuildPlan</button>
+      </div>
+    </div>
+
+    <!-- DRILL TEMPLATE TAB -->
+    <div class="tab-content" id="tab-drill">
+      <div id="drill-pane">
+        <div class="section-label">Left Side Panel — Shelf Pin Holes</div>
+        <div id="drill-svg-wrap"></div>
+        <div style="font-size:11px;color:var(--text-muted);line-height:1.5">
+          Two columns of 5mm shelf pin holes, 1.5" from each edge, spaced 32mm (~1.26") apart.<br>
+          Highlighted holes = current shelf positions.
+        </div>
+        <button class="action-btn" id="btn-print-drill">Print at Scale</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP WIZARD MODAL -->
+<div class="modal-backdrop" id="wizard-modal">
+  <div class="modal">
+    <h2>Build a New Shelf Unit</h2>
+    <p class="modal-sub">Configure your unit and start assembling piece by piece.</p>
+
+    <div class="form-group">
+      <label>Unit Name</label>
+      <input type="text" class="form-input" id="wiz-name" value="My Shelf">
+    </div>
+
+    <div class="form-group">
+      <label>Style</label>
+      <div class="style-radios">
+        <div class="style-radio">
+          <input type="radio" name="wiz-style" id="style-frameless" value="frameless" checked>
+          <label for="style-frameless">
+            <span class="style-icon">▥</span>
+            Frameless
+          </label>
+        </div>
+        <div class="style-radio">
+          <input type="radio" name="wiz-style" id="style-faceframe" value="faceframe">
+          <label for="style-faceframe">
+            <span class="style-icon">▤</span>
+            Face Frame
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Width (in)</label>
+        <input type="number" class="form-input" id="wiz-w" value="48" min="6" max="120">
+      </div>
+      <div class="form-group">
+        <label>Height (in)</label>
+        <input type="number" class="form-input" id="wiz-h" value="84" min="12" max="120">
+      </div>
+      <div class="form-group">
+        <label>Depth (in)</label>
+        <input type="number" class="form-input" id="wiz-d" value="16" min="4" max="48">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Material</label>
+      <select class="form-select" id="wiz-material">
+        <option value="plywood">3/4" Plywood (Birch) — $90/sheet, 2.2 lbs/sqft</option>
+        <option value="mdf">3/4" MDF — $55/sheet, 2.8 lbs/sqft</option>
+        <option value="melamine">3/4" Melamine — $75/sheet, 2.2 lbs/sqft</option>
+        <option value="pine">Pine Boards — $3.50/lin.ft, 1.5 lbs/sqft</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Thickness (in)</label>
+        <input type="number" class="form-input" id="wiz-thick" value="0.75" step="0.0625" min="0.25" max="2">
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btn-start-building">Start Building →</button>
+  </div>
+</div>
+
+<!-- RESUME MODAL -->
+<div class="modal-backdrop" id="resume-modal" style="display:none">
+  <div class="modal" style="text-align:center;max-width:340px">
+    <h2 style="margin-bottom:12px">Resume?</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px">Found a saved unit: <strong id="resume-name" style="color:var(--text)"></strong><br>Would you like to resume or start fresh?</p>
+    <div class="confirm-btns">
+      <button class="btn-cancel" id="btn-resume-load" style="flex:1;padding:10px;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:500;border:1px solid var(--border-glow);color:var(--accent);background:var(--accent-bg)">Resume</button>
+      <button class="btn-cancel" id="btn-resume-new" style="flex:1;padding:10px;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:500">Start New</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-backdrop" id="confirm-modal" style="display:none">
+  <div class="modal">
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-msg">Are you sure?</p>
+    <div class="confirm-btns">
+      <button class="btn-cancel" id="btn-confirm-cancel">Cancel</button>
+      <button class="btn-confirm" id="btn-confirm-ok">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-backdrop" id="export-modal" style="display:none">
+  <div class="modal">
+    <h2>Export to BuildPlan</h2>
+    <p style="color:var(--text-muted);font-size:12px;margin-top:4px">Paste this into BuildPlan's ITEMS array to place your shelf unit on a floor plan.</p>
+    <textarea id="export-code" readonly></textarea>
+    <button class="action-btn" id="btn-copy-export" style="text-align:center;width:100%">Copy to Clipboard</button>
+    <button class="action-btn secondary" id="btn-close-export" style="text-align:center;width:100%;margin-top:6px">Close</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- PRINT AREA -->
+<div id="print-area"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+
+const MATERIALS_DB = {
+  plywood:  { name: '3/4" Plywood (Birch)', pricePerSheet: 90,  lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
+  mdf:      { name: '3/4" MDF',             pricePerSheet: 55,  lbsPerSqft: 2.8, sheetW: 48, sheetH: 96 },
+  melamine: { name: '3/4" Melamine',        pricePerSheet: 75,  lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
+  pine:     { name: 'Pine Boards',          pricePerLinFt: 3.5, lbsPerSqft: 1.5, sheetW: null, sheetH: null }
+};
+
+const STEP_DEFS = [
+  { id: 'setup',    label: 'Setup',              prompt: 'Wizard complete. Your unit envelope is defined.' },
+  { id: 'sides',   label: 'Sides',              prompt: 'Add your left and right side panels to form the uprights of the unit.' },
+  { id: 'box',     label: 'Top & Bottom',       prompt: 'Close the box with top and bottom panels.' },
+  { id: 'back',    label: 'Back Panel',         prompt: 'A back panel keeps the unit square and rigid.' },
+  { id: 'toekick', label: 'Toe Kick',           prompt: 'Add a toe kick for a finished base (standard: 3.5" tall, recessed 3.5").' },
+  { id: 'shelves', label: 'Shelves',            prompt: 'Add shelves at any height. Click [Add Shelf] then set the height.' },
+  { id: 'uprights',label: 'Uprights & Dividers',prompt: 'Add vertical dividers to split the interior into compartments.' },
+  { id: 'frame',   label: 'Face Frame',         prompt: 'Add a face frame on the front for a traditional look.' },
+  { id: 'review',  label: 'Review',             prompt: 'Your unit is complete! Review the cut list and export.' }
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+
+let UNIT = {
+  name: 'My Shelf',
+  style: 'frameless',
+  envelope: { w: 48, h: 84, d: 16 },
+  material: 'plywood',
+  thickness: 0.75,
+  parts: []
+};
+
+let currentStep = 0;   // index into STEP_DEFS
+let freeMode = false;
+let undoStack = [];
+let redoStack = [];
+let selectedPartId = null;
+let isExploded = false;
+let isPlacingShelf = false;
+let ghostShelf = null;
+let ghostShelfY = 24;  // inches
+let confirmCallback = null;
+let autoSaveTimer = null;
+let animating = [];    // active animations [{mesh, from, to, startTime, duration}]
+
+// ─── THREE.JS SETUP ──────────────────────────────────────────────────────────
+
+let scene, camera, renderer, controls, raycaster, mouse;
+let meshMap = {};  // partId -> THREE.Mesh
+let frameId = null;
+
+function initThree() {
+  const canvas = document.getElementById('three-canvas');
+  const vp = document.getElementById('viewport');
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setClearColor(0x050508);
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050508, 0.0015);
+
+  const { w, h, d } = UNIT.envelope;
+  camera = new THREE.PerspectiveCamera(45, vp.clientWidth / vp.clientHeight, 0.1, 5000);
+  resetCamera();
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+  scene.add(ambient);
+
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(200, 400, 200);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 2000;
+  sun.shadow.camera.left = -200;
+  sun.shadow.camera.right = 200;
+  sun.shadow.camera.top = 200;
+  sun.shadow.camera.bottom = -200;
+  scene.add(sun);
+
+  const fill = new THREE.DirectionalLight(0x8888ff, 0.25);
+  fill.position.set(-100, 50, -100);
+  scene.add(fill);
+
+  // Floor grid
+  const grid = new THREE.GridHelper(600, 60, 0x1a1a2e, 0x111122);
+  grid.position.y = -0.5;
+  scene.add(grid);
+
+  // Envelope wireframe ghost
+  rebuildEnvelopeGhost();
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 5;
+  controls.maxDistance = 800;
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  // Resize
+  const ro = new ResizeObserver(() => resizeRenderer());
+  ro.observe(vp);
+  resizeRenderer();
+
+  // Events
+  renderer.domElement.addEventListener('click', onCanvasClick);
+  renderer.domElement.addEventListener('mousemove', onCanvasMouseMove);
+
+  animate();
+}
+
+let envelopeGhost = null;
+function rebuildEnvelopeGhost() {
+  if (envelopeGhost) { scene.remove(envelopeGhost); envelopeGhost.geometry.dispose(); }
+  const { w, h, d } = UNIT.envelope;
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x22D3EE, wireframe: true, transparent: true, opacity: 0.07
+  });
+  envelopeGhost = new THREE.Mesh(geo, mat);
+  envelopeGhost.position.set(w/2, h/2, d/2);
+  scene.add(envelopeGhost);
+}
+
+function resetCamera() {
+  const { w, h, d } = UNIT.envelope;
+  const span = Math.max(w, h, d);
+  camera.position.set(w * 0.9 + span * 0.5, h * 0.65, h * 1.6);
+  if (controls) {
+    controls.target.set(w / 2, h / 2, d / 2);
+    controls.update();
+  } else {
+    camera.lookAt(w / 2, h / 2, d / 2);
+  }
+}
+
+function resizeRenderer() {
+  const vp = document.getElementById('viewport');
+  const W = vp.clientWidth, H = vp.clientHeight;
+  renderer.setSize(W, H, false);
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+}
+
+// Three.js materials
+const MAT = {
+  side:    () => new THREE.MeshStandardMaterial({ color: 0xC49A6C, roughness: 0.65, metalness: 0.05 }),
+  top:     () => new THREE.MeshStandardMaterial({ color: 0xBF9060, roughness: 0.65, metalness: 0.05 }),
+  bottom:  () => new THREE.MeshStandardMaterial({ color: 0xBF9060, roughness: 0.65, metalness: 0.05 }),
+  back:    () => new THREE.MeshStandardMaterial({ color: 0x9A7040, roughness: 0.82, metalness: 0.0  }),
+  toekick: () => new THREE.MeshStandardMaterial({ color: 0xB07848, roughness: 0.72, metalness: 0.05 }),
+  shelf:   () => new THREE.MeshStandardMaterial({ color: 0xD4AA7D, roughness: 0.62, metalness: 0.05 }),
+  upright: () => new THREE.MeshStandardMaterial({ color: 0xC49A6C, roughness: 0.65, metalness: 0.05 }),
+  divider: () => new THREE.MeshStandardMaterial({ color: 0xD0A070, roughness: 0.65, metalness: 0.05 }),
+  stile:   () => new THREE.MeshStandardMaterial({ color: 0xCA9050, roughness: 0.55, metalness: 0.08 }),
+  rail:    () => new THREE.MeshStandardMaterial({ color: 0xCA9050, roughness: 0.55, metalness: 0.08 }),
+};
+
+function getMat(type) {
+  return (MAT[type] || MAT.shelf)();
+}
+
+// ─── PART MESH MANAGEMENT ────────────────────────────────────────────────────
+
+function addPartMesh(part, animate = false) {
+  if (meshMap[part.id]) removeMeshFor(part.id);
+
+  const { w, h, t } = part.dims;
+  // w=width of piece, h=height of piece, t=thickness
+  const geo = new THREE.BoxGeometry(w, h, t);
+  const mat = getMat(part.type);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.partId = part.id;
+
+  const finalPos = partWorldPos(part);
+  const finalRot = part.rotation || 0;
+
+  if (animate) {
+    const startPos = getAnimStartPos(part, finalPos);
+    mesh.position.copy(startPos);
+    animating.push({
+      mesh,
+      from: startPos.clone(),
+      to: finalPos.clone(),
+      startTime: performance.now(),
+      duration: 400
+    });
+  } else {
+    mesh.position.copy(finalPos);
+  }
+
+  mesh.rotation.y = finalRot;
+  scene.add(mesh);
+  meshMap[part.id] = mesh;
+}
+
+function partWorldPos(part) {
+  // part.pos is the center position in inches
+  return new THREE.Vector3(part.pos.x, part.pos.y, part.pos.z);
+}
+
+function getAnimStartPos(part, finalPos) {
+  const start = finalPos.clone();
+  switch (part.type) {
+    case 'side':
+      start.x += (part.id === 'ls') ? -20 : 20; break;
+    case 'back':
+      start.z -= 20; break;
+    case 'top':
+      start.y += 16; break;
+    case 'bottom':
+      start.y -= 10; break;
+    case 'toekick':
+      start.z += 14; break;
+    case 'shelf':
+    case 'divider':
+      start.x += 22; break;
+    case 'upright':
+      start.y += 20; break;
+    case 'stile':
+    case 'rail':
+      start.z += 14; break;
+    default:
+      start.x += 15;
+  }
+  return start;
+}
+
+function removeMeshFor(partId) {
+  const m = meshMap[partId];
+  if (m) {
+    scene.remove(m);
+    m.geometry.dispose();
+    if (Array.isArray(m.material)) m.material.forEach(x => x.dispose());
+    else m.material.dispose();
+    delete meshMap[partId];
+  }
+  // Remove from animating
+  animating = animating.filter(a => a.mesh !== m);
+}
+
+function rebuildAllMeshes() {
+  // Clear existing
+  Object.keys(meshMap).forEach(id => removeMeshFor(id));
+  animating = [];
+  UNIT.parts.forEach(p => addPartMesh(p, false));
+  updateSelectionHighlight();
+}
+
+function updateSelectionHighlight() {
+  Object.entries(meshMap).forEach(([id, mesh]) => {
+    const part = UNIT.parts.find(p => p.id === id);
+    if (!part) return;
+    // Restore base material if needed
+    const baseMat = getMat(part.type);
+    if (id === selectedPartId) {
+      baseMat.emissive = new THREE.Color(0x22D3EE);
+      baseMat.emissiveIntensity = 0.45;
+    }
+    mesh.material.dispose();
+    mesh.material = baseMat;
+    if (id === selectedPartId) {
+      mesh.material.emissive = new THREE.Color(0x22D3EE);
+      mesh.material.emissiveIntensity = 0.45;
+    }
+  });
+}
+
+function highlightHover(partId) {
+  Object.entries(meshMap).forEach(([id, mesh]) => {
+    const part = UNIT.parts.find(p => p.id === id);
+    if (!part) return;
+    if (id === selectedPartId) {
+      mesh.material.emissive = new THREE.Color(0x22D3EE);
+      mesh.material.emissiveIntensity = 0.45;
+    } else if (id === partId) {
+      mesh.material.emissive = new THREE.Color(0x22D3EE);
+      mesh.material.emissiveIntensity = 0.2;
+    } else {
+      mesh.material.emissive = new THREE.Color(0x000000);
+      mesh.material.emissiveIntensity = 0;
+    }
+  });
+}
+
+// ─── ANIMATION LOOP ──────────────────────────────────────────────────────────
+
+function animate() {
+  frameId = requestAnimationFrame(animate);
+  controls.update();
+
+  // Process animations
+  const now = performance.now();
+  animating = animating.filter(a => {
+    const t = Math.min(1, (now - a.startTime) / a.duration);
+    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    a.mesh.position.lerpVectors(a.from, a.to, ease);
+    return t < 1;
+  });
+
+  // Ghost shelf
+  if (ghostShelf) {
+    const y = toSceneUnits(ghostShelfY) + toSceneUnits(UNIT.thickness / 2);
+    ghostShelf.position.y = y;
+    // Color feedback
+    const conflict = hasShelfConflict(ghostShelfY);
+    ghostShelf.material.color.set(conflict ? 0xFF4444 : 0x22D3EE);
+    ghostShelf.material.opacity = conflict ? 0.25 : 0.18;
+  }
+
+  renderer.render(scene, camera);
+}
+
+function toSceneUnits(inches) { return inches; } // 1 unit = 1 inch
+
+// ─── PART GEOMETRY CALCULATORS ───────────────────────────────────────────────
+
+function calcLeftSide() {
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  return {
+    id: 'ls', type: 'side', label: 'Left Side', fixed: true,
+    dims: { w: t, h: h, t: d },
+    pos: { x: t/2, y: h/2, z: d/2 },
+    rotation: 0
+  };
+}
+
+function calcRightSide() {
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  return {
+    id: 'rs', type: 'side', label: 'Right Side', fixed: true,
+    dims: { w: t, h: h, t: d },
+    pos: { x: w - t/2, y: h/2, z: d/2 },
+    rotation: 0
+  };
+}
+
+function getBottomY() {
+  // If toe kick exists, bottom sits on top of it
+  const tk = UNIT.parts.find(p => p.type === 'toekick');
+  return tk ? 3.5 : 0;
+}
+
+function calcBottom() {
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  const by = getBottomY();
+  const innerW = w - 2 * t;
+  return {
+    id: 'bot', type: 'bottom', label: 'Bottom', fixed: true,
+    dims: { w: innerW, h: t, t: d },
+    pos: { x: w/2, y: by + t/2, z: d/2 },
+    rotation: 0
+  };
+}
+
+function calcTop() {
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  const innerW = w - 2 * t;
+  return {
+    id: 'top', type: 'top', label: 'Top', fixed: true,
+    dims: { w: innerW, h: t, t: d },
+    pos: { x: w/2, y: h - t/2, z: d/2 },
+    rotation: 0
+  };
+}
+
+function calcBack() {
+  const { w, h, d } = UNIT.envelope;
+  const tb = 0.25;
+  return {
+    id: 'back', type: 'back', label: 'Back Panel', fixed: true,
+    dims: { w: w, h: h, t: tb },
+    pos: { x: w/2, y: h/2, z: tb/2 },
+    rotation: 0
+  };
+}
+
+function calcToeKick() {
+  const { w, h, d } = UNIT.envelope;
+  const tkH = 3.5, tkRecede = 3.5;
+  const tkD = d - tkRecede;
+  return {
+    id: 'tk', type: 'toekick', label: 'Toe Kick', fixed: true,
+    dims: { w: w, h: tkH, t: tkD },
+    pos: { x: w/2, y: tkH/2, z: (tkRecede + d)/2 },
+    rotation: 0
+  };
+}
+
+function calcShelf(shelfY, idx) {
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  const innerW = w - 2 * t;
+  const id = `shelf_${Date.now()}_${idx}`;
+  return {
+    id, type: 'shelf', label: `Shelf (${fmtIn(shelfY)}")`, fixed: false, adjustable: true,
+    dims: { w: innerW, h: t, t: d },
+    pos: { x: w/2, y: shelfY + t/2, z: d/2 },
+    shelfY,
+    rotation: 0
+  };
+}
+
+function calcUpright(xPos) {
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  const by = getBottomY();
+  const botPart = UNIT.parts.find(p => p.type === 'bottom');
+  const topPart = UNIT.parts.find(p => p.type === 'top');
+  const bottomTop = botPart ? (by + t) : 0;
+  const topBot = topPart ? (h - t) : h;
+  const innerH = topBot - bottomTop;
+  const id = `upr_${Date.now()}`;
+  return {
+    id, type: 'upright', label: `Middle Upright (${fmtIn(xPos)}")`, fixed: false, adjustable: false,
+    dims: { w: t, h: innerH, t: d },
+    pos: { x: xPos, y: bottomTop + innerH/2, z: d/2 },
+    uprightX: xPos,
+    rotation: 0
+  };
+}
+
+function calcFaceFrame() {
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  const ffT = 0.75;
+  const ffW = 1.5;
+  const faceZ = d + ffT/2;
+  const parts = [];
+
+  // Left stile
+  parts.push({
+    id: `ff_ls_${Date.now()}`, type: 'stile', label: 'Left Stile', fixed: true,
+    dims: { w: ffW, h: h, t: ffT },
+    pos: { x: ffW/2, y: h/2, z: faceZ },
+    rotation: 0
+  });
+  // Right stile
+  parts.push({
+    id: `ff_rs_${Date.now()+1}`, type: 'stile', label: 'Right Stile', fixed: true,
+    dims: { w: ffW, h: h, t: ffT },
+    pos: { x: w - ffW/2, y: h/2, z: faceZ },
+    rotation: 0
+  });
+  // Middle stiles for each upright
+  const uprights = UNIT.parts.filter(p => p.type === 'upright');
+  uprights.forEach((u, i) => {
+    parts.push({
+      id: `ff_ms_${Date.now()+i+2}`, type: 'stile', label: `Mid Stile ${i+1}`, fixed: false,
+      dims: { w: ffW, h: h, t: ffT },
+      pos: { x: u.uprightX, y: h/2, z: faceZ },
+      rotation: 0
+    });
+  });
+
+  // Top rail
+  const innerW = w - 2*ffW;
+  parts.push({
+    id: `ff_tr_${Date.now()}`, type: 'rail', label: 'Top Rail', fixed: true,
+    dims: { w: innerW, h: ffW, t: ffT },
+    pos: { x: w/2, y: h - ffW/2, z: faceZ },
+    rotation: 0
+  });
+  // Bottom rail
+  parts.push({
+    id: `ff_br_${Date.now()+1}`, type: 'rail', label: 'Bottom Rail', fixed: true,
+    dims: { w: innerW, h: ffW, t: ffT },
+    pos: { x: w/2, y: ffW/2, z: faceZ },
+    rotation: 0
+  });
+
+  // Rails at each shelf
+  const shelves = UNIT.parts.filter(p => p.type === 'shelf');
+  shelves.forEach((s, i) => {
+    parts.push({
+      id: `ff_sr_${Date.now()+i+2}`, type: 'rail', label: `Shelf Rail ${i+1}`, fixed: false,
+      dims: { w: innerW, h: ffW, t: ffT },
+      pos: { x: w/2, y: s.shelfY, z: faceZ },
+      rotation: 0
+    });
+  });
+
+  return parts;
+}
+
+// ─── PART LIFECYCLE ──────────────────────────────────────────────────────────
+
+function addPart(part) {
+  pushUndo();
+  UNIT.parts.push(part);
+  addPartMesh(part, true);
+  renderPartsList();
+  renderCutList();
+  autoSave();
+  showToast(`Added: ${part.label}`);
+}
+
+function removePart(partId) {
+  const idx = UNIT.parts.findIndex(p => p.id === partId);
+  if (idx === -1) return;
+  pushUndo();
+  UNIT.parts.splice(idx, 1);
+  removeMeshFor(partId);
+  if (selectedPartId === partId) { selectedPartId = null; updatePropsPane(); }
+  renderPartsList();
+  renderCutList();
+  autoSave();
+}
+
+function updatePartPos(partId, newPos) {
+  const part = UNIT.parts.find(p => p.id === partId);
+  if (!part) return;
+  part.pos = { ...newPos };
+  const mesh = meshMap[partId];
+  if (mesh) {
+    animating = animating.filter(a => a.mesh !== mesh);
+    mesh.position.set(newPos.x, newPos.y, newPos.z);
+  }
+}
+
+// ─── UNDO / REDO ─────────────────────────────────────────────────────────────
+
+function pushUndo() {
+  undoStack.push(JSON.stringify(UNIT.parts));
+  redoStack = [];
+  if (undoStack.length > 50) undoStack.shift();
+  updateUndoRedoBtns();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify(UNIT.parts));
+  UNIT.parts = JSON.parse(undoStack.pop());
+  rebuildAllMeshes();
+  renderPartsList();
+  renderCutList();
+  updateUndoRedoBtns();
+  if (selectedPartId && !UNIT.parts.find(p => p.id === selectedPartId)) {
+    selectedPartId = null; updatePropsPane();
+  }
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify(UNIT.parts));
+  UNIT.parts = JSON.parse(redoStack.pop());
+  rebuildAllMeshes();
+  renderPartsList();
+  renderCutList();
+  updateUndoRedoBtns();
+}
+
+function updateUndoRedoBtns() {
+  document.getElementById('btn-undo').disabled = undoStack.length === 0;
+  document.getElementById('btn-redo').disabled = redoStack.length === 0;
+}
+
+// ─── STEP MANAGEMENT ─────────────────────────────────────────────────────────
+
+const TOTAL_STEPS = STEP_DEFS.length;
+
+function goToStep(idx) {
+  currentStep = Math.max(0, Math.min(TOTAL_STEPS - 1, idx));
+  renderStepUI();
+}
+
+function nextStep() {
+  if (currentStep < TOTAL_STEPS - 1) {
+    // Skip face frame step if frameless
+    let next = currentStep + 1;
+    if (STEP_DEFS[next].id === 'frame' && UNIT.style !== 'faceframe') next++;
+    goToStep(next);
+  }
+}
+
+function renderStepUI() {
+  if (freeMode) {
+    renderFreeModeUI();
+    return;
+  }
+  const step = STEP_DEFS[currentStep];
+  document.getElementById('step-label').textContent = `Step ${currentStep + 1} — ${step.label}`;
+  document.getElementById('step-prompt').textContent = step.prompt;
+  const pct = Math.round((currentStep / (TOTAL_STEPS - 1)) * 100);
+  document.getElementById('step-progress-bar').style.width = pct + '%';
+
+  const actDiv = document.getElementById('step-actions');
+  actDiv.innerHTML = '';
+
+  function btn(label, cls, onclick) {
+    const b = document.createElement('button');
+    b.className = 'action-btn ' + (cls || '');
+    b.textContent = label;
+    b.onclick = onclick;
+    actDiv.appendChild(b);
+    return b;
+  }
+
+  const hasLS = hasPart('ls'), hasRS = hasPart('rs');
+  const hasBOT = hasPart('bot'), hasTOP = hasPart('top');
+  const hasBACK = hasPart('back'), hasTK = hasPart('tk');
+
+  switch (step.id) {
+    case 'setup':
+      btn('⚙ Edit Setup', 'secondary', () => showWizard());
+      btn('Next →', '', () => nextStep());
+      break;
+
+    case 'sides':
+      if (!hasLS) btn('Add Left Side', 'highlighted', () => { addPart(calcLeftSide()); });
+      if (!hasRS) btn('Add Right Side', 'highlighted', () => { addPart(calcRightSide()); });
+      if (hasLS && hasRS) btn('Next: Top & Bottom →', 'success-btn', () => nextStep());
+      else btn('Next (skip) →', 'secondary', () => nextStep());
+      break;
+
+    case 'box':
+      if (!hasBOT) btn('Add Bottom', 'highlighted', () => { addPart(calcBottom()); });
+      if (!hasTOP) btn('Add Top', 'highlighted', () => { addPart(calcTop()); });
+      if (hasBOT && hasTOP) btn('Next: Back Panel →', 'success-btn', () => nextStep());
+      else btn('Next (skip) →', 'secondary', () => nextStep());
+      break;
+
+    case 'back':
+      if (!hasBACK) btn('Add Back Panel', 'highlighted', () => { addPart(calcBack()); });
+      btn(hasBACK ? 'Next →' : 'Skip Back Panel', hasBACK ? 'success-btn' : 'secondary', () => nextStep());
+      break;
+
+    case 'toekick':
+      if (!hasTK) btn('Add Toe Kick', 'highlighted', () => {
+        addPart(calcToeKick());
+        // Re-position bottom if exists
+        const bot = UNIT.parts.find(p => p.type === 'bottom');
+        if (bot) {
+          pushUndo();
+          const newBot = calcBottom();
+          bot.pos.y = newBot.pos.y;
+          const m = meshMap[bot.id];
+          if (m) m.position.y = newBot.pos.y;
+          renderCutList();
+        }
+      });
+      btn(hasTK ? 'Next →' : 'Skip Toe Kick', hasTK ? 'success-btn' : 'secondary', () => nextStep());
+      break;
+
+    case 'shelves':
+      btn('+ Add Shelf', 'highlighted', () => startShelfPlacement());
+      btn('Done — Next →', UNIT.parts.filter(p => p.type === 'shelf').length > 0 ? 'success-btn' : 'secondary', () => nextStep());
+      break;
+
+    case 'uprights': {
+      btn('+ Middle Upright', '', () => {
+        const { w } = UNIT.envelope;
+        addPart(calcUpright(w / 2));
+      });
+      btn('Skip →', 'secondary', () => nextStep());
+      if (UNIT.parts.some(p => p.type === 'upright')) btn('Next →', 'success-btn', () => nextStep());
+      break;
+    }
+
+    case 'frame':
+      if (UNIT.style === 'faceframe') {
+        const hasFace = UNIT.parts.some(p => p.type === 'stile');
+        if (!hasFace) btn('Generate Face Frame', 'highlighted', () => {
+          pushUndo();
+          const ff = calcFaceFrame();
+          ff.forEach(p => { UNIT.parts.push(p); addPartMesh(p, true); });
+          renderPartsList(); renderCutList(); autoSave();
+          showToast('Face frame added!');
+        });
+        btn(hasFace ? 'Next →' : 'Skip', hasFace ? 'success-btn' : 'secondary', () => nextStep());
+      } else {
+        nextStep(); // auto-skip
+      }
+      break;
+
+    case 'review':
+      btn('Print Cut List', '', () => printCutList());
+      btn('Export to BuildPlan', '', () => showExportModal());
+      btn('+ New Unit', 'secondary', () => {
+        if (confirm('Start a new unit? Current work is auto-saved.')) showWizard();
+      });
+      break;
+  }
+}
+
+function renderFreeModeUI() {
+  document.getElementById('step-label').textContent = 'Free Mode';
+  document.getElementById('step-prompt').textContent = 'Add any piece at any time.';
+  document.getElementById('step-progress-bar').style.width = '100%';
+
+  const actDiv = document.getElementById('step-actions');
+  actDiv.innerHTML = '';
+  function btn(label, onclick) {
+    const b = document.createElement('button');
+    b.className = 'action-btn';
+    b.textContent = label;
+    b.onclick = onclick;
+    actDiv.appendChild(b);
+  }
+  if (!hasPart('ls')) btn('Add Left Side', () => addPart(calcLeftSide()));
+  if (!hasPart('rs')) btn('Add Right Side', () => addPart(calcRightSide()));
+  if (!hasPart('bot')) btn('Add Bottom', () => addPart(calcBottom()));
+  if (!hasPart('top')) btn('Add Top', () => addPart(calcTop()));
+  if (!hasPart('back')) btn('Add Back Panel', () => addPart(calcBack()));
+  if (!hasPart('tk')) btn('Add Toe Kick', () => addPart(calcToeKick()));
+  btn('+ Add Shelf', () => startShelfPlacement());
+  btn('+ Middle Upright', () => addPart(calcUpright(UNIT.envelope.w / 2)));
+  if (UNIT.style === 'faceframe' && !UNIT.parts.some(p => p.type === 'stile')) {
+    btn('Generate Face Frame', () => {
+      pushUndo();
+      calcFaceFrame().forEach(p => { UNIT.parts.push(p); addPartMesh(p, true); });
+      renderPartsList(); renderCutList(); autoSave();
+    });
+  }
+}
+
+function hasPart(id) { return !!UNIT.parts.find(p => p.id === id); }
+
+// ─── PARTS LIST ──────────────────────────────────────────────────────────────
+
+const TYPE_ORDER = ['side','top','bottom','back','toekick','shelf','upright','divider','stile','rail'];
+
+function renderPartsList() {
+  const el = document.getElementById('parts-list');
+  if (!UNIT.parts.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:12px 4px">No parts yet.</div>';
+    return;
+  }
+
+  const grouped = {};
+  UNIT.parts.forEach(p => {
+    const g = p.type;
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(p);
+  });
+
+  const order = TYPE_ORDER.filter(t => grouped[t]);
+  let html = '';
+
+  order.forEach(type => {
+    const label = type.charAt(0).toUpperCase() + type.slice(1) + (grouped[type].length > 1 ? 's' : '');
+    html += `<div class="parts-group-label">${label}</div>`;
+    grouped[type].forEach(p => {
+      const sel = p.id === selectedPartId ? ' selected' : '';
+      const mesh = meshMap[p.id];
+      const vis = mesh ? (mesh.visible ? '' : ' hidden') : '';
+      const d = p.dims;
+      const dims = `${fmtIn(d.w)}" × ${fmtIn(d.h)}"`;
+      html += `<div class="part-card${sel}" data-id="${p.id}">
+        <button class="part-eye${vis}" data-id="${p.id}" title="Toggle visibility">👁</button>
+        <div class="part-info">
+          <div class="part-label">${p.label}</div>
+          <div class="part-dims">${dims}</div>
+        </div>
+        <button class="part-del" data-id="${p.id}" title="Remove">×</button>
+      </div>`;
+    });
+  });
+
+  el.innerHTML = html;
+
+  el.querySelectorAll('.part-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.classList.contains('part-eye') || e.target.classList.contains('part-del')) return;
+      selectPart(card.dataset.id);
+    });
+  });
+  el.querySelectorAll('.part-eye').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); toggleVisibility(btn.dataset.id); });
+  });
+  el.querySelectorAll('.part-del').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); confirmRemovePart(btn.dataset.id); });
+  });
+}
+
+function toggleVisibility(partId) {
+  const mesh = meshMap[partId];
+  if (mesh) mesh.visible = !mesh.visible;
+  renderPartsList();
+}
+
+function confirmRemovePart(partId) {
+  const part = UNIT.parts.find(p => p.id === partId);
+  if (!part) return;
+  if (part.fixed) {
+    showConfirm(`Remove ${part.label}?`, `This is a structural piece. Removing it may affect other parts.`, () => removePart(partId));
+  } else {
+    removePart(partId);
+  }
+}
+
+// ─── PIECE SELECTION ─────────────────────────────────────────────────────────
+
+function selectPart(partId) {
+  selectedPartId = partId;
+  updateSelectionHighlight();
+  updatePropsPane();
+  renderPartsList();
+}
+
+function deselectAll() {
+  selectedPartId = null;
+  updateSelectionHighlight();
+  updatePropsPane();
+  renderPartsList();
+}
+
+function updatePropsPane() {
+  const pane = document.getElementById('props-pane');
+  if (!selectedPartId) { pane.classList.add('empty'); return; }
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) { pane.classList.remove('empty'); pane.classList.add('empty'); return; }
+
+  pane.classList.remove('empty');
+  document.getElementById('prop-label').value = part.label;
+  document.getElementById('prop-w').value = part.dims.w;
+  document.getElementById('prop-h').value = part.dims.h;
+
+  const yRow = document.getElementById('prop-y-row');
+  if (part.type === 'shelf' || part.type === 'upright') {
+    yRow.style.display = 'flex';
+    document.getElementById('prop-y').value = part.shelfY !== undefined ? part.shelfY : part.pos.y;
+  } else {
+    yRow.style.display = 'none';
+  }
+}
+
+// Props pane changes
+document.getElementById('prop-label').addEventListener('change', (e) => {
+  if (!selectedPartId) return;
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (part) { pushUndo(); part.label = e.target.value; renderPartsList(); autoSave(); }
+});
+
+['prop-w','prop-h'].forEach(id => {
+  document.getElementById(id).addEventListener('change', (e) => {
+    if (!selectedPartId) return;
+    const part = UNIT.parts.find(p => p.id === selectedPartId);
+    if (!part) return;
+    pushUndo();
+    const val = parseFloat(e.target.value);
+    if (isNaN(val) || val <= 0) return;
+    if (id === 'prop-w') part.dims.w = val;
+    else part.dims.h = val;
+    // Rebuild mesh
+    removeMeshFor(part.id);
+    addPartMesh(part, false);
+    updateSelectionHighlight();
+    renderCutList();
+    autoSave();
+  });
+});
+
+document.getElementById('prop-y').addEventListener('change', (e) => {
+  if (!selectedPartId) return;
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) return;
+  pushUndo();
+  const y = parseFloat(e.target.value);
+  if (isNaN(y)) return;
+  if (part.type === 'shelf') {
+    part.shelfY = y;
+    part.pos.y = y + UNIT.thickness / 2;
+    const mesh = meshMap[part.id];
+    if (mesh) mesh.position.y = part.pos.y;
+    renderCutList();
+    autoSave();
+  }
+});
+
+// ─── SHELF PLACEMENT ─────────────────────────────────────────────────────────
+
+function startShelfPlacement() {
+  isPlacingShelf = true;
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  const innerW = w - 2 * t;
+  const defaultY = Math.round(h / 2 / 0.125) * 0.125;
+  ghostShelfY = defaultY;
+
+  // Build ghost mesh
+  const geo = new THREE.BoxGeometry(innerW, t, d);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x22D3EE, transparent: true, opacity: 0.18, roughness: 0.5
+  });
+  ghostShelf = new THREE.Mesh(geo, mat);
+  ghostShelf.position.set(w/2, defaultY + t/2, d/2);
+  scene.add(ghostShelf);
+
+  const hud = document.getElementById('shelf-place-hud');
+  hud.classList.add('visible');
+  document.getElementById('shelf-height-input').value = defaultY;
+  updateShelfHUD();
+
+  document.getElementById('shelf-place-overlay').classList.add('visible');
+  controls.enabled = false;
+}
+
+function updateShelfHUD() {
+  const { h } = UNIT.envelope;
+  const t = UNIT.thickness;
+  const by = getBottomY() + t;
+  const fromFloor = ghostShelfY - by;
+  const toCeil = h - t - ghostShelfY;
+  const conflict = hasShelfConflict(ghostShelfY);
+  const info = document.getElementById('shelf-place-info');
+  info.textContent = `${fmtIn(fromFloor)}" from bottom | ${fmtIn(toCeil)}" to top` + (conflict ? ' ⚠ OVERLAP' : '');
+  info.style.color = conflict ? 'var(--danger)' : 'var(--text-muted)';
+}
+
+function hasShelfConflict(y) {
+  const t = UNIT.thickness;
+  return UNIT.parts.some(p => {
+    if (p.type !== 'shelf') return false;
+    return Math.abs(p.shelfY - y) < t * 2;
+  });
+}
+
+function cancelShelfPlacement() {
+  if (ghostShelf) { scene.remove(ghostShelf); ghostShelf.geometry.dispose(); ghostShelf.material.dispose(); ghostShelf = null; }
+  isPlacingShelf = false;
+  document.getElementById('shelf-place-hud').classList.remove('visible');
+  document.getElementById('shelf-place-overlay').classList.remove('visible');
+  controls.enabled = true;
+}
+
+function confirmShelfPlacement() {
+  if (hasShelfConflict(ghostShelfY)) {
+    showToast('Shelf overlaps another shelf!'); return;
+  }
+  cancelShelfPlacement();
+  addPart(calcShelf(ghostShelfY, UNIT.parts.filter(p => p.type === 'shelf').length));
+  renderDrillTemplate();
+}
+
+document.getElementById('shelf-height-input').addEventListener('input', (e) => {
+  let v = parseFloat(e.target.value);
+  if (isNaN(v)) return;
+  v = Math.round(v / 0.125) * 0.125;
+  ghostShelfY = v;
+  if (ghostShelf) ghostShelf.position.y = v + UNIT.thickness / 2;
+  updateShelfHUD();
+});
+
+document.getElementById('btn-confirm-shelf').addEventListener('click', confirmShelfPlacement);
+document.getElementById('btn-cancel-shelf').addEventListener('click', cancelShelfPlacement);
+
+// ─── RAYCASTING ──────────────────────────────────────────────────────────────
+
+let lastHoverId = null;
+const tooltipEl = document.getElementById('tooltip');
+
+function onCanvasMouseMove(e) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
+  const hits = raycaster.intersectObjects(meshes);
+
+  if (hits.length) {
+    const partId = hits[0].object.userData.partId;
+    if (partId !== lastHoverId) {
+      lastHoverId = partId;
+      highlightHover(partId);
+    }
+    const part = UNIT.parts.find(p => p.id === partId);
+    if (part) {
+      tooltipEl.style.display = 'block';
+      tooltipEl.style.left = (e.clientX - rect.left + 14) + 'px';
+      tooltipEl.style.top = (e.clientY - rect.top + 14) + 'px';
+      tooltipEl.textContent = `${part.label}  ${fmtIn(part.dims.w)}" × ${fmtIn(part.dims.h)}"`;
+    }
+  } else {
+    if (lastHoverId) { lastHoverId = null; highlightHover(null); }
+    tooltipEl.style.display = 'none';
+  }
+
+  // Ghost shelf drag (vertical plane)
+  if (isPlacingShelf && ghostShelf) {
+    const { w, d } = UNIT.envelope;
+    const planeNormal = new THREE.Vector3(1, 0, 0);
+    const planePoint = new THREE.Vector3(w/2, 0, d/2);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, planePoint);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, target);
+    if (target) {
+      let y = target.y - UNIT.thickness / 2;
+      y = Math.round(y / 0.125) * 0.125;
+      const minY = getBottomY() + UNIT.thickness;
+      const maxY = UNIT.envelope.h - UNIT.thickness * 2;
+      y = Math.max(minY, Math.min(maxY, y));
+      ghostShelfY = y;
+      document.getElementById('shelf-height-input').value = y;
+      updateShelfHUD();
+    }
+  }
+}
+
+function onCanvasClick(e) {
+  if (isPlacingShelf) {
+    // Click in 3D to confirm placement
+    confirmShelfPlacement();
+    return;
+  }
+
+  raycaster.setFromCamera(mouse, camera);
+  const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
+  const hits = raycaster.intersectObjects(meshes);
+
+  if (hits.length) {
+    const partId = hits[0].object.userData.partId;
+    selectPart(partId);
+  } else {
+    deselectAll();
+  }
+}
+
+// ─── EXPLODED VIEW ───────────────────────────────────────────────────────────
+
+let explodeAnimating = [];
+
+function toggleExplode() {
+  isExploded = !isExploded;
+  document.getElementById('btn-explode').classList.toggle('active', isExploded);
+
+  const now = performance.now();
+  UNIT.parts.forEach((part, i) => {
+    const mesh = meshMap[part.id];
+    if (!mesh) return;
+    const basePos = partWorldPos(part);
+    const explodeOffset = getExplodeOffset(part, i);
+    const target = isExploded
+      ? new THREE.Vector3(basePos.x + explodeOffset.x, basePos.y + explodeOffset.y, basePos.z + explodeOffset.z)
+      : basePos.clone();
+
+    // Remove existing animation for this mesh
+    animating = animating.filter(a => a.mesh !== mesh);
+    animating.push({
+      mesh,
+      from: mesh.position.clone(),
+      to: target,
+      startTime: now,
+      duration: 500
+    });
+  });
+}
+
+function getExplodeOffset(part, idx) {
+  switch (part.type) {
+    case 'side': return part.id === 'ls' ? { x: -18, y: 0, z: 0 } : { x: 18, y: 0, z: 0 };
+    case 'back': return { x: 0, y: 0, z: -18 };
+    case 'top':  return { x: 0, y: 12, z: 0 };
+    case 'bottom': return { x: 0, y: -10, z: 0 };
+    case 'toekick': return { x: 0, y: 0, z: 14 };
+    case 'stile':
+    case 'rail': return { x: 0, y: 0, z: 16 };
+    case 'shelf': {
+      const shelfIdx = UNIT.parts.filter(p => p.type === 'shelf').indexOf(part);
+      return { x: (shelfIdx + 1) * 5 + 12, y: 0, z: 0 };
+    }
+    case 'upright': return { x: 0, y: 16, z: 0 };
+    default: return { x: 8, y: 0, z: 0 };
+  }
+}
+
+// ─── CUT LIST ────────────────────────────────────────────────────────────────
+
+function fmtIn(v) {
+  if (v === undefined || v === null) return '?';
+  const n = Math.round(v * 8) / 8;
+  const whole = Math.floor(n);
+  const frac = n - whole;
+  if (frac === 0) return `${whole}`;
+  const fracs = [[1/8,'1/8'],[1/4,'1/4'],[3/8,'3/8'],[1/2,'1/2'],[5/8,'5/8'],[3/4,'3/4'],[7/8,'7/8']];
+  const found = fracs.find(([f]) => Math.abs(frac - f) < 0.01);
+  if (found) return whole ? `${whole} ${found[1]}` : found[1];
+  return n.toFixed(2);
+}
+
+function fmtInPlain(v) {
+  return (Math.round(v * 8) / 8).toFixed(3).replace(/\.?0+$/, '');
+}
+
+function renderCutList() {
+  const tbody = document.getElementById('cl-body');
+  if (!UNIT.parts.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:20px">No parts yet</td></tr>';
+    updateSummary();
+    renderSheetLayout();
+    renderDrillTemplate();
+    return;
+  }
+
+  const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+  tbody.innerHTML = sorted.map(p => {
+    const vals = [p.dims.w, p.dims.h, p.dims.t].sort((a, b) => b - a);
+    return `<tr data-id="${p.id}">
+      <td class="td-label">${p.label}</td>
+      <td class="td-dim">${fmtIn(vals[0])}"</td>
+      <td class="td-dim">${fmtIn(vals[1])}"</td>
+      <td class="td-dim">${fmtIn(vals[2])}"</td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('tr').forEach(row => {
+    row.addEventListener('click', () => selectPart(row.dataset.id));
+  });
+
+  updateSummary();
+  renderSheetLayout();
+  renderDrillTemplate();
+}
+
+function updateSummary() {
+  const matDb = MATERIALS_DB[UNIT.material];
+  let totalSqft = 0;
+  let totalWeight = 0;
+  const SQFT = 48 * 96; // one sheet in sq inches
+
+  UNIT.parts.forEach(p => {
+    const sqin = p.dims.w * p.dims.h;
+    const sqft = sqin / 144;
+    totalSqft += sqin;
+    totalWeight += sqft * matDb.lbsPerSqft;
+  });
+
+  const totalSqin = totalSqft;
+  const sheetSqin = 48 * 96;
+  const sheetsNeeded = Math.ceil(totalSqin / sheetSqin);
+
+  let costStr, sheetsStr;
+  if (matDb.pricePerSheet) {
+    costStr = `$${(sheetsNeeded * matDb.pricePerSheet).toFixed(2)}`;
+    sheetsStr = `${(totalSqin / sheetSqin).toFixed(2)} → ${sheetsNeeded} sheet${sheetsNeeded !== 1 ? 's' : ''}`;
+  } else {
+    // Linear feet (for pine, use width as lin ft)
+    let linFt = 0;
+    UNIT.parts.forEach(p => linFt += p.dims.w / 12 + p.dims.h / 12);
+    costStr = `$${(linFt * matDb.pricePerLinFt).toFixed(2)}`;
+    sheetsStr = `${linFt.toFixed(1)} lin.ft`;
+  }
+
+  document.getElementById('sum-sheets').textContent = sheetsStr;
+  document.getElementById('sum-cost').textContent = costStr;
+  document.getElementById('sum-weight').textContent = `${totalWeight.toFixed(0)} lbs`;
+}
+
+// ─── SHEET LAYOUT (Simple guillotine packing) ─────────────────────────────────
+
+function renderSheetLayout() {
+  const container = document.getElementById('sheet-svg-container');
+  if (!UNIT.parts.length) { container.innerHTML = ''; return; }
+
+  const matDb = MATERIALS_DB[UNIT.material];
+  if (!matDb.sheetW) { container.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--text-muted)">Dimensional lumber — no sheet layout.</div>'; return; }
+
+  const SW = matDb.sheetW, SH = matDb.sheetH;
+  // Collect rects
+  const rects = UNIT.parts.map(p => ({ w: p.dims.w, h: p.dims.h, label: p.label.slice(0,4) }));
+
+  // Simple shelf packing (strip packing)
+  const sheets = [];
+  let cur = { placed: [], curX: 0, curY: 0, rowH: 0 };
+
+  function newSheet() { sheets.push(cur); cur = { placed: [], curX: 0, curY: 0, rowH: 0 }; }
+
+  rects.forEach(r => {
+    // Try current row
+    if (cur.curX + r.w <= SW) {
+      // Fits in row
+      cur.placed.push({ x: cur.curX, y: cur.curY, w: r.w, h: r.h, label: r.label });
+      cur.curX += r.w;
+      cur.rowH = Math.max(cur.rowH, r.h);
+    } else if (cur.curY + cur.rowH + r.h <= SH) {
+      // New row
+      cur.curY += cur.rowH;
+      cur.curX = 0; cur.rowH = 0;
+      cur.placed.push({ x: cur.curX, y: cur.curY, w: r.w, h: r.h, label: r.label });
+      cur.curX += r.w;
+      cur.rowH = Math.max(cur.rowH, r.h);
+    } else {
+      newSheet();
+      cur.placed.push({ x: 0, y: 0, w: r.w, h: r.h, label: r.label });
+      cur.curX = r.w;
+      cur.rowH = r.h;
+    }
+  });
+  if (cur.placed.length) sheets.push(cur);
+
+  const SCALE = 1.8; // pixels per inch
+  const PAD = 4;
+  const svgW = SW * SCALE + PAD * 2;
+  const svgH = SH * SCALE + PAD * 2;
+
+  const colors = ['#1a3a2a','#1a2a3a','#2a1a3a','#3a2a1a','#1a3a3a'];
+  let svg = '';
+
+  sheets.forEach((sheet, si) => {
+    const ox = si * (svgW + 6);
+    svg += `<rect x="${ox+PAD}" y="${PAD}" width="${SW*SCALE}" height="${SH*SCALE}" fill="#0d0d14" stroke="rgba(34,211,238,0.3)" stroke-width="1"/>`;
+    sheet.placed.forEach((r, ri) => {
+      svg += `<rect x="${ox+PAD+r.x*SCALE}" y="${PAD+r.y*SCALE}" width="${r.w*SCALE}" height="${r.h*SCALE}" fill="${colors[ri%colors.length]}" stroke="rgba(34,211,238,0.5)" stroke-width="0.5"/>`;
+      if (r.w * SCALE > 20 && r.h * SCALE > 10) {
+        svg += `<text x="${ox+PAD+r.x*SCALE+2}" y="${PAD+r.y*SCALE+10}" font-size="7" fill="rgba(228,228,231,0.7)" font-family="Inter">${r.label}</text>`;
+      }
+    });
+    svg += `<text x="${ox+PAD+2}" y="${PAD + SH*SCALE + 12}" font-size="8" fill="rgba(113,113,122,1)" font-family="Inter">Sheet ${si+1}</text>`;
+  });
+
+  const totalW = sheets.length * (svgW + 6);
+  container.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${svgH + 16}">${svg}</svg>`;
+}
+
+// ─── DRILL TEMPLATE ──────────────────────────────────────────────────────────
+
+function renderDrillTemplate() {
+  const container = document.getElementById('drill-svg-wrap');
+  const ls = UNIT.parts.find(p => p.id === 'ls');
+  if (!ls) { container.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--text-muted)">Add left side panel first.</div>'; return; }
+
+  const panelH = ls.dims.h;
+  const panelD = ls.dims.t;
+  const spacing = 32 / 25.4; // 32mm in inches
+  const fromEdge = 1.5;
+  const startY = 2;
+  const endY = panelH - 2;
+  const SCALE = 3;
+
+  const shelves = UNIT.parts.filter(p => p.type === 'shelf');
+  const shelfYs = new Set(shelves.map(s => Math.round(s.shelfY / spacing) * spacing));
+
+  let dots = '';
+  let y = startY;
+  while (y <= endY) {
+    const row = Math.round(y / spacing) * spacing;
+    const isShelf = shelves.some(s => Math.abs(s.shelfY - y) < spacing * 0.6);
+    const dotFill = isShelf ? '#22D3EE' : 'rgba(100,100,120,0.8)';
+    const dotR = isShelf ? 3 : 2;
+    // Front column
+    dots += `<circle cx="${fromEdge*SCALE}" cy="${y*SCALE}" r="${dotR}" fill="${dotFill}" stroke="rgba(34,211,238,0.3)" stroke-width="0.5"/>`;
+    // Back column
+    dots += `<circle cx="${(panelD-fromEdge)*SCALE}" cy="${y*SCALE}" r="${dotR}" fill="${dotFill}" stroke="rgba(34,211,238,0.3)" stroke-width="0.5"/>`;
+    // Labels at shelves
+    if (isShelf) {
+      dots += `<text x="${(panelD-fromEdge)*SCALE+6}" y="${y*SCALE+3}" font-size="6" fill="var(--accent)" font-family="JetBrains Mono">${fmtIn(y)}"</text>`;
+    }
+    y += spacing;
+  }
+
+  const W = panelD * SCALE;
+  const H = panelH * SCALE;
+
+  container.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${W+60}" height="${H+20}" style="display:block">
+      <rect x="0" y="0" width="${W}" height="${H}" fill="#0d0d14" stroke="rgba(34,211,238,0.4)" stroke-width="1"/>
+      ${dots}
+      <text x="${W+4}" y="10" font-size="7" fill="var(--text-muted)" font-family="Inter">Panel: ${fmtIn(panelD)}" × ${fmtIn(panelH)}"</text>
+    </svg>`;
+}
+
+// ─── WIZARD ──────────────────────────────────────────────────────────────────
+
+function showWizard() {
+  document.getElementById('wizard-modal').style.display = 'flex';
+}
+
+function hideWizard() {
+  document.getElementById('wizard-modal').style.display = 'none';
+}
+
+document.getElementById('btn-start-building').addEventListener('click', () => {
+  const name = document.getElementById('wiz-name').value.trim() || 'My Shelf';
+  const style = document.querySelector('input[name="wiz-style"]:checked')?.value || 'frameless';
+  const w = parseFloat(document.getElementById('wiz-w').value) || 48;
+  const h = parseFloat(document.getElementById('wiz-h').value) || 84;
+  const d = parseFloat(document.getElementById('wiz-d').value) || 16;
+  const mat = document.getElementById('wiz-material').value;
+  const thick = parseFloat(document.getElementById('wiz-thick').value) || 0.75;
+
+  pushUndo();
+  UNIT = { name, style, envelope: { w, h, d }, material: mat, thickness: thick, parts: [] };
+  redoStack = [];
+  undoStack = [];
+  meshMap = {};
+
+  hideWizard();
+
+  document.getElementById('unit-name-input').value = name;
+  document.getElementById('tb-material').value = mat;
+  document.getElementById('tb-style').value = style;
+
+  // Rebuild scene
+  Object.keys(meshMap).forEach(id => removeMeshFor(id));
+  rebuildEnvelopeGhost();
+  resetCamera();
+  renderPartsList();
+  renderCutList();
+  goToStep(1);
+  autoSave();
+  showToast(`Unit "${name}" ready. Let's build!`);
+});
+
+// Wizard material → thickness auto-fill
+document.getElementById('wiz-material').addEventListener('change', (e) => {
+  const t = { plywood: 0.75, mdf: 0.75, melamine: 0.75, pine: 0.75 }[e.target.value] || 0.75;
+  document.getElementById('wiz-thick').value = t;
+});
+
+// ─── TOOLBAR EVENTS ──────────────────────────────────────────────────────────
+
+document.getElementById('unit-name-input').addEventListener('change', (e) => {
+  UNIT.name = e.target.value;
+  autoSave();
+});
+
+document.getElementById('tb-material').addEventListener('change', (e) => {
+  UNIT.material = e.target.value;
+  renderCutList();
+  autoSave();
+});
+
+document.getElementById('tb-style').addEventListener('change', (e) => {
+  UNIT.style = e.target.value;
+  renderStepUI();
+  autoSave();
+});
+
+document.getElementById('btn-undo').addEventListener('click', undo);
+document.getElementById('btn-redo').addEventListener('click', redo);
+document.getElementById('btn-explode').addEventListener('click', toggleExplode);
+document.getElementById('btn-reset-cam').addEventListener('click', () => { resetCamera(); showToast('Camera reset'); });
+
+// ─── TAB SWITCHING ───────────────────────────────────────────────────────────
+
+document.querySelectorAll('.panel-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ─── MODE TOGGLE ─────────────────────────────────────────────────────────────
+
+document.getElementById('btn-mode-toggle').addEventListener('click', () => {
+  freeMode = !freeMode;
+  document.getElementById('btn-mode-toggle').textContent = freeMode ? 'Switch to Guided Mode' : 'Switch to Free Mode';
+  renderStepUI();
+});
+
+// ─── KEYBOARD ────────────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+  if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selectedPartId) {
+      e.preventDefault();
+      confirmRemovePart(selectedPartId);
+    }
+  }
+  if (e.key === 'Escape') {
+    if (isPlacingShelf) cancelShelfPlacement();
+    deselectAll();
+  }
+  if (e.key === 'Enter' && isPlacingShelf) {
+    confirmShelfPlacement();
+  }
+});
+
+// ─── CONFIRM MODAL ───────────────────────────────────────────────────────────
+
+function showConfirm(title, msg, onOk) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  document.getElementById('confirm-modal').style.display = 'flex';
+  confirmCallback = onOk;
+}
+
+document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
+  document.getElementById('confirm-modal').style.display = 'none';
+  confirmCallback = null;
+});
+
+document.getElementById('btn-confirm-ok').addEventListener('click', () => {
+  document.getElementById('confirm-modal').style.display = 'none';
+  if (confirmCallback) { confirmCallback(); confirmCallback = null; }
+});
+
+// ─── EXPORT MODAL ────────────────────────────────────────────────────────────
+
+function showExportModal() {
+  const exportObj = {
+    id: `shelf-${Date.now()}`,
+    label: UNIT.name,
+    category: 'storage',
+    w: UNIT.envelope.w,
+    h: UNIT.envelope.h,
+    d: UNIT.envelope.d,
+    color: '#C49A6C',
+    _shelfData: UNIT
+  };
+  document.getElementById('export-code').value = JSON.stringify(exportObj, null, 2);
+  document.getElementById('export-modal').style.display = 'flex';
+}
+
+document.getElementById('btn-copy-export').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('export-code').value)
+    .then(() => showToast('Copied to clipboard!'));
+});
+
+document.getElementById('btn-close-export').addEventListener('click', () => {
+  document.getElementById('export-modal').style.display = 'none';
+});
+
+document.getElementById('btn-export-buildplan').addEventListener('click', showExportModal);
+
+// ─── PRINT ───────────────────────────────────────────────────────────────────
+
+function printCutList() {
+  const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+  const rows = sorted.map(p => `<tr><td>${p.label}</td><td>${fmtInPlain(p.dims.w)}"</td><td>${fmtInPlain(p.dims.h)}"</td><td>${fmtInPlain(p.dims.t)}"</td></tr>`).join('');
+
+  const matDb = MATERIALS_DB[UNIT.material];
+  let totalSqin = 0;
+  UNIT.parts.forEach(p => totalSqin += p.dims.w * p.dims.h);
+  const sheetsNeeded = matDb.sheetW ? Math.ceil(totalSqin / (48*96)) : null;
+  let totalWeight = 0;
+  UNIT.parts.forEach(p => totalWeight += (p.dims.w * p.dims.h / 144) * matDb.lbsPerSqft);
+  const cost = sheetsNeeded ? (sheetsNeeded * matDb.pricePerSheet).toFixed(2) : 'N/A';
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Cut List — ${UNIT.name}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    .meta { color: #666; font-size: 12px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    .summary { margin-top: 16px; font-size: 12px; color: #333; }
+    .summary span { font-weight: 600; }
+  </style></head><body>
+  <h1>Cut List — ${UNIT.name}</h1>
+  <div class="meta">${UNIT.envelope.w}" W × ${UNIT.envelope.h}" H × ${UNIT.envelope.d}" D | ${matDb.name} | ${UNIT.style}</div>
+  <table><thead><tr><th>Label</th><th>Width</th><th>Height</th><th>Thickness</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="summary">
+    ${sheetsNeeded ? `<p>Sheet Goods: <span>${(totalSqin/4608).toFixed(2)} → ${sheetsNeeded} sheet${sheetsNeeded!==1?'s':''}</span></p>` : ''}
+    <p>Est. Cost: <span>$${cost}</span></p>
+    <p>Est. Weight: <span>${totalWeight.toFixed(0)} lbs</span></p>
+  </div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.close();
+}
+
+function printDrillTemplate() {
+  const win = window.open('', '_blank');
+  const svgEl = document.getElementById('drill-svg-wrap').innerHTML;
+  win.document.write(`<!DOCTYPE html><html><head><title>Drill Template — ${UNIT.name}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { font-size: 16px; margin-bottom: 12px; }
+    @media print { @page { margin: 0.5in; } }
+  </style></head><body>
+  <h1>Shelf Pin Drilling Template — ${UNIT.name} Left Side</h1>
+  ${svgEl}
+  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.close();
+}
+
+document.getElementById('btn-print-cutlist').addEventListener('click', printCutList);
+document.getElementById('btn-print-drill').addEventListener('click', printDrillTemplate);
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+  const rows = [['Label','Width (in)','Height (in)','Thickness (in)','Material']];
+  sorted.forEach(p => rows.push([p.label, fmtInPlain(p.dims.w), fmtInPlain(p.dims.h), fmtInPlain(p.dims.t), MATERIALS_DB[UNIT.material].name]));
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${UNIT.name.replace(/\s+/g,'_')}_cutlist.csv`;
+  a.click();
+});
+
+// ─── SAVE / LOAD ─────────────────────────────────────────────────────────────
+
+function autoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    try { localStorage.setItem('shelfbuilder_current', JSON.stringify(UNIT)); } catch(e) {}
+  }, 1000);
+}
+
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem('shelfbuilder_current');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+
+initThree();
+
+// Check for saved state
+const saved = loadSaved();
+if (saved && saved.parts && saved.parts.length > 0) {
+  document.getElementById('wizard-modal').style.display = 'none';
+  document.getElementById('resume-modal').style.display = 'flex';
+  document.getElementById('resume-name').textContent = saved.name || 'Unnamed Unit';
+
+  document.getElementById('btn-resume-load').addEventListener('click', () => {
+    document.getElementById('resume-modal').style.display = 'none';
+    UNIT = saved;
+    document.getElementById('unit-name-input').value = UNIT.name;
+    document.getElementById('tb-material').value = UNIT.material;
+    document.getElementById('tb-style').value = UNIT.style;
+    rebuildEnvelopeGhost();
+    resetCamera();
+    rebuildAllMeshes();
+    renderPartsList();
+    renderCutList();
+    currentStep = STEP_DEFS.length - 1;
+    renderStepUI();
+    showToast(`Resumed: ${UNIT.name}`);
+  });
+
+  document.getElementById('btn-resume-new').addEventListener('click', () => {
+    document.getElementById('resume-modal').style.display = 'none';
+    showWizard();
+  });
+} else {
+  // Fresh start — show wizard
+  showWizard();
+}
+
+// Window resize fallback
+window.addEventListener('resize', () => resizeRenderer());
+
+</script>
+</body>
+</html>

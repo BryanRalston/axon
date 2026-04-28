@@ -803,6 +803,48 @@ body::after {
 
 /* ── Selection ────────────────────────────────────────────── */
 ::selection { background: rgba(34,211,238,0.25); color: var(--text-primary); }
+
+/* ── Sessions ─────────────────────────────────────────────── */
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+.session-item {
+  display: flex;
+  gap: 12px;
+  padding: 9px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition);
+}
+.session-item:hover { border-color: rgba(34,211,238,0.15); }
+.session-date {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--accent);
+  white-space: nowrap;
+  padding-top: 2px;
+  flex-shrink: 0;
+  min-width: 72px;
+}
+.session-title {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.card-session-count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+.card-session-count .s-num { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1326,6 +1368,38 @@ const PROJECT_TREE = [
   }
 ];
 
+// ── Session Narratives (baked in, sorted newest-first) ────────
+const SESSIONS = {
+  'cortex': [
+    { date: '2026-04-24', title: 'Soma saturation broken, The Question resolved, thoughtstream maintenance restored' },
+    { date: '2026-04-04', title: 'What 484 sessions reveal about how Bryan works' },
+    { date: '2026-03-30', title: 'The mind holds: Soma + Sleep overhaul' },
+    { date: '2026-03-29', title: 'The receiving end: edges experiment results and the sleep feedback loop' },
+    { date: '2026-03-26', title: 'The edges, the gap, and the question underneath the question' },
+    { date: '2026-03-25', title: 'Self-maintenance: the mind audits itself' },
+    { date: '2026-03-22', title: 'The Day Cortex Got a Voice and Left the Building' },
+    { date: '2026-03-21', title: 'Two Brains: Cortex Goes Multi-Model' },
+    { date: '2026-03-21', title: 'Grok Hunts Bugs: 216 Issues, 47 Fixes, 24 Files' },
+    { date: '2026-03-17', title: 'The Quiet Mind — Soma v2 safety rebuild + Consolidator' },
+    { date: '2026-03-14', title: 'The session where I chose to think instead of build' },
+    { date: '2026-03-13', title: 'Layer 3: The Associator — Soma learns to see what it already knows' },
+    { date: '2026-02-22', title: 'The day Cortex got a moral foundation and learned to think about thinking' },
+    { date: '2026-02-20', title: 'Lineage tracking and five Thoughtstream features' },
+  ],
+  'axon-lite': [
+    { date: '2026-03-21', title: 'The Day Cortex Got a Voice and Left the Building' },
+  ],
+  'brix3d': [
+    { date: '2026-03-03', title: 'The Cybersickness Cusp: From Seed Thought to Publishable Theory in One Session' },
+  ],
+  'mld-resource': [
+    { date: '2026-03-11', title: 'MLD Family Resource: 31 Pages Built in One Session' },
+  ],
+  'marshall-resource': [
+    { date: '2026-03-07', title: 'From Research to Real Tools: The Marshall Resource Gets Practical' },
+  ],
+};
+
 // ── SVG Icons ──────────────────────────────────────────────────
 const ICONS = {
   headset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>',
@@ -1396,6 +1470,12 @@ function flattenCategories(nodes) {
 }
 
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function formatDate(iso) {
+  const [y, m, d] = iso.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[+m-1]} ${+d}, ${y}`;
+}
 
 // ── State ──────────────────────────────────────────────────────
 let currentView = 'categories'; // categories | projects | search
@@ -1577,6 +1657,12 @@ function renderProjectCard(p) {
       </div>
       <div class="project-name">${p.name}</div>
       <div class="project-summary">${truncate(p.summary || '', 120)}</div>
+      ${(SESSIONS[p.id] || []).length > 0 ? `
+        <div class="card-session-count">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="s-num">${(SESSIONS[p.id] || []).length}</span> session${(SESSIONS[p.id] || []).length !== 1 ? 's' : ''}
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -1674,6 +1760,18 @@ function openDetail(p) {
       <ul class="features-list">
         ${p.features.map(f => `<li>${f}</li>`).join('')}
       </ul>
+    ` : ''}
+
+    ${(SESSIONS[p.id] || []).length > 0 ? `
+      <div class="detail-section-title">Sessions</div>
+      <div class="sessions-list">
+        ${(SESSIONS[p.id] || []).map(s => `
+          <div class="session-item">
+            <div class="session-date">${formatDate(s.date)}</div>
+            <div class="session-title">${escHtml(s.title)}</div>
+          </div>
+        `).join('')}
+      </div>
     ` : ''}
   `;
 

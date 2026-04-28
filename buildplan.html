@@ -62,12 +62,13 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 /* ── Plan Editor ── */
 #plan-screen{position:fixed;inset:0;z-index:1500;display:none;flex-direction:column;}
 #plan-navbar{height:52px;background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;flex-shrink:0;}
-.nav-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;transition:all var(--transition);user-select:none;white-space:nowrap;}
+.nav-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:inherit;transition:all var(--transition);user-select:none;white-space:nowrap;flex-shrink:0;}
 .nav-btn:hover{border-color:var(--accent);color:var(--accent);}
 .nav-btn:disabled{opacity:.3;cursor:not-allowed;pointer-events:none;}
 .nav-btn.primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700;}
 .nav-btn.primary:hover{opacity:.88;}
-.plan-appname{font-size:15px;font-weight:800;color:var(--accent);flex:1;text-align:center;}
+.plan-appname{font-size:15px;font-weight:800;color:var(--accent);flex:1;text-align:center;min-width:0;}
+@media(max-width:900px){.plan-appname{display:none;}}
 #plan-layout{flex:1;display:flex;overflow:hidden;}
 #plan-toolbar{width:72px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;flex-shrink:0;}
 .tool-btn{width:64px;height:52px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all var(--transition);position:relative;font-size:9px;font-family:Inter,sans-serif;letter-spacing:0.02em;}
@@ -86,7 +87,8 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 
 /* ── 3D View ── */
 #view3d-screen{position:fixed;inset:0;z-index:1000;display:none;flex-direction:column;}
-#view3d-navbar{height:52px;background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;flex-shrink:0;}
+#view3d-navbar{height:52px;background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:6px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;}
+#view3d-navbar::-webkit-scrollbar{display:none;}
 #view3d-layout{flex:1;display:flex;overflow:hidden;}
 #lumber-panel{width:260px;min-width:260px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width var(--transition);}
 #lumber-panel.collapsed{width:0;min-width:0;}
@@ -126,7 +128,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 .ip-delete{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.4);color:#f87171;}
 .ip-delete:hover{background:rgba(239,68,68,.2);border-color:#f87171;color:#f87171;}
 /* ── View Toggle Buttons ── */
-.view-btn{padding:4px 9px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-muted);cursor:pointer;font-size:11px;font-family:inherit;transition:all var(--transition);}
+.view-btn{padding:4px 9px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-muted);cursor:pointer;font-size:11px;font-family:inherit;transition:all var(--transition);flex-shrink:0;white-space:nowrap;}
 .view-btn:hover{color:var(--text-primary);}
 .view-btn.active{background:rgba(34,211,238,.15);border-color:var(--border-glow);color:var(--accent);}
 /* ── Shelf heights list ── */
@@ -483,9 +485,17 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       <button class="view-btn" id="vbtn-front" onclick="setView3D('front')">Front</button>
       <button class="view-btn" id="vbtn-side" onclick="setView3D('side')">Side</button>
       <button class="view-btn" id="vbtn-top" onclick="setView3D('top')">Top</button>
+      <button class="view-btn" id="vbtn-wallelev" onclick="setView3D('wallelev')" title="Look straight at selected wall">Wall Elev</button>
     </div>
+    <select id="snap-sel" title="Snap grid size" onchange="APP.snapSize=parseInt(this.value)" style="padding:4px 8px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--text-muted);font-size:11px;font-family:inherit;outline:none;cursor:pointer;">
+      <option value="1">Snap 1"</option>
+      <option value="6" selected>Snap 6"</option>
+      <option value="12">Snap 12"</option>
+      <option value="24">Snap 24"</option>
+    </select>
     <button class="nav-btn" id="btn-draw-wall-3d" onclick="toggleWallDraw3d()">&#43; Draw Wall</button>
     <button class="nav-btn" onclick="toggleCutList()">Cut List</button>
+    <button class="nav-btn" onclick="document.getElementById('soffit-modal').style.display='flex'">+ Soffit</button>
     <label class="nav-btn" style="cursor:pointer" title="Import GLB/photo for reference">&#128444; Import<input type="file" accept=".glb,.gltf,image/*" class="hidden" id="import3d-input" onchange="handleImport3D(this)"></label>
     <button class="nav-btn" onclick="saveProject()">&#128190; Save</button>
     <label class="nav-btn" style="cursor:pointer">&#128194; Load<input type="file" accept=".json" class="hidden" id="load-input" onchange="loadProject(this)"></label>
@@ -543,15 +553,23 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
     <!-- Position -->
     <div class="ip-row">
       <div class="ip-label">Position (inches)</div>
-      <div class="ip-xyz"><span class="ip-axis" style="color:#FF5555">X</span><input class="ip-input" id="ip-x" type="number" step="0.5" onchange="applyItemPos('x',this.value)"></div>
-      <div class="ip-xyz"><span class="ip-axis" style="color:#55FF55">Y</span><input class="ip-input" id="ip-y" type="number" step="0.5" onchange="applyItemPos('y',this.value)"></div>
-      <div class="ip-xyz"><span class="ip-axis" style="color:#5599FF">Z</span><input class="ip-input" id="ip-z" type="number" step="0.5" onchange="applyItemPos('z',this.value)"></div>
+      <div class="ip-xyz"><span class="ip-axis" style="color:#FF5555">X</span><input class="ip-input" id="ip-x" type="text" onchange="applyItemPos('x',this.value)"></div>
+      <div class="ip-xyz"><span class="ip-axis" style="color:#55FF55">Y</span><input class="ip-input" id="ip-y" type="text" onchange="applyItemPos('y',this.value)"></div>
+      <div class="ip-xyz"><span class="ip-axis" style="color:#5599FF">Z</span><input class="ip-input" id="ip-z" type="text" onchange="applyItemPos('z',this.value)"></div>
     </div>
     <!-- Length -->
     <div class="ip-row">
       <div class="ip-label">Cut Length (inches)</div>
-      <input class="ip-input" id="ip-len" type="number" step="0.5" min="1" onchange="applyItemLen(this.value)">
+      <input class="ip-input" id="ip-len" type="text" placeholder="e.g. 96 or 8'" onchange="applyItemLen(this.value)">
       <div id="ip-len-hint" style="font-size:10px;color:var(--text-muted);"></div>
+    </div>
+    <!-- Cross-section dims -->
+    <div class="ip-row">
+      <div class="ip-label">Cross-section (W × H inches)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <input class="ip-input" id="ip-cw" type="text" placeholder="e.g. 1.5 or 3.5" onchange="applyItemCW(this.value)">
+        <input class="ip-input" id="ip-ch" type="text" placeholder="e.g. 1.5 or 3.5" onchange="applyItemCH(this.value)">
+      </div>
     </div>
     <!-- Orient -->
     <div class="ip-row">
@@ -640,7 +658,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
   <div class="modal-card">
     <h2>Stud Wall Wizard</h2>
     <p class="modal-sub">Click two points on the floor to define the wall base line, then configure below.</p>
-    <div class="dim-row"><label>Wall Height</label><input type="number" id="sw-height" value="96" min="24" max="200" step="1"> <span style="color:var(--text-muted);font-size:12px">inches</span></div>
+    <div class="dim-row"><label>Wall Height</label><input type="text" id="sw-height" value="96" placeholder="e.g. 96 or 8'"> <span style="color:var(--text-muted);font-size:12px">in / ft</span></div>
     <div class="dim-row"><label>Stud Spacing</label>
       <select id="sw-spacing" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:15px;outline:none;font-family:inherit;">
         <option value="16">16" OC</option>
@@ -706,9 +724,24 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
   <div class="modal-card" style="max-height:85vh;overflow-y:auto;min-width:360px;">
     <h2>&#x1F4E6; Shelf Unit Wizard</h2>
     <p class="modal-sub">Configure your shelf unit, then click "Place on Floor" and click where you want it.</p>
-    <div class="dim-row"><label>Unit Width</label><input type="number" id="sh-width" value="48" min="12" max="240" step="1"><span style="color:var(--text-muted);font-size:12px">in</span></div>
-    <div class="dim-row"><label>Unit Depth</label><input type="number" id="sh-depth" value="16" min="6" max="96" step="1"><span style="color:var(--text-muted);font-size:12px">in</span></div>
-    <div class="dim-row"><label>Total Height</label><input type="number" id="sh-height" value="84" min="12" max="120" step="1"><span style="color:var(--text-muted);font-size:12px">in</span></div>
+    <div class="dim-row"><label>Unit Width</label><input type="text" id="sh-width" value="48" placeholder="e.g. 83 or 6'11&quot;"><span style="color:var(--text-muted);font-size:12px">in / ft</span></div>
+    <div class="dim-row"><label>Unit Depth</label><input type="text" id="sh-depth" value="16" placeholder="e.g. 24 or 2'"><span style="color:var(--text-muted);font-size:12px">in / ft</span></div>
+    <div class="dim-row"><label>Total Height</label><input type="text" id="sh-height" value="84" placeholder="e.g. 84 or 7'"><span style="color:var(--text-muted);font-size:12px">in / ft</span></div>
+    <!-- Shelf layout mode -->
+    <div class="dim-row" style="gap:12px;align-items:center;">
+      <label>Shelf Layout</label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-secondary);">
+        <input type="radio" name="sh-mode" value="auto" id="sh-mode-auto" checked onchange="document.getElementById('sh-auto-row').style.display='flex';document.getElementById('sh-heights-list').parentElement.style.display='none';"> Auto-space
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-secondary);">
+        <input type="radio" name="sh-mode" value="custom" id="sh-mode-custom" onchange="document.getElementById('sh-auto-row').style.display='none';document.getElementById('sh-heights-list').parentElement.style.display='block';"> Custom heights
+      </label>
+    </div>
+    <div id="sh-auto-row" class="dim-row">
+      <label>Shelf Count</label>
+      <input type="number" id="sh-count" value="5" min="1" max="20" step="1">
+      <span style="color:var(--text-muted);font-size:12px">shelves</span>
+    </div>
     <div class="dim-row"><label>Uprights</label>
       <select id="sh-uprights" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;outline:none;font-family:inherit;">
         <option value="2">2 — rear posts only (wall-mounted)</option>
@@ -738,7 +771,7 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       </select>
     </div>
     <!-- Shelf heights -->
-    <div style="margin-top:14px;">
+    <div style="margin-top:14px;display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">Shelf Heights (inches from floor)</div>
         <button onclick="addShelfHeight()" style="padding:3px 10px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border-hover);color:var(--accent);cursor:pointer;font-size:12px;font-family:inherit;">+ Add</button>
@@ -746,6 +779,13 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
       <div id="sh-heights-list" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
     <div id="sh-status" style="font-size:12px;color:var(--text-muted);margin-top:10px;min-height:18px;"></div>
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Exact Position (optional — leave blank to click floor)</div>
+      <div style="display:flex;gap:8px;">
+        <div class="dim-row" style="flex:1;margin:0;"><label style="min-width:40px;">X in</label><input type="text" id="sh-pos-x" placeholder="auto"></div>
+        <div class="dim-row" style="flex:1;margin:0;"><label style="min-width:40px;">Z in</label><input type="text" id="sh-pos-z" placeholder="auto"></div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="cancelShelfWizard()">Cancel</button>
       <button class="btn-primary" id="sh-place-btn" onclick="startShelfPlacement()">Place on Floor</button>
@@ -776,6 +816,26 @@ body{background:var(--bg-void);color:var(--text-primary);font-family:system-ui,'
 </div>
 
 <!-- ══════════════════════════════════════════
+     SOFFIT MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="soffit-modal" style="display:none">
+  <div class="modal-card">
+    <h2>Add Ceiling Zone (Soffit)</h2>
+    <p class="modal-sub">Define a drop ceiling area. All dimensions in inches from room origin.</p>
+    <div class="dim-row"><label>Label</label><input type="text" id="sft-label" value="Soffit" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;outline:none;font-family:inherit;"></div>
+    <div class="dim-row"><label>X position (in/ft)</label><input type="text" id="sft-x" value="0" placeholder="e.g. 24 or 2'"></div>
+    <div class="dim-row"><label>Z position (in/ft)</label><input type="text" id="sft-z" value="0" placeholder="e.g. 24 or 2'"></div>
+    <div class="dim-row"><label>Width (in/ft)</label><input type="text" id="sft-w" value="62" placeholder="e.g. 62 or 5'2&quot;"></div>
+    <div class="dim-row"><label>Depth (in/ft)</label><input type="text" id="sft-d" value="96" placeholder="e.g. 96 or 8'"></div>
+    <div class="dim-row"><label>Drop from ceiling (in/ft)</label><input type="text" id="sft-drop" value="17" placeholder="e.g. 17 or 1'5&quot;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="document.getElementById('soffit-modal').style.display='none'">Cancel</button>
+      <button class="btn-primary" onclick="addSoffitZone()">Add Soffit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
      ONBOARD TOOLTIP
 ══════════════════════════════════════════ -->
 <div id="onboard-tip">Start by choosing your room shape.</div>
@@ -794,6 +854,7 @@ const PLAN = {
   floorW: 0,
   floorD: 0,
   polygon: [],     // [{x,y}] ordered vertices in inches
+  ceilingZones: [], // [{id,x,z,w,d,drop,label}] soffit zones
 };
 const ITEMS = [];  // placed lumber pieces
 const APP = {
@@ -820,6 +881,7 @@ const APP = {
   hoveredWall: null,
   selectedWall: null,
   editingLabel: null,
+  snapSize: 6,         // snap grid size in inches (1 = fine/off, 6/12/24 for practical use)
 };
 
 // ══════════════════════════════════════════════════════════
@@ -831,6 +893,23 @@ function fmtIn(inches) {
   if (ft === 0) return `${inn}"`;
   if (inn === 0) return `${ft}'`;
   return `${ft}' ${inn}"`;
+}
+
+function parseDim(str) {
+  if (typeof str === 'number') return str;
+  str = String(str).trim();
+  // 7'6" or 7'6 or 7' 6"
+  const ftIn = str.match(/^(\d+(?:\.\d+)?)'\s*(\d+(?:\.\d+)?)"?$/);
+  if (ftIn) return parseFloat(ftIn[1]) * 12 + parseFloat(ftIn[2]);
+  // 7 6 (space-separated, both integers)
+  const spaced = str.match(/^(\d+)\s+(\d+(?:\.\d+)?)$/);
+  if (spaced) return parseFloat(spaced[1]) * 12 + parseFloat(spaced[2]);
+  // 7' or 7.5'
+  const ft = str.match(/^(\d+(?:\.\d+)?)'$/);
+  if (ft) return parseFloat(ft[1]) * 12;
+  // bare number = inches
+  const n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
 }
 
 function ftToIn(ft) { return ft * 12; }
@@ -1242,13 +1321,12 @@ window.applyWallProp = function(prop, val) {
     const ang = wallAngle(w);
     w.x2 = w.x1 + Math.cos(ang) * newLen;
     w.y2 = w.y1 + Math.sin(ang) * newLen;
-    const nextIdx = (i + 1) % APP.drawPoints.length;
-    APP.drawPoints[nextIdx] = { x: w.x2, y: w.y2 };
-    if (APP.isPolygonClosed) {
-      const nextWall = PLAN.walls[(i + 1) % PLAN.walls.length];
-      if (nextWall) { nextWall.x1 = w.x2; nextWall.y1 = w.y2; }
+    if (APP.isPolygonClosed) propagateWallEndpoint(i);
+    else {
+      const nextIdx = (i + 1) % APP.drawPoints.length;
+      APP.drawPoints[nextIdx] = { x: w.x2, y: w.y2 };
+      PLAN.polygon = APP.drawPoints.map(p => ({...p}));
     }
-    PLAN.polygon = APP.drawPoints.map(p => ({...p}));
     renderPlanWalls();
   } else if (prop === 'height') {
     w.height = parseFloat(val) * 12;
@@ -1281,12 +1359,12 @@ function showWallLenEditor(wallIdx, svgX, svgY, currentLen) {
     const ang = wallAngle(w);
     w.x2 = w.x1 + Math.cos(ang) * newLen;
     w.y2 = w.y1 + Math.sin(ang) * newLen;
-    // Update the shared endpoint in drawPoints and adjacent wall
-    const nextIdx = (wallIdx + 1) % APP.drawPoints.length;
-    APP.drawPoints[nextIdx] = { x: w.x2, y: w.y2 };
-    const nextWall = PLAN.walls[(wallIdx + 1) % PLAN.walls.length];
-    if (nextWall && APP.isPolygonClosed) { nextWall.x1 = w.x2; nextWall.y1 = w.y2; }
-    PLAN.polygon = APP.drawPoints.map(p => ({...p}));
+    if (APP.isPolygonClosed) propagateWallEndpoint(wallIdx);
+    else {
+      const nextIdx = (wallIdx + 1) % APP.drawPoints.length;
+      APP.drawPoints[nextIdx] = { x: w.x2, y: w.y2 };
+      PLAN.polygon = APP.drawPoints.map(p => ({...p}));
+    }
     renderPlanWalls();
   };
   input.onkeydown = (e) => {
@@ -1539,8 +1617,49 @@ function onSvgMove(e) {
 
 function snapTo90(from, to) {
   const dx = to.x-from.x, dy = to.y-from.y;
-  if (Math.abs(dx) > Math.abs(dy)) return { x: snap(to.x,6), y: snap(from.y,6) };
-  return { x: snap(from.x,6), y: snap(to.y,6) };
+  const adx = Math.abs(dx), ady = Math.abs(dy);
+  const sg = APP.snapSize || 6;
+  if (adx < 1 && ady < 1) return {x: snap(to.x,sg), y: snap(to.y,sg)};
+  // Snap to axis only when within ~20° of horizontal or vertical
+  // ratio = minor/major: 0 = perfectly axis-aligned, 1 = 45°; threshold ~0.36 = 20°
+  const ratio = Math.min(adx,ady) / Math.max(adx,ady);
+  if (ratio < 0.36) {
+    if (adx > ady) return { x: snap(to.x,sg), y: snap(from.y,sg) };
+    return { x: snap(from.x,sg), y: snap(to.y,sg) };
+  }
+  // Far from axis — allow diagonal, just apply grid snap
+  return { x: snap(to.x,sg), y: snap(to.y,sg) };
+}
+
+// Propagate a wall endpoint change around the exterior polygon, maintaining each wall's axis.
+function propagateWallEndpoint(changedIdx) {
+  const extWalls = PLAN.walls.filter(w => !w.interior);
+  const n = extWalls.length;
+  if (n < 3) return;
+  // Map exterior wall indices in PLAN.walls to extWalls order
+  const extIndices = PLAN.walls.reduce((acc, w, i) => { if (!w.interior) acc.push(i); return acc; }, []);
+  const localIdx = extIndices.indexOf(changedIdx);
+  if (localIdx === -1) return;
+
+  for (let step = 1; step < n; step++) {
+    const li = (localIdx + step) % n;
+    const lp = (li - 1 + n) % n;
+    const w   = PLAN.walls[extIndices[li]];
+    const prev = PLAN.walls[extIndices[lp]];
+    // Capture original axis direction before updating x1
+    const origDx = w.x2 - w.x1, origDy = w.y2 - w.y1;
+    // Move start to match previous wall's end
+    w.x1 = prev.x2; w.y1 = prev.y2;
+    // Restore axis alignment: lock the axis that didn't change
+    if (Math.abs(origDx) >= Math.abs(origDy)) {
+      w.y2 = w.y1;   // was horizontal — keep y locked
+    } else {
+      w.x2 = w.x1;   // was vertical — keep x locked
+    }
+  }
+  // Sync drawPoints and polygon from exterior wall start points
+  extIndices.forEach((wi, li) => { APP.drawPoints[li] = {x: PLAN.walls[wi].x1, y: PLAN.walls[wi].y1}; });
+  PLAN.polygon = APP.drawPoints.map(p => ({...p}));
 }
 
 function onSvgDown(e) {
@@ -1913,6 +2032,19 @@ function buildRoom() {
   floorMesh.userData.isFloor=true;
   scene.add(floorMesh);
 
+  // Visual grid helper — remove old one first
+  if (window._gridHelper) { scene.remove(window._gridHelper); window._gridHelper = null; }
+  const xs2 = PLAN.polygon.map(p=>p.x), ys2 = PLAN.polygon.map(p=>p.y);
+  const gMinX = Math.min(...xs2), gMinY = Math.min(...ys2);
+  const gCx = gMinX + PLAN.floorW/2, gCz = gMinY + PLAN.floorD/2;
+  const gridSize = Math.max(PLAN.floorW, PLAN.floorD, 240);
+  const gridDivs = gridSize; // 1" divisions
+  const gridHelper = new THREE.GridHelper(gridSize, gridDivs, 0x1a1a2e, 0x1a1a2e);
+  gridHelper.position.set(gCx, 0.5, gCz); // slightly above floor to avoid z-fight
+  gridHelper.raycast = () => {}; // non-clickable
+  scene.add(gridHelper);
+  window._gridHelper = gridHelper;
+
   // Ceiling — same polygon, lifted to ceilingH, see-through
   if (ceilMesh) scene.remove(ceilMesh);
   const ceilGeo = new THREE.ShapeGeometry(new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,p.y))));
@@ -1926,6 +2058,19 @@ function buildRoom() {
   ceilMesh.userData.isCeil = true;
   ceilMesh.raycast = () => {};  // non-clickable
   scene.add(ceilMesh);
+
+  // Remove old soffit meshes
+  scene.children.filter(c => c.userData.isSoffit).forEach(c => scene.remove(c));
+  // Render ceiling zones (soffits)
+  (PLAN.ceilingZones || []).forEach(zone => {
+    const sGeo = new THREE.BoxGeometry(zone.w, zone.drop, zone.d);
+    const sMat = new THREE.MeshStandardMaterial({ color: 0x8899bb, transparent: true, opacity: 0.55, depthWrite: false });
+    const sMesh = new THREE.Mesh(sGeo, sMat);
+    sMesh.position.set(zone.x + zone.w/2, PLAN.ceilingH - zone.drop/2, zone.z + zone.d/2);
+    sMesh.userData.isSoffit = true;
+    sMesh.raycast = () => {};
+    scene.add(sMesh);
+  });
 
   // Walls
   PLAN.walls.forEach(w=>{
@@ -2226,11 +2371,13 @@ function getFloorPos() {
   const target = new THREE.Vector3();
   const hit = raycaster.ray.intersectPlane(plane, target);
   if (!hit) return null;
-  return { x: snap(target.x,1), z: snap(target.z,1), y: 0 };
+  const sg = APP.snapSize || 6;
+  return { x: snap(target.x, sg), z: snap(target.z, sg), y: 0 };
 }
 
 function getPlacementPos() {
   raycaster.setFromCamera(mouse3d, camera);
+  const sg = APP.snapSize || 6;
   // First: check top surfaces of placed items
   const itemMeshes = ITEMS.map(i=>i._mesh).filter(m=>m&&!m.userData.isGhost);
   if (itemMeshes.length) {
@@ -2239,7 +2386,7 @@ function getPlacementPos() {
       const h = hits[0];
       const norm = h.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(h.object.matrixWorld));
       if (norm.y > 0.6) {
-        return { x: snap(h.point.x,1), z: snap(h.point.z,1), y: h.point.y };
+        return { x: snap(h.point.x, sg), z: snap(h.point.z, sg), y: h.point.y };
       }
     }
   }
@@ -2248,7 +2395,7 @@ function getPlacementPos() {
   const target = new THREE.Vector3();
   const hitFloor = raycaster.ray.intersectPlane(plane, target);
   if (!hitFloor) return null;
-  return { x: snap(target.x,1), z: snap(target.z,1), y: 0 };
+  return { x: snap(target.x, sg), z: snap(target.z, sg), y: 0 };
 }
 
 // ── Group color coding ──
@@ -2434,6 +2581,16 @@ function showWallPanel3d(idx) {
   // Disable delete for exterior walls (would open polygon)
   const delBtn = document.getElementById('wp3d-delete');
   if (delBtn) { delBtn.disabled = !w.interior; delBtn.title = w.interior ? 'Delete this interior wall' : 'Use plan view to remove exterior walls'; }
+  // Add/update elevation view button
+  let elevBtn = document.getElementById('wp3d-elev-btn');
+  if (!elevBtn) {
+    elevBtn = document.createElement('button');
+    elevBtn.id = 'wp3d-elev-btn';
+    elevBtn.onclick = () => setView3D('wallelev');
+    elevBtn.style.cssText = 'margin-bottom:6px;padding:7px;border-radius:8px;background:var(--accent-dim);border:1px solid var(--border-glow);color:var(--accent);cursor:pointer;font-size:12px;font-family:inherit;';
+    elevBtn.textContent = 'Elevation View';
+    delBtn.insertAdjacentElement('beforebegin', elevBtn);
+  }
   const wp = document.getElementById('wall-panel-3d');
   if (wp) wp.style.display = 'flex';
 }
@@ -2771,7 +2928,7 @@ window.buildStudWall=function(){
   const pts=APP.studWizardPoints;
   if(pts.length<2) return;
   const [p1,p2]=pts;
-  const height=parseFloat(document.getElementById('sw-height').value)||96;
+  const height=parseDim(document.getElementById('sw-height').value)||96;
   const spacing=parseFloat(document.getElementById('sw-spacing').value)||16;
   const matType=document.getElementById('sw-material').value;
   const lt=LUMBER_TYPES.find(x=>x.id===matType+'-8')||LUMBER_TYPES[0];
@@ -3016,7 +3173,7 @@ window.exportCsv=function(){
 window.saveProject=function(){
   const data={
     version:1,
-    plan:{polygon:PLAN.polygon, walls:PLAN.walls.map(w=>({...w,openings:w.openings||[]})), ceilingH:PLAN.ceilingH},
+    plan:{polygon:PLAN.polygon, walls:PLAN.walls.map(w=>({...w,openings:w.openings||[]})), ceilingH:PLAN.ceilingH, ceilingZones:PLAN.ceilingZones||[]},
     items:ITEMS.map(it=>({type:it.type,position:it.position,rotation:it.rotation,group:it.group,_customLen:it._customLen})),
   };
   const a=document.createElement('a');
@@ -3034,6 +3191,7 @@ window.loadProject=function(input){
       PLAN.polygon=data.plan.polygon||[];
       PLAN.walls=data.plan.walls||[];
       PLAN.ceilingH=data.plan.ceilingH||108;
+      PLAN.ceilingZones=data.plan.ceilingZones||[];
       APP.drawPoints=PLAN.polygon.map(p=>({...p}));
       APP.isPolygonClosed=PLAN.polygon.length>=3;
       ITEMS.length=0;
@@ -3088,6 +3246,8 @@ window.ITEMS = ITEMS;
 window.PLAN  = PLAN;
 window.renderPlanWalls = renderPlanWalls;
 window.eraseWall = eraseWall;
+window.showWallProps = showWallProps;
+window.parseDim = parseDim;
 window.LUMBER_TYPES = LUMBER_TYPES;
 window.updateViewBox = updateViewBox;
 window.updateStatusHint = updateStatusHint;
@@ -3104,27 +3264,29 @@ function showItemPanel(item) {
   const l = item._customDims?.l ?? item._customLen ?? lt?.l ?? 0;
   document.getElementById('ip-type').textContent = lt
     ? `${lt.w}" × ${lt.h}" · ${fmtIn(l)} long` : item.type;
-  document.getElementById('ip-x').value = item.position[0].toFixed(1);
-  document.getElementById('ip-y').value = item.position[1].toFixed(1);
-  document.getElementById('ip-z').value = item.position[2].toFixed(1);
+  document.getElementById('ip-x').value = fmtIn(item.position[0]);
+  document.getElementById('ip-y').value = fmtIn(item.position[1]);
+  document.getElementById('ip-z').value = fmtIn(item.position[2]);
   document.getElementById('ip-len').value = (l||0).toFixed(1);
   const stockLen = lt?.l ?? 0;
   const hint = document.getElementById('ip-len-hint');
   hint.textContent = (l && stockLen && l < stockLen) ? `Cut from ${fmtIn(stockLen)} stock` : '';
+  document.getElementById('ip-cw').value = (item._customDims?.w ?? lt?.w ?? '').toString();
+  document.getElementById('ip-ch').value = (item._customDims?.h ?? lt?.h ?? '').toString();
   document.getElementById('ip-group').value = item.group || '';
   document.getElementById('item-panel').style.display = 'flex';
 }
 
 function refreshItemPanel(item) {
   if (!item) return;
-  document.getElementById('ip-x').value = item.position[0].toFixed(1);
-  document.getElementById('ip-y').value = item.position[1].toFixed(1);
-  document.getElementById('ip-z').value = item.position[2].toFixed(1);
+  document.getElementById('ip-x').value = fmtIn(item.position[0]);
+  document.getElementById('ip-y').value = fmtIn(item.position[1]);
+  document.getElementById('ip-z').value = fmtIn(item.position[2]);
 }
 
 window.applyItemPos = function(axis, val) {
   if (!APP.selectedItem) return;
-  const v = parseFloat(val); if (isNaN(v)) return;
+  const v = parseDim(val); if (isNaN(v)) return;
   const ax = {x:0,y:1,z:2}[axis];
   const delta = v - APP.selectedItem.position[ax];
   APP.selectedItems.forEach(it => {
@@ -3136,7 +3298,7 @@ window.applyItemPos = function(axis, val) {
 
 window.applyItemLen = function(val) {
   if (!APP.selectedItem) return;
-  const len = parseFloat(val); if (!len || len<=0) return;
+  const len = parseDim(val); if (!len || len<=0) return;
   const item = APP.selectedItem;
   const lt = LUMBER_TYPES.find(x=>x.id===item.type);
   if (!lt) return;
@@ -3149,6 +3311,32 @@ window.applyItemLen = function(val) {
   selectItem(item);
   const hint = document.getElementById('ip-len-hint');
   if (hint) hint.textContent = len < lt.l ? `Cut from ${fmtIn(lt.l)} stock` : '';
+};
+
+window.applyItemCW = function(val) {
+  if (!APP.selectedItem) return;
+  const v = parseDim(val); if (!v || v <= 0) return;
+  const item = APP.selectedItem;
+  const lt = LUMBER_TYPES.find(x => x.id === item.type);
+  if (!item._customDims) item._customDims = { l: item._customLen ?? lt?.l ?? 96, h: lt?.h ?? 3.5, w: lt?.w ?? 1.5 };
+  item._customDims.w = v;
+  if (item._mesh) scene.remove(item._mesh);
+  const mesh = buildItemMesh(item);
+  if (mesh) { scene.add(mesh); item._mesh = mesh; }
+  selectItem(item);
+};
+
+window.applyItemCH = function(val) {
+  if (!APP.selectedItem) return;
+  const v = parseDim(val); if (!v || v <= 0) return;
+  const item = APP.selectedItem;
+  const lt = LUMBER_TYPES.find(x => x.id === item.type);
+  if (!item._customDims) item._customDims = { l: item._customLen ?? lt?.l ?? 96, h: lt?.h ?? 3.5, w: lt?.w ?? 1.5 };
+  item._customDims.h = v;
+  if (item._mesh) scene.remove(item._mesh);
+  const mesh = buildItemMesh(item);
+  if (mesh) { scene.add(mesh); item._mesh = mesh; }
+  selectItem(item);
 };
 
 window.applyItemGroup = function(val) {
@@ -3196,6 +3384,23 @@ window.setView3D = function(mode) {
   } else if (mode==='top') {
     camera.position.set(cx, roomR2*1.6, cz + 1);
     controls.target.set(cx, 0, cz);
+  } else if (mode==='wallelev') {
+    const idx = APP.selectedWall3d;
+    if (idx === null || idx === undefined || !PLAN.walls[idx]) {
+      // No wall selected — fall back to front view
+      camera.position.set(cx, PLAN.ceilingH*0.5, cz - roomR2*1.4);
+      controls.target.set(cx, PLAN.ceilingH*0.4, cz);
+    } else {
+      const w = PLAN.walls[idx];
+      const wmx = (w.x1 + w.x2) / 2, wmz = (w.y1 + w.y2) / 2;
+      const wH = w.height || PLAN.ceilingH;
+      const wLen = wallLength(w);
+      const ang = Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
+      const perpX = -Math.sin(ang), perpZ = Math.cos(ang);
+      const dist3 = Math.max(wLen, wH) * 1.5;
+      camera.position.set(wmx + perpX * dist3, wH * 0.5, wmz + perpZ * dist3);
+      controls.target.set(wmx, wH * 0.5, wmz);
+    }
   }
   controls.update();
   document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
@@ -3226,9 +3431,9 @@ window.addShelfHeight = function(val) {
   const row = document.createElement('div');
   row.className='sh-height-row';
   const inp = document.createElement('input');
-  inp.type='number'; inp.className='sh-height-input'; inp.min='1'; inp.max='120'; inp.step='1';
+  inp.type='text'; inp.className='sh-height-input';
   inp.value = val || '';
-  inp.placeholder = 'Height in inches';
+  inp.placeholder = "e.g. 36 or 3'";
   const rm = document.createElement('button');
   rm.className='sh-rm-btn'; rm.textContent='✕';
   rm.onclick = () => row.remove();
@@ -3242,6 +3447,19 @@ window.removeShelfHeight = function(btn) {
 };
 
 window.startShelfPlacement = function() {
+  // Check if exact X/Z position provided
+  const posXEl = document.getElementById('sh-pos-x');
+  const posZEl = document.getElementById('sh-pos-z');
+  const posXVal = posXEl?.value?.trim();
+  const posZVal = posZEl?.value?.trim();
+  if (posXVal !== '' && posZVal !== '' && posXVal !== undefined && posZVal !== undefined) {
+    const px = parseDim(posXVal), pz = parseDim(posZVal);
+    if (!isNaN(px) && !isNaN(pz)) {
+      document.getElementById('shelf-wizard-modal').style.display='none';
+      buildShelfUnit({x: px, z: pz, y: 0});
+      return;
+    }
+  }
   // Close modal first — it blocks the canvas click
   document.getElementById('shelf-wizard-modal').style.display='none';
   const canvas = renderer.domElement;
@@ -3266,15 +3484,25 @@ window.startShelfPlacement = function() {
 
 window.buildShelfUnit = function(origin) {
   pushUndo();
-  const W  = parseFloat(document.getElementById('sh-width').value)||48;
-  const D  = parseFloat(document.getElementById('sh-depth').value)||16;
-  const H  = parseFloat(document.getElementById('sh-height').value)||84;
+  const W  = parseDim(document.getElementById('sh-width').value)||48;
+  const D  = parseDim(document.getElementById('sh-depth').value)||16;
+  const H  = parseDim(document.getElementById('sh-height').value)||84;
   const nU = parseInt(document.getElementById('sh-uprights').value)||2;
   const upId   = document.getElementById('sh-upright-type').value;
   const shId   = document.getElementById('sh-shelf-type').value;
   const backId = document.getElementById('sh-back').value;
-  const shelfHeights = Array.from(document.querySelectorAll('.sh-height-input'))
-    .map(el=>parseFloat(el.value)).filter(v=>!isNaN(v)&&v>0&&v<H);
+  // Compute shelf heights: auto-space or custom
+  let shelfHeights;
+  if (document.getElementById('sh-mode-auto')?.checked) {
+    const count = Math.max(1, parseInt(document.getElementById('sh-count').value)||5);
+    shelfHeights = [];
+    for (let i = 1; i <= count; i++) {
+      shelfHeights.push(Math.round(H * i / (count + 1)));
+    }
+  } else {
+    shelfHeights = Array.from(document.querySelectorAll('.sh-height-input'))
+      .map(el=>parseDim(el.value)).filter(v=>!isNaN(v)&&v>0&&v<H);
+  }
   const grpName = 'Shelf-'+Date.now().toString(36).slice(-5);
   const ox=origin.x, oz=origin.z;
 
@@ -3601,6 +3829,23 @@ async function photoToMeshyViaServer(file) {
   } catch(err) { document.getElementById('glb-modal').classList.remove('open'); alert('Error: '+err.message); }
 }
 window.cancelMeshy=function(){ if(_meshyPollTimer)clearInterval(_meshyPollTimer); document.getElementById('glb-modal').classList.remove('open'); };
+
+window.addSoffitZone = function() {
+  const zone = {
+    id: 'sft-' + Date.now(),
+    label: document.getElementById('sft-label').value || 'Soffit',
+    x: parseDim(document.getElementById('sft-x').value) || 0,
+    z: parseDim(document.getElementById('sft-z').value) || 0,
+    w: parseDim(document.getElementById('sft-w').value) || 62,
+    d: parseDim(document.getElementById('sft-d').value) || 96,
+    drop: parseDim(document.getElementById('sft-drop').value) || 17,
+  };
+  if (!PLAN.ceilingZones) PLAN.ceilingZones = [];
+  PLAN.ceilingZones.push(zone);
+  document.getElementById('soffit-modal').style.display = 'none';
+  buildRoom();
+  rebuildItems();
+};
 
 // ══════════════════════════════════════════════════════════
 

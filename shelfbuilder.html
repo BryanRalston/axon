@@ -709,6 +709,11 @@
 
     <!-- CUT LIST TAB -->
     <div class="tab-content active" id="tab-cutlist">
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <span style="font-size:10px;color:var(--text-muted)">Group by:</span>
+        <button class="tb-btn active" id="cl-group-type" style="font-size:11px;padding:3px 8px">By Type</button>
+        <button class="tb-btn" id="cl-group-material" style="font-size:11px;padding:3px 8px">By Material</button>
+      </div>
       <div id="cutlist-pane">
         <table class="cutlist-table" id="cl-table">
           <thead>
@@ -920,6 +925,9 @@ let isExploded = false;
 let isPlacingShelf = false;
 let ghostShelf = null;
 let ghostShelfY = 24;  // inches
+let isPlacingUpright = false;
+let ghostUpright = null;
+let ghostUprightX = 24; // inches
 let confirmCallback = null;
 let autoSaveTimer = null;
 let animating = [];    // active animations [{mesh, from, to, startTime, duration}]
@@ -1194,7 +1202,7 @@ function animate() {
     // Color feedback
     const conflict = hasShelfConflict(ghostShelfY);
     ghostShelf.material.color.set(conflict ? 0xFF4444 : 0x22D3EE);
-    ghostShelf.material.opacity = conflict ? 0.25 : 0.18;
+    ghostShelf.material.opacity = conflict ? 0.3 : 0.5;
   }
 
   renderer.render(scene, camera);
@@ -1541,10 +1549,7 @@ function renderStepUI() {
       break;
 
     case 'uprights': {
-      btn('+ Middle Upright', '', () => {
-        const { w } = UNIT.envelope;
-        addPart(calcUpright(w / 2));
-      });
+      btn('+ Middle Upright', '', () => startUprightPlacement());
       btn('Skip →', 'secondary', () => nextStep());
       if (UNIT.parts.some(p => p.type === 'upright')) btn('Next →', 'success-btn', () => nextStep());
       break;
@@ -1552,13 +1557,18 @@ function renderStepUI() {
 
     case 'frame':
       if (UNIT.style === 'faceframe') {
-        const hasFace = UNIT.parts.some(p => p.type === 'stile');
-        if (!hasFace) btn('Generate Face Frame', 'highlighted', () => {
+        const hasFace = UNIT.parts.some(p => p.type === 'stile' || p.type === 'rail');
+        btn(hasFace ? '↺ Regenerate Face Frame' : 'Generate Face Frame', hasFace ? '' : 'highlighted', () => {
           pushUndo();
+          // Clear old face frame pieces
+          const oldFF = UNIT.parts.filter(p => p.type === 'stile' || p.type === 'rail').map(p => p.id);
+          oldFF.forEach(id => { removeMeshFor(id); });
+          UNIT.parts = UNIT.parts.filter(p => p.type !== 'stile' && p.type !== 'rail');
+          // Add new
           const ff = calcFaceFrame();
           ff.forEach(p => { UNIT.parts.push(p); addPartMesh(p, true); });
           renderPartsList(); renderCutList(); autoSave();
-          showToast('Face frame added!');
+          showToast('Face frame generated!');
         });
         btn(hasFace ? 'Next →' : 'Skip', hasFace ? 'success-btn' : 'secondary', () => nextStep());
       } else {
@@ -1566,13 +1576,22 @@ function renderStepUI() {
       }
       break;
 
-    case 'review':
+    case 'review': {
+      renderReviewSummary();
       btn('Print Cut List', '', () => printCutList());
+      btn('Download CSV', 'secondary', () => document.getElementById('btn-export-csv').click());
+      btn('Drill Template', 'secondary', () => {
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelector('.panel-tab[data-tab="drill"]').classList.add('active');
+        document.getElementById('tab-drill').classList.add('active');
+      });
       btn('Export to BuildPlan', '', () => showExportModal());
-      btn('+ New Unit', 'secondary', () => {
+      btn('+ Start New Unit', 'secondary', () => {
         if (confirm('Start a new unit? Current work is auto-saved.')) showWizard();
       });
       break;
+    }
   }
 }
 
@@ -1583,31 +1602,98 @@ function renderFreeModeUI() {
 
   const actDiv = document.getElementById('step-actions');
   actDiv.innerHTML = '';
-  function btn(label, onclick) {
+
+  function sectionLabel(text) {
+    const d = document.createElement('div');
+    d.style.cssText = 'font-size:9px;font-weight:600;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase;padding:6px 4px 2px;';
+    d.textContent = text;
+    actDiv.appendChild(d);
+  }
+
+  function btn(label, cls, onclick) {
     const b = document.createElement('button');
-    b.className = 'action-btn';
+    b.className = 'action-btn ' + (cls || '');
     b.textContent = label;
     b.onclick = onclick;
     actDiv.appendChild(b);
   }
-  if (!hasPart('ls')) btn('Add Left Side', () => addPart(calcLeftSide()));
-  if (!hasPart('rs')) btn('Add Right Side', () => addPart(calcRightSide()));
-  if (!hasPart('bot')) btn('Add Bottom', () => addPart(calcBottom()));
-  if (!hasPart('top')) btn('Add Top', () => addPart(calcTop()));
-  if (!hasPart('back')) btn('Add Back Panel', () => addPart(calcBack()));
-  if (!hasPart('tk')) btn('Add Toe Kick', () => addPart(calcToeKick()));
-  btn('+ Add Shelf', () => startShelfPlacement());
-  btn('+ Middle Upright', () => addPart(calcUpright(UNIT.envelope.w / 2)));
-  if (UNIT.style === 'faceframe' && !UNIT.parts.some(p => p.type === 'stile')) {
-    btn('Generate Face Frame', () => {
+
+  sectionLabel('Sides');
+  if (!hasPart('ls')) btn('Add Left Side', '', () => addPart(calcLeftSide()));
+  if (!hasPart('rs')) btn('Add Right Side', '', () => addPart(calcRightSide()));
+
+  sectionLabel('Top / Bottom');
+  if (!hasPart('bot')) btn('Add Bottom', '', () => addPart(calcBottom()));
+  if (!hasPart('top')) btn('Add Top', '', () => addPart(calcTop()));
+
+  sectionLabel('Structure');
+  if (!hasPart('back')) btn('Add Back Panel', '', () => addPart(calcBack()));
+  if (!hasPart('tk')) btn('Add Toe Kick', '', () => addPart(calcToeKick()));
+
+  sectionLabel('Shelves');
+  btn('+ Add Shelf', 'highlighted', () => startShelfPlacement());
+
+  sectionLabel('Uprights');
+  btn('+ Middle Upright', '', () => startUprightPlacement());
+
+  if (UNIT.style === 'faceframe') {
+    sectionLabel('Face Frame');
+    const hasFace = UNIT.parts.some(p => p.type === 'stile' || p.type === 'rail');
+    btn(hasFace ? '↺ Regenerate Face Frame' : 'Generate Face Frame', hasFace ? '' : 'highlighted', () => {
       pushUndo();
+      const oldFF = UNIT.parts.filter(p => p.type === 'stile' || p.type === 'rail').map(p => p.id);
+      oldFF.forEach(id => removeMeshFor(id));
+      UNIT.parts = UNIT.parts.filter(p => p.type !== 'stile' && p.type !== 'rail');
       calcFaceFrame().forEach(p => { UNIT.parts.push(p); addPartMesh(p, true); });
       renderPartsList(); renderCutList(); autoSave();
+      showToast('Face frame generated!');
     });
   }
 }
 
 function hasPart(id) { return !!UNIT.parts.find(p => p.id === id); }
+
+function renderReviewSummary() {
+  const step = STEP_DEFS[currentStep];
+  const matDb = MATERIALS_DB[UNIT.material];
+  const totalParts = UNIT.parts.length;
+  const shelves = UNIT.parts.filter(p => p.type === 'shelf').length;
+  const uprights = UNIT.parts.filter(p => p.type === 'upright').length;
+  const faceFrame = UNIT.parts.filter(p => p.type === 'stile' || p.type === 'rail').length;
+
+  let totalSqin = 0, totalWeight = 0;
+  UNIT.parts.forEach(p => {
+    const sqin = p.dims.w * p.dims.h;
+    totalSqin += sqin;
+    totalWeight += (sqin / 144) * matDb.lbsPerSqft;
+  });
+  const sheetSqin = 48 * 96;
+  const sheetsNeeded = matDb.sheetW ? Math.ceil(totalSqin / sheetSqin) : null;
+  const cost = sheetsNeeded ? (sheetsNeeded * matDb.pricePerSheet).toFixed(2) : 'N/A';
+
+  const promptEl = document.getElementById('step-prompt');
+  promptEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Total Parts</div>
+        <div style="font-size:18px;font-weight:700;color:var(--accent)">${totalParts}</div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Shelves</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)">${shelves}</div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Est. Cost</div>
+        <div style="font-size:16px;font-weight:700;color:var(--success)">$${cost}</div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px">
+        <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Est. Weight</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text)">${totalWeight.toFixed(0)} lbs</div>
+      </div>
+    </div>
+    ${sheetsNeeded ? `<div style="margin-top:6px;font-size:11px;color:var(--text-muted)">${(totalSqin/sheetSqin).toFixed(2)} sheets → ${sheetsNeeded} sheet${sheetsNeeded!==1?'s':''} of ${matDb.name}${faceFrame ? ` + face frame lumber` : ''}</div>` : ''}
+  `;
+}
 
 // ─── PARTS LIST ──────────────────────────────────────────────────────────────
 
@@ -1774,7 +1860,7 @@ function startShelfPlacement() {
   // Build ghost mesh
   const geo = new THREE.BoxGeometry(innerW, t, d);
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x22D3EE, transparent: true, opacity: 0.18, roughness: 0.5
+    color: 0x22D3EE, transparent: true, opacity: 0.5, roughness: 0.5
   });
   ghostShelf = new THREE.Mesh(geo, mat);
   ghostShelf.position.set(w/2, defaultY + t/2, d/2);
@@ -1835,8 +1921,76 @@ document.getElementById('shelf-height-input').addEventListener('input', (e) => {
   updateShelfHUD();
 });
 
+document.getElementById('shelf-height-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); confirmShelfPlacement(); }
+  if (e.key === 'Escape') { e.preventDefault(); cancelShelfPlacement(); }
+});
+
 document.getElementById('btn-confirm-shelf').addEventListener('click', confirmShelfPlacement);
 document.getElementById('btn-cancel-shelf').addEventListener('click', cancelShelfPlacement);
+
+// ─── UPRIGHT PLACEMENT ───────────────────────────────────────────────────────
+
+function startUprightPlacement() {
+  isPlacingUpright = true;
+  const { w, h, d } = UNIT.envelope;
+  const t = UNIT.thickness;
+  ghostUprightX = Math.round(w / 2 / 0.125) * 0.125;
+
+  const by = getBottomY();
+  const botPart = UNIT.parts.find(p => p.type === 'bottom');
+  const topPart = UNIT.parts.find(p => p.type === 'top');
+  const bottomTop = botPart ? (by + t) : 0;
+  const topBot = topPart ? (h - t) : h;
+  const innerH = topBot - bottomTop;
+
+  const geo = new THREE.BoxGeometry(t, innerH, d);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x22D3EE, transparent: true, opacity: 0.25, roughness: 0.5 });
+  ghostUpright = new THREE.Mesh(geo, mat);
+  ghostUpright.position.set(ghostUprightX, bottomTop + innerH/2, d/2);
+  scene.add(ghostUpright);
+
+  controls.enabled = false;
+  showToast('Click in viewport or type X position — Enter to place, Esc to cancel');
+
+  // Show a small prompt at the bottom of step-prompt
+  const promptEl = document.getElementById('step-prompt');
+  promptEl.innerHTML = `Upright at <strong style="color:var(--accent)">${fmtIn(ghostUprightX)}"</strong> from left. Click in 3D to set X, or
+    <input id="upright-x-input" type="number" step="0.125" min="1" value="${ghostUprightX}"
+      style="background:var(--bg-card);border:1px solid var(--border-glow);border-radius:4px;color:var(--accent);padding:2px 6px;font-size:12px;width:70px;font-family:JetBrains Mono,monospace">
+    <button onclick="confirmUprightPlacement()" style="background:var(--accent-bg);border:1px solid var(--border-glow);border-radius:4px;color:var(--accent);padding:2px 8px;font-size:12px;cursor:pointer;font-family:inherit">Place</button>
+    <button onclick="cancelUprightPlacement()" style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);padding:2px 8px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:4px">Cancel</button>`;
+
+  document.getElementById('upright-x-input')?.addEventListener('input', (e) => {
+    let v = parseFloat(e.target.value);
+    if (isNaN(v)) return;
+    v = Math.round(v / 0.125) * 0.125;
+    ghostUprightX = v;
+    if (ghostUpright) ghostUpright.position.x = v;
+    const promptEl = document.getElementById('step-prompt');
+    const strong = promptEl.querySelector('strong');
+    if (strong) strong.textContent = `${fmtIn(v)}"`;
+  });
+  document.getElementById('upright-x-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmUprightPlacement(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelUprightPlacement(); }
+  });
+}
+
+function cancelUprightPlacement() {
+  if (ghostUpright) { scene.remove(ghostUpright); ghostUpright.geometry.dispose(); ghostUpright.material.dispose(); ghostUpright = null; }
+  isPlacingUpright = false;
+  controls.enabled = true;
+  renderStepUI();
+}
+
+function confirmUprightPlacement() {
+  if (!isPlacingUpright) return;
+  const x = ghostUprightX;
+  cancelUprightPlacement();
+  addPart(calcUpright(x));
+  renderStepUI();
+}
 
 // ─── RAYCASTING ──────────────────────────────────────────────────────────────
 
@@ -1870,7 +2024,7 @@ function onCanvasMouseMove(e) {
     tooltipEl.style.display = 'none';
   }
 
-  // Ghost shelf drag (vertical plane)
+  // Ghost shelf drag (vertical plane at x=w/2)
   if (isPlacingShelf && ghostShelf) {
     const { w, d } = UNIT.envelope;
     const planeNormal = new THREE.Vector3(1, 0, 0);
@@ -1889,12 +2043,38 @@ function onCanvasMouseMove(e) {
       updateShelfHUD();
     }
   }
+
+  // Ghost upright drag (horizontal — Y=h/2 plane, reads X)
+  if (isPlacingUpright && ghostUpright) {
+    const { w, h, d } = UNIT.envelope;
+    const t = UNIT.thickness;
+    const planeNormal = new THREE.Vector3(0, 1, 0);
+    const planePoint = new THREE.Vector3(w/2, h/2, d/2);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, planePoint);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, target);
+    if (target) {
+      let x = target.x;
+      x = Math.round(x / 0.125) * 0.125;
+      x = Math.max(t * 2, Math.min(w - t * 2, x));
+      ghostUprightX = x;
+      ghostUpright.position.x = x;
+      const inp = document.getElementById('upright-x-input');
+      if (inp) inp.value = x;
+      const promptEl = document.getElementById('step-prompt');
+      const strong = promptEl?.querySelector('strong');
+      if (strong) strong.textContent = `${fmtIn(x)}"`;
+    }
+  }
 }
 
 function onCanvasClick(e) {
   if (isPlacingShelf) {
-    // Click in 3D to confirm placement
     confirmShelfPlacement();
+    return;
+  }
+  if (isPlacingUpright) {
+    confirmUprightPlacement();
     return;
   }
 
@@ -1976,6 +2156,18 @@ function fmtInPlain(v) {
   return (Math.round(v * 8) / 8).toFixed(3).replace(/\.?0+$/, '');
 }
 
+let cutlistGroupMode = 'type'; // 'type' | 'material'
+
+function getPartMaterialLabel(part) {
+  if (part.type === 'stile' || part.type === 'rail') return '1-1/2" Solid Wood (Face Frame)';
+  if (part.dims.t === 0.25) return '1/4" Plywood';
+  if (part.dims.t === 0.75) {
+    const matDb = MATERIALS_DB[UNIT.material];
+    return `3/4" ${matDb ? matDb.name : 'Plywood'}`;
+  }
+  return `${fmtIn(part.dims.t)}" ${MATERIALS_DB[UNIT.material]?.name || 'Sheet Good'}`;
+}
+
 function renderCutList() {
   const tbody = document.getElementById('cl-body');
   if (!UNIT.parts.length) {
@@ -1986,18 +2178,50 @@ function renderCutList() {
     return;
   }
 
-  const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
-  tbody.innerHTML = sorted.map(p => {
-    const vals = [p.dims.w, p.dims.h, p.dims.t].sort((a, b) => b - a);
-    return `<tr data-id="${p.id}">
-      <td class="td-label">${p.label}</td>
-      <td class="td-dim">${fmtIn(vals[0])}"</td>
-      <td class="td-dim">${fmtIn(vals[1])}"</td>
-      <td class="td-dim">${fmtIn(vals[2])}"</td>
-    </tr>`;
-  }).join('');
+  let rows = '';
 
-  tbody.querySelectorAll('tr').forEach(row => {
+  if (cutlistGroupMode === 'material') {
+    // Group by material/thickness
+    const groups = {};
+    UNIT.parts.forEach(p => {
+      const key = getPartMaterialLabel(p);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+    Object.entries(groups).forEach(([matLabel, parts]) => {
+      rows += `<tr><td colspan="4" style="background:var(--bg-card);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.06em;padding:5px 8px;text-transform:uppercase">${matLabel}</td></tr>`;
+      parts.forEach(p => {
+        const vals = [p.dims.w, p.dims.h, p.dims.t].sort((a, b) => b - a);
+        rows += `<tr data-id="${p.id}" style="cursor:pointer">
+          <td class="td-label">${p.label}</td>
+          <td class="td-dim">${fmtIn(vals[0])}"</td>
+          <td class="td-dim">${fmtIn(vals[1])}"</td>
+          <td class="td-dim">${fmtIn(vals[2])}"</td>
+        </tr>`;
+      });
+    });
+  } else {
+    // Group by type (original behavior)
+    const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+    let lastType = null;
+    sorted.forEach(p => {
+      if (p.type !== lastType) {
+        const typeLabel = p.type.charAt(0).toUpperCase() + p.type.slice(1) + 's';
+        rows += `<tr><td colspan="4" style="background:var(--bg-card);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.06em;padding:5px 8px;text-transform:uppercase">${typeLabel}</td></tr>`;
+        lastType = p.type;
+      }
+      const vals = [p.dims.w, p.dims.h, p.dims.t].sort((a, b) => b - a);
+      rows += `<tr data-id="${p.id}" style="cursor:pointer">
+        <td class="td-label">${p.label}</td>
+        <td class="td-dim">${fmtIn(vals[0])}"</td>
+        <td class="td-dim">${fmtIn(vals[1])}"</td>
+        <td class="td-dim">${fmtIn(vals[2])}"</td>
+      </tr>`;
+    });
+  }
+
+  tbody.innerHTML = rows;
+  tbody.querySelectorAll('tr[data-id]').forEach(row => {
     row.addEventListener('click', () => selectPart(row.dataset.id));
   });
 
@@ -2114,42 +2338,61 @@ function renderDrillTemplate() {
   if (!ls) { container.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--text-muted)">Add left side panel first.</div>'; return; }
 
   const panelH = ls.dims.h;
-  const panelD = ls.dims.t;
-  const spacing = 32 / 25.4; // 32mm in inches
+  const panelD = ls.dims.t; // depth of panel = panel "width" in top view
+  const spacing = 32 / 25.4; // 32mm in inches ≈ 1.26"
   const fromEdge = 1.5;
   const startY = 2;
   const endY = panelH - 2;
-  const SCALE = 3;
+  const SCALE = 4;
+  const LEFT_MARGIN = 28; // room for dim labels
+  const TOP_MARGIN = 8;
 
   const shelves = UNIT.parts.filter(p => p.type === 'shelf');
-  const shelfYs = new Set(shelves.map(s => Math.round(s.shelfY / spacing) * spacing));
 
   let dots = '';
   let y = startY;
   while (y <= endY) {
-    const row = Math.round(y / spacing) * spacing;
     const isShelf = shelves.some(s => Math.abs(s.shelfY - y) < spacing * 0.6);
-    const dotFill = isShelf ? '#22D3EE' : 'rgba(100,100,120,0.8)';
-    const dotR = isShelf ? 3 : 2;
-    // Front column
-    dots += `<circle cx="${fromEdge*SCALE}" cy="${y*SCALE}" r="${dotR}" fill="${dotFill}" stroke="rgba(34,211,238,0.3)" stroke-width="0.5"/>`;
-    // Back column
-    dots += `<circle cx="${(panelD-fromEdge)*SCALE}" cy="${y*SCALE}" r="${dotR}" fill="${dotFill}" stroke="rgba(34,211,238,0.3)" stroke-width="0.5"/>`;
-    // Labels at shelves
+    const dotFill = isShelf ? '#22D3EE' : '#444';
+    const dotR = isShelf ? 3.5 : 2.5;
+    const dotStroke = isShelf ? 'rgba(34,211,238,0.6)' : '#555';
+    // Front column (left side of panel as drawn)
+    dots += `<circle cx="${LEFT_MARGIN + fromEdge*SCALE}" cy="${TOP_MARGIN + y*SCALE}" r="${dotR}" fill="${dotFill}" stroke="${dotStroke}" stroke-width="0.8"/>`;
+    // Back column (right side of panel)
+    dots += `<circle cx="${LEFT_MARGIN + (panelD-fromEdge)*SCALE}" cy="${TOP_MARGIN + y*SCALE}" r="${dotR}" fill="${dotFill}" stroke="${dotStroke}" stroke-width="0.8"/>`;
     if (isShelf) {
-      dots += `<text x="${(panelD-fromEdge)*SCALE+6}" y="${y*SCALE+3}" font-size="6" fill="var(--accent)" font-family="JetBrains Mono">${fmtIn(y)}"</text>`;
+      dots += `<text x="${LEFT_MARGIN + panelD*SCALE + 6}" y="${TOP_MARGIN + y*SCALE + 3}" font-size="7" fill="#22D3EE" font-family="JetBrains Mono,monospace">${fmtIn(y)}"</text>`;
     }
     y += spacing;
   }
 
   const W = panelD * SCALE;
   const H = panelH * SCALE;
+  const totalW = LEFT_MARGIN + W + 80;
+  const totalH = TOP_MARGIN + H + 24;
+
+  // Dimension annotations
+  const dimAnnotations = `
+    <!-- 1.5" inset arrows front -->
+    <line x1="${LEFT_MARGIN}" y1="${TOP_MARGIN + startY*SCALE}" x2="${LEFT_MARGIN + fromEdge*SCALE}" y2="${TOP_MARGIN + startY*SCALE}" stroke="rgba(34,211,238,0.4)" stroke-width="0.8" stroke-dasharray="2,2"/>
+    <text x="${LEFT_MARGIN + fromEdge*SCALE/2}" y="${TOP_MARGIN + startY*SCALE - 4}" font-size="6.5" fill="rgba(34,211,238,0.7)" text-anchor="middle" font-family="Inter">1.5"</text>
+    <!-- 1.5" inset arrows back -->
+    <line x1="${LEFT_MARGIN + (panelD-fromEdge)*SCALE}" y1="${TOP_MARGIN + startY*SCALE}" x2="${LEFT_MARGIN + panelD*SCALE}" y2="${TOP_MARGIN + startY*SCALE}" stroke="rgba(34,211,238,0.4)" stroke-width="0.8" stroke-dasharray="2,2"/>
+    <text x="${LEFT_MARGIN + (panelD-fromEdge/2)*SCALE}" y="${TOP_MARGIN + startY*SCALE - 4}" font-size="6.5" fill="rgba(34,211,238,0.7)" text-anchor="middle" font-family="Inter">1.5"</text>
+    <!-- Panel depth label -->
+    <text x="${LEFT_MARGIN + W/2}" y="${TOP_MARGIN + H + 16}" font-size="8" fill="rgba(113,113,122,1)" text-anchor="middle" font-family="Inter">${fmtIn(panelD)}" deep</text>
+    <!-- Panel height left label -->
+    <text x="4" y="${TOP_MARGIN + H/2}" font-size="8" fill="rgba(113,113,122,1)" text-anchor="middle" font-family="Inter" transform="rotate(-90, 4, ${TOP_MARGIN + H/2})">${fmtIn(panelH)}" tall</text>
+    <!-- "FRONT" and "BACK" labels -->
+    <text x="${LEFT_MARGIN + fromEdge*SCALE}" y="${TOP_MARGIN - 1}" font-size="7" fill="rgba(34,211,238,0.5)" text-anchor="middle" font-family="Inter">FRONT</text>
+    <text x="${LEFT_MARGIN + (panelD-fromEdge)*SCALE}" y="${TOP_MARGIN - 1}" font-size="7" fill="rgba(34,211,238,0.5)" text-anchor="middle" font-family="Inter">BACK</text>
+  `;
 
   container.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${W+60}" height="${H+20}" style="display:block">
-      <rect x="0" y="0" width="${W}" height="${H}" fill="#0d0d14" stroke="rgba(34,211,238,0.4)" stroke-width="1"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" style="display:block">
+      <rect x="${LEFT_MARGIN}" y="${TOP_MARGIN}" width="${W}" height="${H}" fill="#0d0d14" stroke="rgba(34,211,238,0.4)" stroke-width="1"/>
+      ${dimAnnotations}
       ${dots}
-      <text x="${W+4}" y="10" font-size="7" fill="var(--text-muted)" font-family="Inter">Panel: ${fmtIn(panelD)}" × ${fmtIn(panelH)}"</text>
     </svg>`;
 }
 
@@ -2236,6 +2479,21 @@ document.querySelectorAll('.panel-tab').forEach(tab => {
   });
 });
 
+// ─── CUT LIST GROUP TOGGLE ───────────────────────────────────────────────────
+
+document.getElementById('cl-group-type').addEventListener('click', () => {
+  cutlistGroupMode = 'type';
+  document.getElementById('cl-group-type').classList.add('active');
+  document.getElementById('cl-group-material').classList.remove('active');
+  renderCutList();
+});
+document.getElementById('cl-group-material').addEventListener('click', () => {
+  cutlistGroupMode = 'material';
+  document.getElementById('cl-group-material').classList.add('active');
+  document.getElementById('cl-group-type').classList.remove('active');
+  renderCutList();
+});
+
 // ─── MODE TOGGLE ─────────────────────────────────────────────────────────────
 
 document.getElementById('btn-mode-toggle').addEventListener('click', () => {
@@ -2259,10 +2517,12 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     if (isPlacingShelf) cancelShelfPlacement();
+    if (isPlacingUpright) cancelUprightPlacement();
     deselectAll();
   }
-  if (e.key === 'Enter' && isPlacingShelf) {
-    confirmShelfPlacement();
+  if (e.key === 'Enter') {
+    if (isPlacingShelf) confirmShelfPlacement();
+    if (isPlacingUpright) confirmUprightPlacement();
   }
 });
 
@@ -2295,8 +2555,7 @@ function showExportModal() {
     w: UNIT.envelope.w,
     h: UNIT.envelope.h,
     d: UNIT.envelope.d,
-    color: '#C49A6C',
-    _shelfData: UNIT
+    color: '#C49A6C'
   };
   document.getElementById('export-code').value = JSON.stringify(exportObj, null, 2);
   document.getElementById('export-modal').style.display = 'flex';
@@ -2406,7 +2665,7 @@ function showToast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────

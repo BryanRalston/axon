@@ -1406,6 +1406,7 @@ function removePart(partId) {
   if (selectedPartId === partId) { selectedPartId = null; updatePropsPane(); }
   renderPartsList();
   renderCutList();
+  renderStepUI();
   autoSave();
 }
 
@@ -1436,6 +1437,7 @@ function undo() {
   rebuildAllMeshes();
   renderPartsList();
   renderCutList();
+  renderStepUI();
   updateUndoRedoBtns();
   if (selectedPartId && !UNIT.parts.find(p => p.id === selectedPartId)) {
     selectedPartId = null; updatePropsPane();
@@ -1449,6 +1451,7 @@ function redo() {
   rebuildAllMeshes();
   renderPartsList();
   renderCutList();
+  renderStepUI();
   updateUndoRedoBtns();
 }
 
@@ -1984,6 +1987,7 @@ function cancelUprightPlacement() {
   controls.enabled = true;
   renderStepUI();
 }
+window.cancelUprightPlacement = cancelUprightPlacement;
 
 function confirmUprightPlacement() {
   if (!isPlacingUpright) return;
@@ -1992,6 +1996,7 @@ function confirmUprightPlacement() {
   addPart(calcUpright(x));
   renderStepUI();
 }
+window.confirmUprightPlacement = confirmUprightPlacement;
 
 // ─── RAYCASTING ──────────────────────────────────────────────────────────────
 
@@ -2648,6 +2653,7 @@ function autoSave() {
   autoSaveTimer = setTimeout(() => {
     try { localStorage.setItem('shelfbuilder_current', JSON.stringify(UNIT)); } catch(e) {}
   }, 1000);
+  // expose for testing
 }
 
 function loadSaved() {
@@ -2707,6 +2713,19 @@ if (saved && saved.parts && saved.parts.length > 0) {
 
 // Window resize fallback
 window.addEventListener('resize', () => resizeRenderer());
+
+// Live test hook — serializable state only (no Three.js objects)
+Object.defineProperty(window, '_SB', {
+  get: () => ({
+    UNIT: JSON.parse(JSON.stringify(UNIT)),
+    undoDepth: undoStack.length,
+    redoDepth: redoStack.length,
+    meshVisible: Object.fromEntries(Object.entries(meshMap).map(([k,m]) => [k, m.visible])),
+    currentStep,
+    freeMode
+  }),
+  configurable: true
+});
 
 </script>
 </body>

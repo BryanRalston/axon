@@ -1392,6 +1392,7 @@ function addPart(part) {
   addPartMesh(part, true);
   renderPartsList();
   renderCutList();
+  renderStepUI();
   autoSave();
   showToast(`Added: ${part.label}`);
 }

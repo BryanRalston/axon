@@ -890,6 +890,136 @@
   .csb-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .csb-value { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
   .csb-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ─── MOBILE TAB BAR ─── */
+  #mobile-tabs {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 56px;
+    background: var(--bg-base);
+    border-top: 1px solid var(--border);
+    display: none; /* shown only on mobile via media query */
+    z-index: 200;
+  }
+  .mob-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 4px;
+    transition: color 0.15s;
+  }
+  .mob-tab.active { color: var(--accent); border-top: 2px solid var(--accent); margin-top: -1px; }
+  .mob-tab:hover:not(.active) { color: var(--text); }
+
+  /* ─── MOBILE RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    html, body { overflow: auto; }
+
+    #mobile-tabs { display: flex; }
+
+    /* Push app content above tab bar */
+    body { padding-bottom: 56px; }
+
+    /* Main layout: single column */
+    #app {
+      flex-direction: column;
+      height: auto;
+      overflow: visible;
+    }
+
+    /* Left panel: full width */
+    #panel-left {
+      width: 100%;
+      height: auto;
+      min-height: unset;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      overflow: visible;
+    }
+    #parts-list {
+      max-height: 220px;
+    }
+    #piece-picker {
+      max-height: 180px;
+    }
+
+    /* Canvas container: full width */
+    #viewport {
+      width: 100%;
+      height: 55vw;
+      min-height: 200px;
+      flex-shrink: 0;
+    }
+
+    /* Right panel: full width */
+    #panel-right {
+      width: 100%;
+      min-height: 300px;
+    }
+
+    /* Tab-based visibility on mobile */
+    body[data-mobile-tab="build"] #panel-left { display: flex; }
+    body[data-mobile-tab="build"] #viewport { display: none; }
+    body[data-mobile-tab="build"] #panel-right { display: none; }
+
+    body[data-mobile-tab="3d"] #panel-left { display: none; }
+    body[data-mobile-tab="3d"] #viewport {
+      display: block;
+      height: calc(100vh - 44px - 56px);
+    }
+    body[data-mobile-tab="3d"] #panel-right { display: none; }
+
+    body[data-mobile-tab="cuts"] #panel-left { display: none; }
+    body[data-mobile-tab="cuts"] #viewport { display: none; }
+    body[data-mobile-tab="cuts"] #panel-right { display: flex; }
+
+    /* Toolbar on mobile: compact */
+    #toolbar {
+      flex-wrap: wrap;
+      height: auto;
+      padding: 6px 8px;
+      gap: 6px;
+    }
+    #unit-name-input { width: 110px; }
+
+    /* Wizard modal: scrollable on mobile */
+    .modal {
+      max-height: 85vh;
+      overflow-y: auto;
+      margin: 8px;
+      padding: 20px 18px;
+    }
+    .modal-backdrop {
+      padding: 8px;
+      align-items: flex-start;
+      padding-top: 20px;
+    }
+    .wiz-mode-cards { flex-direction: column; gap: 8px; }
+
+    /* Toast: above tab bar on mobile */
+    #toast { bottom: 72px; }
+
+    /* Ghost HUD: above tab bar */
+    #ghost-hud { bottom: 72px; }
+    #shelf-place-hud { bottom: 72px; flex-wrap: wrap; gap: 8px; }
+  }
+
+  @media (min-width: 769px) {
+    #mobile-tabs { display: none !important; }
+    /* Ensure panels visible on desktop regardless of data-mobile-tab */
+    #panel-left { display: flex !important; }
+    #viewport { display: block !important; }
+    #panel-right { display: flex !important; }
+  }
 </style>
 </head>
 <body>
@@ -1162,35 +1292,46 @@
       </div>
     </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label>Width (in)</label>
-        <input type="number" class="form-input" id="wiz-w" value="48" min="6" max="120">
+    <!-- Guided mode section (shown by default) -->
+    <div id="wiz-guided-fields">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Width (in)</label>
+          <input type="number" class="form-input" id="wiz-w" value="48" min="6" max="120">
+        </div>
+        <div class="form-group">
+          <label>Height (in)</label>
+          <input type="number" class="form-input" id="wiz-h" value="84" min="12" max="120">
+        </div>
+        <div class="form-group">
+          <label>Depth (in)</label>
+          <input type="number" class="form-input" id="wiz-d" value="16" min="4" max="48">
+        </div>
       </div>
+
       <div class="form-group">
-        <label>Height (in)</label>
-        <input type="number" class="form-input" id="wiz-h" value="84" min="12" max="120">
+        <label>Material</label>
+        <select class="form-select" id="wiz-material">
+          <option value="plywood">3/4" Plywood (Birch) — $90/sheet, 2.2 lbs/sqft</option>
+          <option value="mdf">3/4" MDF — $55/sheet, 2.8 lbs/sqft</option>
+          <option value="melamine">3/4" Melamine — $75/sheet, 2.2 lbs/sqft</option>
+          <option value="pine">Pine Boards — $3.50/lin.ft, 1.5 lbs/sqft</option>
+        </select>
       </div>
-      <div class="form-group">
-        <label>Depth (in)</label>
-        <input type="number" class="form-input" id="wiz-d" value="16" min="4" max="48">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Thickness (in)</label>
+          <input type="number" class="form-input" id="wiz-thick" value="0.75" step="0.0625" min="0.25" max="2">
+        </div>
       </div>
     </div>
 
-    <div class="form-group">
-      <label>Material</label>
-      <select class="form-select" id="wiz-material">
-        <option value="plywood">3/4" Plywood (Birch) — $90/sheet, 2.2 lbs/sqft</option>
-        <option value="mdf">3/4" MDF — $55/sheet, 2.8 lbs/sqft</option>
-        <option value="melamine">3/4" Melamine — $75/sheet, 2.2 lbs/sqft</option>
-        <option value="pine">Pine Boards — $3.50/lin.ft, 1.5 lbs/sqft</option>
-      </select>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label>Thickness (in)</label>
-        <input type="number" class="form-input" id="wiz-thick" value="0.75" step="0.0625" min="0.25" max="2">
+    <!-- Custom mode section (shown when custom card clicked) -->
+    <div id="wiz-custom-fields" style="display:none">
+      <div style="background:var(--accent-bg);border:1px solid var(--border-glow);border-radius:8px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px">Freeform Builder</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.5">Place pieces one at a time. No preset dimensions.<br>Pick any piece type, set any size, and place it freely in 3D space.</div>
       </div>
     </div>
 
@@ -1249,6 +1390,13 @@
 
 <!-- PRINT AREA -->
 <div id="print-area"></div>
+
+<!-- MOBILE TAB BAR -->
+<div id="mobile-tabs">
+  <button class="mob-tab active" data-tab="build" onclick="setMobileTab('build')">🏗 Build</button>
+  <button class="mob-tab" data-tab="3d" onclick="setMobileTab('3d')">📦 3D View</button>
+  <button class="mob-tab" data-tab="cuts" onclick="setMobileTab('cuts')">📋 Cut List</button>
+</div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -2841,18 +2989,38 @@ function getWizardValues() {
 }
 
 function applyWizardAndStart(mode) {
-  const { name, style, w, h, d, mat, thick } = getWizardValues();
+  const vals = getWizardValues();
+  const name = vals.name;
+  const style = vals.style;
+  const mat = vals.mat;
+  const thick = vals.thick;
+  const envelope = mode === 'custom'
+    ? { w: 120, h: 120, d: 120 } // large open working space for custom mode
+    : { w: vals.w, h: vals.h, d: vals.d };
+
   pushUndo();
-  UNIT = { name, style, envelope: { w, h, d }, material: mat, thickness: thick, parts: [], mode, groups: [] };
+  UNIT = { name, style, envelope, material: mat, thickness: thick, parts: [], mode, groups: [] };
   redoStack = [];
   undoStack = [];
+  // clear old meshes
+  Object.keys(meshMap).forEach(id => removeMeshFor(id));
   meshMap = {};
   hideWizard();
+  // Reset wizard custom UI state
+  document.getElementById('wiz-custom-fields').style.display = 'none';
+  document.getElementById('wiz-guided-fields').style.display = 'block';
+  document.getElementById('btn-start-custom').textContent = 'Custom Assembly';
+  document.getElementById('btn-start-custom').classList.remove('primary');
+  document.getElementById('btn-start-building').classList.add('primary');
   document.getElementById('unit-name-input').value = name;
   document.getElementById('tb-material').value = mat;
   document.getElementById('tb-style').value = style;
-  Object.keys(meshMap).forEach(id => removeMeshFor(id));
-  rebuildEnvelopeGhost();
+  if (mode === 'custom') {
+    // Hide envelope ghost in custom mode
+    if (envelopeGhost) { scene.remove(envelopeGhost); envelopeGhost = null; }
+  } else {
+    rebuildEnvelopeGhost();
+  }
   resetCamera();
   renderPartsList();
   renderCutList();
@@ -2866,8 +3034,36 @@ function applyWizardAndStart(mode) {
   showToast(`Unit "${name}" ready. Let's build!`);
 }
 
-document.getElementById('btn-start-building').addEventListener('click', () => applyWizardAndStart('guided'));
-document.getElementById('btn-start-custom').addEventListener('click', () => applyWizardAndStart('custom'));
+document.getElementById('btn-start-custom').addEventListener('click', () => {
+  // Toggle highlight — if already showing custom fields, start the build
+  const customFields = document.getElementById('wiz-custom-fields');
+  const guidedFields = document.getElementById('wiz-guided-fields');
+  if (customFields.style.display === 'none') {
+    // First click: show custom description, hide guided fields
+    customFields.style.display = 'block';
+    guidedFields.style.display = 'none';
+    document.getElementById('btn-start-custom').textContent = 'Start Custom Build';
+    document.getElementById('btn-start-custom').classList.add('primary');
+    document.getElementById('btn-start-building').classList.remove('primary');
+    document.getElementById('btn-start-building').classList.add('wiz-mode-card');
+  } else {
+    applyWizardAndStart('custom');
+  }
+});
+document.getElementById('btn-start-building').addEventListener('click', () => {
+  const customFields = document.getElementById('wiz-custom-fields');
+  const guidedFields = document.getElementById('wiz-guided-fields');
+  if (customFields.style.display !== 'none') {
+    // Switching back to guided
+    customFields.style.display = 'none';
+    guidedFields.style.display = 'block';
+    document.getElementById('btn-start-custom').textContent = 'Custom Assembly';
+    document.getElementById('btn-start-custom').classList.remove('primary');
+    document.getElementById('btn-start-building').classList.add('primary');
+  } else {
+    applyWizardAndStart('guided');
+  }
+});
 
 // Wizard material → thickness auto-fill
 document.getElementById('wiz-material').addEventListener('change', (e) => {
@@ -3086,28 +3282,32 @@ const CUSTOM_MATERIALS_THICKNESS = {
   quarter: 0.25, pine: 0.75, oak: 0.75, maple: 0.75
 };
 
+// In custom mode these are neutral starting defaults — fully editable by user.
+// Not calculated from envelope. Per spec defaults:
 const PIECE_PICKER_DEFS = [
   { section: 'Box Parts' },
-  { type: 'left-side',    label: 'Left Side',       defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
-  { type: 'right-side',   label: 'Right Side',      defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
-  { type: 'top-panel',    label: 'Top Panel',       defW: () => UNIT.envelope.w, defH: () => UNIT.thickness },
-  { type: 'bottom-panel', label: 'Bottom Panel',    defW: () => UNIT.envelope.w, defH: () => UNIT.thickness },
-  { type: 'back-panel',   label: 'Back Panel',      defW: () => UNIT.envelope.w, defH: () => UNIT.envelope.h },
-  { type: 'toe-kick',     label: 'Toe Kick',        defW: () => UNIT.envelope.w, defH: 3.5 },
+  { type: 'left-side',    label: 'Left Side',        defW: 16,     defH: 84,   defT: 0.75 },
+  { type: 'right-side',   label: 'Right Side',       defW: 16,     defH: 84,   defT: 0.75 },
+  { type: 'top-panel',    label: 'Top Panel',        defW: 48,     defH: 16,   defT: 0.75 },
+  { type: 'bottom-panel', label: 'Bottom Panel',     defW: 48,     defH: 16,   defT: 0.75 },
+  { type: 'back-panel',   label: 'Back Panel',       defW: 48,     defH: 84,   defT: 0.25 },
+  { type: 'toe-kick',     label: 'Toe Kick',         defW: 48,     defH: 3.5,  defT: 0.75 },
   { section: 'Interior' },
-  { type: 'shelf',        label: 'Shelf',           defW: () => UNIT.envelope.w - UNIT.thickness * 2, defH: () => UNIT.thickness },
-  { type: 'v-divider',   label: 'Vertical Divider', defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
-  { type: 'mid-upright',  label: 'Middle Upright',  defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
+  { type: 'shelf',        label: 'Shelf',            defW: 47.25,  defH: 16,   defT: 0.75 },
+  { type: 'v-divider',    label: 'Vertical Divider', defW: 16,     defH: 76,   defT: 0.75 },
+  { type: 'mid-upright',  label: 'Middle Upright',   defW: 16,     defH: 76,   defT: 0.75 },
   { section: 'Face Frame' },
-  { type: 'stile',        label: 'Stile (vertical)', defW: 1.5, defH: () => UNIT.envelope.h },
-  { type: 'rail',         label: 'Rail (horizontal)',defW: () => UNIT.envelope.w - 3, defH: 1.5 },
+  { type: 'stile',        label: 'Stile (vertical)', defW: 1.5,    defH: 84,   defT: 0.75 },
+  { type: 'rail',         label: 'Rail (horizontal)',defW: 1.5,    defH: 48,   defT: 0.75 },
   { section: 'Custom' },
-  { type: 'custom-panel', label: 'Custom Panel',    defW: 12, defH: 12 }
+  { type: 'custom-panel', label: 'Custom Panel',     defW: 12,     defH: 12,   defT: 0.75 }
 ];
 
 function enterCustomMode() {
   UNIT.mode = 'custom';
   cancelGhostPlacement();
+  // Hide envelope ghost in custom mode
+  if (envelopeGhost) { scene.remove(envelopeGhost); envelopeGhost = null; }
   // Show/hide UI elements
   document.getElementById('step-bar').style.display = 'none';
   document.getElementById('step-actions').style.display = 'none';
@@ -3133,6 +3333,8 @@ function exitCustomMode() {
   document.getElementById('btn-mode-toggle').textContent = freeMode ? 'Switch to Guided Mode' : 'Switch to Free Mode';
   document.getElementById('panel-left').querySelector('.panel-header').textContent = 'Assembly';
   selectedPickerType = null;
+  // Restore envelope ghost for guided/free mode
+  rebuildEnvelopeGhost();
   renderPartsList();
 }
 
@@ -3159,25 +3361,41 @@ function selectPickerType(type) {
   const def = PIECE_PICKER_DEFS.find(d => d.type === type);
   if (!def) return;
 
-  // Pre-fill config panel
-  const lbl = def.label;
-  const w = typeof def.defW === 'function' ? def.defW() : def.defW;
-  const h = typeof def.defH === 'function' ? def.defH() : def.defH;
+  // Pre-fill config panel with neutral defaults (not computed from envelope)
+  document.getElementById('cfg-title').textContent = def.label;
+  document.getElementById('cfg-label').value = def.label;
+  document.getElementById('cfg-width').value = def.defW;
+  document.getElementById('cfg-height').value = def.defH;
 
-  document.getElementById('cfg-title').textContent = lbl;
-  document.getElementById('cfg-label').value = lbl;
-  document.getElementById('cfg-width').value = typeof w === 'number' ? w : 12;
-  document.getElementById('cfg-height').value = typeof h === 'number' ? h : 12;
-
-  // Set material based on type
+  // Set material/thickness based on type
   const matEl = document.getElementById('cfg-material');
-  if (type === 'back-panel') matEl.value = 'quarter';
-  else if (type === 'stile' || type === 'rail') matEl.value = 'oak';
-  else matEl.value = 'plywood';
-  onCfgMaterialChange();
+  if (type === 'back-panel') { matEl.value = 'quarter'; }
+  else if (type === 'stile' || type === 'rail') { matEl.value = 'oak'; }
+  else { matEl.value = 'plywood'; }
+  // Set thickness select to match defT
+  const tEl = document.getElementById('cfg-thickness');
+  tEl.value = String(def.defT || 0.75);
 
   document.getElementById('piece-config').classList.add('visible');
 }
+
+// Update ghost mesh immediately when cfg inputs change
+function onCfgDimensionChange() {
+  if (isGhostPlacing && ghostMesh && customGhostConfig) {
+    customGhostConfig = getGhostConfigFromUI();
+    const { gw, gh, gd } = ghostDims(customGhostConfig);
+    ghostMesh.geometry.dispose();
+    ghostMesh.geometry = new THREE.BoxGeometry(gw, gh, gd);
+    if (ghostWireframe) {
+      ghostWireframe.geometry.dispose();
+      ghostWireframe.geometry = new THREE.EdgesGeometry(ghostMesh.geometry);
+    }
+  }
+}
+document.getElementById('cfg-width').addEventListener('input', onCfgDimensionChange);
+document.getElementById('cfg-height').addEventListener('input', onCfgDimensionChange);
+document.getElementById('cfg-thickness').addEventListener('change', onCfgDimensionChange);
+document.querySelectorAll('input[name="cfg-orient"]').forEach(r => r.addEventListener('change', onCfgDimensionChange));
 
 function onCfgMaterialChange() {
   const mat = document.getElementById('cfg-material').value;
@@ -3375,7 +3593,8 @@ function recomputeEnvelope() {
     maxZ = Math.max(maxZ, p.pos.z + p.dims.t / 2);
   });
   UNIT.envelope = { w: maxX, h: maxY, d: maxZ };
-  rebuildEnvelopeGhost();
+  // Don't show envelope ghost in custom mode
+  if (UNIT.mode !== 'custom') rebuildEnvelopeGhost();
 }
 
 // ─── CUSTOM SUMMARY BAR ──────────────────────────────────────────────────────
@@ -3671,6 +3890,75 @@ if (saved && saved.parts && saved.parts.length > 0) {
 
 // Window resize fallback
 window.addEventListener('resize', () => resizeRenderer());
+
+// ─── MOBILE TAB SWITCHING ─────────────────────────────────────────────────────
+
+function setMobileTab(tab) {
+  document.body.dataset.mobileTab = tab;
+  document.querySelectorAll('.mob-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  if (tab === '3d' && renderer) {
+    // Allow DOM to re-layout before measuring
+    requestAnimationFrame(() => {
+      const vp = document.getElementById('viewport');
+      const W = vp.clientWidth || window.innerWidth;
+      const H = vp.clientHeight || Math.round(window.innerHeight * 0.55);
+      renderer.setSize(W, H, false);
+      camera.aspect = W / H;
+      camera.updateProjectionMatrix();
+    });
+  }
+}
+window.setMobileTab = setMobileTab;
+
+// Set default mobile tab on load
+if (window.innerWidth <= 768) {
+  document.body.dataset.mobileTab = 'build';
+}
+
+// ─── TOUCH SUPPORT FOR GHOST PLACEMENT ───────────────────────────────────────
+
+renderer.domElement.addEventListener('touchmove', (e) => {
+  if (!isGhostPlacing && !isPlacingShelf && !isPlacingUpright) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  if (!touch) return;
+  // Synthesize a mouse-like event object
+  const synth = { clientX: touch.clientX, clientY: touch.clientY };
+  if (isGhostPlacing && ghostMesh && customGhostConfig) {
+    updateGhostPosition(synth);
+  }
+  if (isPlacingShelf && ghostShelf) {
+    // Reuse existing mousemove logic by faking mouse coords
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const { w, d } = UNIT.envelope;
+    const planeNormal = new THREE.Vector3(1, 0, 0);
+    const planePoint = new THREE.Vector3(w/2, 0, d/2);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, planePoint);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, target);
+    if (target) {
+      let y = target.y - UNIT.thickness / 2;
+      y = Math.round(y / 0.125) * 0.125;
+      const minY = getBottomY() + UNIT.thickness;
+      const maxY = UNIT.envelope.h - UNIT.thickness * 2;
+      y = Math.max(minY, Math.min(maxY, y));
+      ghostShelfY = y;
+      document.getElementById('shelf-height-input').value = y;
+      updateShelfHUD();
+    }
+  }
+}, { passive: false });
+
+renderer.domElement.addEventListener('touchend', (e) => {
+  if (isPlacingShelf) { confirmShelfPlacement(); return; }
+  if (isPlacingUpright) { confirmUprightPlacement(); return; }
+  if (isGhostPlacing && ghostMesh) { confirmGhostPlacement(); return; }
+}, { passive: true });
 
 // Live test hook — serializable state only (no Three.js objects)
 Object.defineProperty(window, '_SB', {

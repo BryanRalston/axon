@@ -608,6 +608,288 @@
   /* Shelf height input visible when placing */
   #shelf-place-hud.visible { display: flex !important; }
   #shelf-place-overlay.visible { display: block !important; }
+
+  /* ─── CUSTOM ASSEMBLY MODE ─── */
+
+  /* Wizard mode selection cards */
+  .wiz-mode-cards {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .wiz-mode-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-family: inherit;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .wiz-mode-card:hover { border-color: var(--border-glow); color: var(--text); }
+  .wiz-mode-card.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .wiz-mode-card.primary:hover { opacity: 0.88; }
+  .wiz-mode-card.custom-card { border-color: var(--border-glow); color: var(--accent); }
+  .wiz-mode-card.custom-card:hover { background: var(--accent-bg); }
+  .wiz-mode-card .card-icon { font-size: 28px; }
+  .wiz-mode-card .card-sub { font-size: 10px; color: inherit; opacity: 0.7; text-align: center; }
+
+  /* Piece picker */
+  #piece-picker {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-y: auto;
+    max-height: 260px;
+  }
+  #piece-picker::-webkit-scrollbar { width: 3px; }
+  #piece-picker::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .picker-section-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 6px 4px 3px;
+  }
+  .picker-btn {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    margin-bottom: 3px;
+    transition: all 0.12s;
+  }
+  .picker-btn:hover { border-color: var(--border-glow); color: var(--accent); }
+  .picker-btn.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+
+  /* Per-piece config panel */
+  #piece-config {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: var(--bg-card);
+  }
+  #piece-config.visible { display: flex; }
+  #piece-config .cfg-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .cfg-row { display: flex; align-items: center; gap: 6px; }
+  .cfg-label { font-size: 10px; color: var(--text-muted); width: 66px; flex-shrink: 0; }
+  .cfg-input {
+    flex: 1;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 3px 6px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cfg-input:focus { outline: none; border-color: var(--accent-dim); }
+  .cfg-select {
+    flex: 1;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 3px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%2371717A'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 5px center;
+    padding-right: 18px;
+  }
+  .cfg-select:focus { outline: none; border-color: var(--accent-dim); }
+  .cfg-radio-group { display: flex; gap: 4px; flex: 1; }
+  .cfg-radio-group label {
+    flex: 1;
+    padding: 3px 4px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 9px;
+    cursor: pointer;
+    text-align: center;
+    color: var(--text-muted);
+    transition: all 0.12s;
+  }
+  .cfg-radio-group input { display: none; }
+  .cfg-radio-group input:checked + label {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+  #btn-place-piece {
+    width: 100%;
+    padding: 8px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: opacity 0.15s;
+  }
+  #btn-place-piece:hover { opacity: 0.88; }
+
+  /* Ghost placement HUD */
+  #ghost-hud {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(9,9,11,0.92);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 12px;
+    color: var(--accent);
+    pointer-events: all;
+    display: none;
+    z-index: 45;
+    white-space: nowrap;
+    gap: 12px;
+    align-items: center;
+  }
+  #ghost-hud.visible { display: flex; }
+  #ghost-hud .hud-text { color: var(--text-muted); font-size: 11px; }
+
+  /* Custom mode parts list with checkboxes */
+  .custom-parts-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 3px;
+    flex-shrink: 0;
+  }
+  #btn-group-selected {
+    display: none;
+    padding: 3px 8px;
+    background: var(--accent-bg);
+    border: 1px solid var(--border-glow);
+    border-radius: 4px;
+    color: var(--accent);
+    font-size: 10px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #btn-group-selected:hover { background: rgba(34,211,238,0.15); }
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    margin-bottom: 2px;
+    cursor: pointer;
+  }
+  .group-header .group-name {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .group-header .group-collapse { font-size: 10px; color: var(--text-dim); }
+  .group-dup-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: inherit;
+  }
+  .group-dup-btn:hover { color: var(--accent); background: var(--accent-bg); }
+  .group-body { padding-left: 8px; }
+  .custom-part-card {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 7px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    margin-bottom: 3px;
+    transition: all 0.12s;
+  }
+  .custom-part-card:hover { border-color: var(--border-glow); }
+  .custom-part-card.selected { border-color: var(--accent); background: var(--accent-bg); }
+  .custom-part-card input[type="checkbox"] {
+    accent-color: var(--accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .custom-part-card .drag-handle {
+    color: var(--text-dim);
+    font-size: 12px;
+    cursor: grab;
+    flex-shrink: 0;
+    opacity: 0.4;
+  }
+  .cpc-info { flex: 1; min-width: 0; }
+  .cpc-label { font-size: 11px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cpc-meta { font-size: 9px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .cpc-eye, .cpc-del {
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 13px; padding: 1px; flex-shrink: 0; line-height: 1;
+  }
+  .cpc-eye:hover { color: var(--accent); }
+  .cpc-del:hover { color: var(--danger); }
+
+  /* Custom mode summary bar */
+  #custom-summary-bar {
+    padding: 7px 10px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+    display: none;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 10px;
+  }
+  #custom-summary-bar.visible { display: flex; }
+  .csb-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .csb-value { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+  .csb-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 </style>
 </head>
 <body>
@@ -652,8 +934,80 @@
       <!-- Populated by JS based on current step -->
     </div>
 
+    <!-- CUSTOM MODE: Piece Picker (hidden in guided mode) -->
+    <div id="piece-picker" style="display:none">
+      <!-- Populated by JS in custom mode -->
+    </div>
+
+    <!-- CUSTOM MODE: Per-piece config panel -->
+    <div id="piece-config">
+      <div class="cfg-title" id="cfg-title">Configure Piece</div>
+      <div class="cfg-row">
+        <span class="cfg-label">Label</span>
+        <input class="cfg-input" id="cfg-label" type="text" value="Panel">
+      </div>
+      <div class="cfg-row">
+        <span class="cfg-label">Material</span>
+        <select class="cfg-select" id="cfg-material">
+          <option value="plywood">3/4" Plywood (Birch)</option>
+          <option value="mdf">3/4" MDF</option>
+          <option value="melamine">3/4" Melamine</option>
+          <option value="quarter">1/4" Plywood (back)</option>
+          <option value="pine">Pine Board</option>
+          <option value="oak">Hardwood (oak)</option>
+          <option value="maple">Hardwood (maple)</option>
+        </select>
+      </div>
+      <div class="cfg-row">
+        <span class="cfg-label">Thickness</span>
+        <select class="cfg-select" id="cfg-thickness">
+          <option value="0.25">1/4"</option>
+          <option value="0.5">1/2"</option>
+          <option value="0.75" selected>3/4"</option>
+          <option value="1">1"</option>
+          <option value="1.5">1-1/2"</option>
+        </select>
+      </div>
+      <div class="cfg-row">
+        <span class="cfg-label">Width</span>
+        <input class="cfg-input" id="cfg-width" type="number" step="0.125" min="0.25" value="12">
+        <span style="font-size:10px;color:var(--text-dim);width:14px;flex-shrink:0">in</span>
+      </div>
+      <div class="cfg-row">
+        <span class="cfg-label">Height</span>
+        <input class="cfg-input" id="cfg-height" type="number" step="0.125" min="0.25" value="12">
+        <span style="font-size:10px;color:var(--text-dim);width:14px;flex-shrink:0">in</span>
+      </div>
+      <div class="cfg-row">
+        <span class="cfg-label">Orientation</span>
+        <div class="cfg-radio-group">
+          <input type="radio" name="cfg-orient" id="orient-v" value="vertical" checked>
+          <label for="orient-v">Vertical</label>
+          <input type="radio" name="cfg-orient" id="orient-h" value="horizontal">
+          <label for="orient-h">Horiz.</label>
+          <input type="radio" name="cfg-orient" id="orient-e" value="edge">
+          <label for="orient-e">On Edge</label>
+        </div>
+      </div>
+      <button id="btn-place-piece">▶ Place</button>
+    </div>
+
+    <!-- Parts list header (custom mode shows group button) -->
+    <div class="custom-parts-header" id="custom-parts-header" style="display:none">
+      <span style="font-size:9px;font-weight:600;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;flex:1">Parts</span>
+      <button id="btn-group-selected">Group Selected</button>
+    </div>
+
     <div id="parts-list">
       <div style="color:var(--text-dim);font-size:11px;padding:12px 4px;">No parts yet. Start by completing the setup wizard.</div>
+    </div>
+
+    <!-- Custom mode summary bar -->
+    <div id="custom-summary-bar">
+      <div class="csb-item"><span class="csb-value" id="csb-parts">0</span><span class="csb-label">Parts</span></div>
+      <div class="csb-item"><span class="csb-value" id="csb-sheets">—</span><span class="csb-label">Sheets</span></div>
+      <div class="csb-item"><span class="csb-value" id="csb-cost">—</span><span class="csb-label">Est. Cost</span></div>
+      <div class="csb-item"><span class="csb-value" id="csb-weight">—</span><span class="csb-label">Est. Wt</span></div>
     </div>
 
     <div id="mode-toggle">
@@ -666,6 +1020,11 @@
     <canvas id="three-canvas"></canvas>
     <div id="tooltip"></div>
     <div id="shelf-place-overlay"></div>
+    <div id="ghost-hud">
+      <span class="hud-text">Click to place</span>
+      <span style="color:var(--border-glow)">•</span>
+      <span class="hud-text">Esc to cancel</span>
+    </div>
     <div id="shelf-place-hud">
       <label>Height from floor:</label>
       <input type="number" id="shelf-height-input" step="0.125" min="0" value="24">
@@ -835,7 +1194,18 @@
       </div>
     </div>
 
-    <button class="btn-primary" id="btn-start-building">Start Building →</button>
+    <div class="wiz-mode-cards">
+      <button class="wiz-mode-card primary" id="btn-start-building">
+        <span class="card-icon">🪜</span>
+        Start Building
+        <span class="card-sub">Step-by-step guided wizard</span>
+      </button>
+      <button class="wiz-mode-card custom-card" id="btn-start-custom">
+        <span class="card-icon">⊞</span>
+        Custom Assembly
+        <span class="card-sub">Freeform piece-by-piece builder</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -913,7 +1283,9 @@ let UNIT = {
   envelope: { w: 48, h: 84, d: 16 },
   material: 'plywood',
   thickness: 0.75,
-  parts: []
+  parts: [],
+  mode: 'guided',
+  groups: []
 };
 
 let currentStep = 0;   // index into STEP_DEFS
@@ -931,6 +1303,14 @@ let ghostUprightX = 24; // inches
 let confirmCallback = null;
 let autoSaveTimer = null;
 let animating = [];    // active animations [{mesh, from, to, startTime, duration}]
+
+// Custom assembly mode state
+let isGhostPlacing = false;
+let ghostMesh = null;
+let ghostWireframe = null;
+let customGhostConfig = null; // { label, material, thickness, width, height, orientation, type }
+let selectedPickerType = null;
+let collapsedGroups = {}; // groupId -> bool
 
 // ─── THREE.JS SETUP ──────────────────────────────────────────────────────────
 
@@ -1390,9 +1770,16 @@ function addPart(part) {
   pushUndo();
   UNIT.parts.push(part);
   addPartMesh(part, true);
-  renderPartsList();
+  if (UNIT.mode === 'custom') {
+    // Custom mode list + summary updated by caller (confirmGhostPlacement / duplicateGroup)
+    // but also update here for programmatic calls
+    if (typeof renderCustomPartsList === 'function') renderCustomPartsList();
+    if (typeof updateCustomSummaryBar === 'function') updateCustomSummaryBar();
+  } else {
+    renderPartsList();
+    renderStepUI();
+  }
   renderCutList();
-  renderStepUI();
   autoSave();
   showToast(`Added: ${part.label}`);
 }
@@ -1403,10 +1790,21 @@ function removePart(partId) {
   pushUndo();
   UNIT.parts.splice(idx, 1);
   removeMeshFor(partId);
+  // Also remove from groups
+  if (UNIT.groups) {
+    UNIT.groups.forEach(g => { g.partIds = g.partIds.filter(id => id !== partId); });
+    UNIT.groups = UNIT.groups.filter(g => g.partIds.length > 0);
+  }
+  customChecked.delete(partId);
   if (selectedPartId === partId) { selectedPartId = null; updatePropsPane(); }
-  renderPartsList();
+  if (UNIT.mode === 'custom') {
+    renderCustomPartsList();
+    updateCustomSummaryBar();
+  } else {
+    renderPartsList();
+    renderStepUI();
+  }
   renderCutList();
-  renderStepUI();
   autoSave();
 }
 
@@ -1479,6 +1877,10 @@ function nextStep() {
 }
 
 function renderStepUI() {
+  if (UNIT.mode === 'custom') {
+    // Custom mode has its own UI; don't touch step bar
+    return;
+  }
   if (freeMode) {
     renderFreeModeUI();
     return;
@@ -1704,6 +2106,10 @@ function renderReviewSummary() {
 const TYPE_ORDER = ['side','top','bottom','back','toekick','shelf','upright','divider','stile','rail'];
 
 function renderPartsList() {
+  if (UNIT.mode === 'custom') {
+    if (typeof renderCustomPartsList === 'function') renderCustomPartsList();
+    return;
+  }
   const el = document.getElementById('parts-list');
   if (!UNIT.parts.length) {
     el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:12px 4px">No parts yet.</div>';
@@ -2072,15 +2478,25 @@ function onCanvasMouseMove(e) {
       if (strong) strong.textContent = `${fmtIn(x)}"`;
     }
   }
+
+  // Custom ghost mesh placement
+  if (isGhostPlacing && ghostMesh && customGhostConfig) {
+    updateGhostPosition(e);
+  }
 }
 
 function onCanvasClick(e) {
+  if (e.button !== undefined && e.button === 2) return; // right click handled by contextmenu
   if (isPlacingShelf) {
     confirmShelfPlacement();
     return;
   }
   if (isPlacingUpright) {
     confirmUprightPlacement();
+    return;
+  }
+  if (isGhostPlacing && ghostMesh) {
+    confirmGhostPlacement();
     return;
   }
 
@@ -2412,37 +2828,46 @@ function hideWizard() {
   document.getElementById('wizard-modal').style.display = 'none';
 }
 
-document.getElementById('btn-start-building').addEventListener('click', () => {
-  const name = document.getElementById('wiz-name').value.trim() || 'My Shelf';
-  const style = document.querySelector('input[name="wiz-style"]:checked')?.value || 'frameless';
-  const w = parseFloat(document.getElementById('wiz-w').value) || 48;
-  const h = parseFloat(document.getElementById('wiz-h').value) || 84;
-  const d = parseFloat(document.getElementById('wiz-d').value) || 16;
-  const mat = document.getElementById('wiz-material').value;
-  const thick = parseFloat(document.getElementById('wiz-thick').value) || 0.75;
+function getWizardValues() {
+  return {
+    name: document.getElementById('wiz-name').value.trim() || 'My Shelf',
+    style: document.querySelector('input[name="wiz-style"]:checked')?.value || 'frameless',
+    w: parseFloat(document.getElementById('wiz-w').value) || 48,
+    h: parseFloat(document.getElementById('wiz-h').value) || 84,
+    d: parseFloat(document.getElementById('wiz-d').value) || 16,
+    mat: document.getElementById('wiz-material').value,
+    thick: parseFloat(document.getElementById('wiz-thick').value) || 0.75
+  };
+}
 
+function applyWizardAndStart(mode) {
+  const { name, style, w, h, d, mat, thick } = getWizardValues();
   pushUndo();
-  UNIT = { name, style, envelope: { w, h, d }, material: mat, thickness: thick, parts: [] };
+  UNIT = { name, style, envelope: { w, h, d }, material: mat, thickness: thick, parts: [], mode, groups: [] };
   redoStack = [];
   undoStack = [];
   meshMap = {};
-
   hideWizard();
-
   document.getElementById('unit-name-input').value = name;
   document.getElementById('tb-material').value = mat;
   document.getElementById('tb-style').value = style;
-
-  // Rebuild scene
   Object.keys(meshMap).forEach(id => removeMeshFor(id));
   rebuildEnvelopeGhost();
   resetCamera();
   renderPartsList();
   renderCutList();
-  goToStep(1);
+  if (mode === 'custom') {
+    enterCustomMode();
+  } else {
+    exitCustomMode();
+    goToStep(1);
+  }
   autoSave();
   showToast(`Unit "${name}" ready. Let's build!`);
-});
+}
+
+document.getElementById('btn-start-building').addEventListener('click', () => applyWizardAndStart('guided'));
+document.getElementById('btn-start-custom').addEventListener('click', () => applyWizardAndStart('custom'));
 
 // Wizard material → thickness auto-fill
 document.getElementById('wiz-material').addEventListener('change', (e) => {
@@ -2503,6 +2928,13 @@ document.getElementById('cl-group-material').addEventListener('click', () => {
 // ─── MODE TOGGLE ─────────────────────────────────────────────────────────────
 
 document.getElementById('btn-mode-toggle').addEventListener('click', () => {
+  if (UNIT.mode === 'custom') {
+    UNIT.mode = 'guided';
+    freeMode = false;
+    exitCustomMode();
+    goToStep(currentStep);
+    return;
+  }
   freeMode = !freeMode;
   document.getElementById('btn-mode-toggle').textContent = freeMode ? 'Switch to Guided Mode' : 'Switch to Free Mode';
   renderStepUI();
@@ -2524,6 +2956,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (isPlacingShelf) cancelShelfPlacement();
     if (isPlacingUpright) cancelUprightPlacement();
+    if (isGhostPlacing) cancelGhostPlacement();
     deselectAll();
   }
   if (e.key === 'Enter') {
@@ -2646,6 +3079,525 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
   a.click();
 });
 
+// ─── CUSTOM ASSEMBLY MODE ────────────────────────────────────────────────────
+
+const CUSTOM_MATERIALS_THICKNESS = {
+  plywood: 0.75, mdf: 0.75, melamine: 0.75,
+  quarter: 0.25, pine: 0.75, oak: 0.75, maple: 0.75
+};
+
+const PIECE_PICKER_DEFS = [
+  { section: 'Box Parts' },
+  { type: 'left-side',    label: 'Left Side',       defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
+  { type: 'right-side',   label: 'Right Side',      defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
+  { type: 'top-panel',    label: 'Top Panel',       defW: () => UNIT.envelope.w, defH: () => UNIT.thickness },
+  { type: 'bottom-panel', label: 'Bottom Panel',    defW: () => UNIT.envelope.w, defH: () => UNIT.thickness },
+  { type: 'back-panel',   label: 'Back Panel',      defW: () => UNIT.envelope.w, defH: () => UNIT.envelope.h },
+  { type: 'toe-kick',     label: 'Toe Kick',        defW: () => UNIT.envelope.w, defH: 3.5 },
+  { section: 'Interior' },
+  { type: 'shelf',        label: 'Shelf',           defW: () => UNIT.envelope.w - UNIT.thickness * 2, defH: () => UNIT.thickness },
+  { type: 'v-divider',   label: 'Vertical Divider', defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
+  { type: 'mid-upright',  label: 'Middle Upright',  defW: () => UNIT.thickness, defH: () => UNIT.envelope.h },
+  { section: 'Face Frame' },
+  { type: 'stile',        label: 'Stile (vertical)', defW: 1.5, defH: () => UNIT.envelope.h },
+  { type: 'rail',         label: 'Rail (horizontal)',defW: () => UNIT.envelope.w - 3, defH: 1.5 },
+  { section: 'Custom' },
+  { type: 'custom-panel', label: 'Custom Panel',    defW: 12, defH: 12 }
+];
+
+function enterCustomMode() {
+  UNIT.mode = 'custom';
+  cancelGhostPlacement();
+  // Show/hide UI elements
+  document.getElementById('step-bar').style.display = 'none';
+  document.getElementById('step-actions').style.display = 'none';
+  document.getElementById('piece-picker').style.display = 'block';
+  document.getElementById('custom-parts-header').style.display = 'flex';
+  document.getElementById('custom-summary-bar').classList.add('visible');
+  document.getElementById('btn-mode-toggle').textContent = 'Switch to Guided Mode';
+  document.getElementById('panel-left').querySelector('.panel-header').textContent = 'Custom Assembly';
+  renderPiecePicker();
+  renderCustomPartsList();
+  updateCustomSummaryBar();
+  renderCutList();
+}
+
+function exitCustomMode() {
+  cancelGhostPlacement();
+  document.getElementById('step-bar').style.display = '';
+  document.getElementById('step-actions').style.display = '';
+  document.getElementById('piece-picker').style.display = 'none';
+  document.getElementById('piece-config').classList.remove('visible');
+  document.getElementById('custom-parts-header').style.display = 'none';
+  document.getElementById('custom-summary-bar').classList.remove('visible');
+  document.getElementById('btn-mode-toggle').textContent = freeMode ? 'Switch to Guided Mode' : 'Switch to Free Mode';
+  document.getElementById('panel-left').querySelector('.panel-header').textContent = 'Assembly';
+  selectedPickerType = null;
+  renderPartsList();
+}
+
+function renderPiecePicker() {
+  const picker = document.getElementById('piece-picker');
+  let html = '';
+  PIECE_PICKER_DEFS.forEach(def => {
+    if (def.section) {
+      html += `<div class="picker-section-label">${def.section}</div>`;
+    } else {
+      const active = selectedPickerType === def.type ? ' active' : '';
+      html += `<button class="picker-btn${active}" data-ptype="${def.type}">${def.label}</button>`;
+    }
+  });
+  picker.innerHTML = html;
+  picker.querySelectorAll('.picker-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectPickerType(btn.dataset.ptype));
+  });
+}
+
+function selectPickerType(type) {
+  selectedPickerType = type;
+  renderPiecePicker();
+  const def = PIECE_PICKER_DEFS.find(d => d.type === type);
+  if (!def) return;
+
+  // Pre-fill config panel
+  const lbl = def.label;
+  const w = typeof def.defW === 'function' ? def.defW() : def.defW;
+  const h = typeof def.defH === 'function' ? def.defH() : def.defH;
+
+  document.getElementById('cfg-title').textContent = lbl;
+  document.getElementById('cfg-label').value = lbl;
+  document.getElementById('cfg-width').value = typeof w === 'number' ? w : 12;
+  document.getElementById('cfg-height').value = typeof h === 'number' ? h : 12;
+
+  // Set material based on type
+  const matEl = document.getElementById('cfg-material');
+  if (type === 'back-panel') matEl.value = 'quarter';
+  else if (type === 'stile' || type === 'rail') matEl.value = 'oak';
+  else matEl.value = 'plywood';
+  onCfgMaterialChange();
+
+  document.getElementById('piece-config').classList.add('visible');
+}
+
+function onCfgMaterialChange() {
+  const mat = document.getElementById('cfg-material').value;
+  const t = CUSTOM_MATERIALS_THICKNESS[mat] || 0.75;
+  document.getElementById('cfg-thickness').value = String(t);
+}
+
+document.getElementById('cfg-material').addEventListener('change', onCfgMaterialChange);
+
+function getGhostConfigFromUI() {
+  const label = document.getElementById('cfg-label').value.trim() || 'Panel';
+  const material = document.getElementById('cfg-material').value;
+  const thickness = parseFloat(document.getElementById('cfg-thickness').value) || 0.75;
+  const width = parseFloat(document.getElementById('cfg-width').value) || 12;
+  const height = parseFloat(document.getElementById('cfg-height').value) || 12;
+  const orientation = document.querySelector('input[name="cfg-orient"]:checked')?.value || 'vertical';
+  return { label, material, thickness, width, height, orientation, type: selectedPickerType || 'custom-panel' };
+}
+
+document.getElementById('btn-place-piece').addEventListener('click', () => {
+  if (!selectedPickerType) { showToast('Select a piece type first'); return; }
+  startGhostPlacement();
+});
+
+function startGhostPlacement() {
+  cancelGhostPlacement();
+  customGhostConfig = getGhostConfigFromUI();
+  const { width: pw, height: ph, thickness: pt } = customGhostConfig;
+
+  // Compute box dimensions based on orientation
+  const { gw, gh, gd } = ghostDims(customGhostConfig);
+
+  const geo = new THREE.BoxGeometry(gw, gh, gd);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x22D3EE, transparent: true, opacity: 0.45, roughness: 0.5, depthWrite: false
+  });
+  ghostMesh = new THREE.Mesh(geo, mat);
+  ghostMesh.position.set(UNIT.envelope.w / 2, gh / 2, UNIT.envelope.d / 2);
+  scene.add(ghostMesh);
+
+  // Wireframe outline
+  const edgesGeo = new THREE.EdgesGeometry(geo);
+  const edgesMat = new THREE.LineBasicMaterial({ color: 0x22D3EE, transparent: false });
+  ghostWireframe = new THREE.LineSegments(edgesGeo, edgesMat);
+  ghostMesh.add(ghostWireframe);
+
+  isGhostPlacing = true;
+  controls.enabled = false;
+  document.getElementById('ghost-hud').classList.add('visible');
+
+  // Right-click to cancel
+  renderer.domElement.addEventListener('contextmenu', onGhostRightClick);
+}
+
+function ghostDims(cfg) {
+  const { width: pw, height: ph, thickness: pt, orientation } = cfg;
+  let gw, gh, gd;
+  if (orientation === 'vertical') {
+    // Standing tall: width=X, height=Y, depth=thickness
+    gw = pw; gh = ph; gd = pt;
+  } else if (orientation === 'horizontal') {
+    // Lying flat: width=X, height=thickness, depth=height
+    gw = pw; gh = pt; gd = ph;
+  } else {
+    // On edge: width=thickness, height=height, depth=width
+    gw = pt; gh = ph; gd = pw;
+  }
+  return { gw, gh, gd };
+}
+
+function onGhostRightClick(e) {
+  e.preventDefault();
+  cancelGhostPlacement();
+}
+
+function cancelGhostPlacement() {
+  if (ghostMesh) {
+    scene.remove(ghostMesh);
+    ghostMesh.geometry.dispose();
+    ghostMesh.material.dispose();
+    ghostMesh = null;
+  }
+  if (ghostWireframe) {
+    ghostWireframe.geometry.dispose();
+    ghostWireframe.material.dispose();
+    ghostWireframe = null;
+  }
+  isGhostPlacing = false;
+  customGhostConfig = null;
+  if (controls) controls.enabled = true;
+  document.getElementById('ghost-hud').classList.remove('visible');
+  if (renderer) renderer.domElement.removeEventListener('contextmenu', onGhostRightClick);
+}
+
+function updateGhostPosition(mouseEvent) {
+  if (!ghostMesh || !customGhostConfig) return;
+  const cfg = customGhostConfig;
+  const { gw, gh, gd } = ghostDims(cfg);
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mx = ((mouseEvent.clientX - rect.left) / rect.width) * 2 - 1;
+  const my = -((mouseEvent.clientY - rect.top) / rect.height) * 2 + 1;
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(mx, my), camera);
+
+  // 1. Try to intersect top face of existing meshes
+  const existingMeshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
+  const hits = rc.intersectObjects(existingMeshes);
+  let snapPos = null;
+
+  if (hits.length > 0) {
+    const hit = hits[0];
+    // Check if hit face is roughly upward-facing (normal.y > 0.5)
+    if (hit.face && hit.face.normal.y > 0.5) {
+      const topY = hit.object.position.y + hit.object.geometry.parameters.height / 2;
+      snapPos = new THREE.Vector3(hit.point.x, topY + gh / 2, hit.point.z);
+    }
+  }
+
+  // 2. Fall back to floor plane (y=0)
+  if (!snapPos) {
+    const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const target = new THREE.Vector3();
+    rc.ray.intersectPlane(floorPlane, target);
+    if (target) {
+      snapPos = new THREE.Vector3(target.x, gh / 2, target.z);
+    }
+  }
+
+  if (!snapPos) return;
+
+  // 3. Grid snap X and Z to 0.25" grid
+  snapPos.x = Math.round(snapPos.x / 0.25) * 0.25;
+  snapPos.z = Math.round(snapPos.z / 0.25) * 0.25;
+
+  // 4. Edge snap: if ghost face is within 0.5" of any existing piece face, snap flush
+  const SNAP_THRESH = 0.5;
+  UNIT.parts.forEach(p => {
+    const pm = meshMap[p.id];
+    if (!pm) return;
+    const pPos = pm.position;
+    const pgeo = pm.geometry.parameters;
+    // X faces
+    const pLeft  = pPos.x - pgeo.width  / 2;
+    const pRight = pPos.x + pgeo.width  / 2;
+    const gLeft  = snapPos.x - gw / 2;
+    const gRight = snapPos.x + gw / 2;
+    if (Math.abs(gRight - pLeft)  < SNAP_THRESH) snapPos.x = pLeft  - gw / 2;
+    if (Math.abs(gLeft  - pRight) < SNAP_THRESH) snapPos.x = pRight + gw / 2;
+    // Z faces
+    const pFront = pPos.z - pgeo.depth  / 2;
+    const pBack  = pPos.z + pgeo.depth  / 2;
+    const gFront = snapPos.z - gd / 2;
+    const gBack  = snapPos.z + gd / 2;
+    if (Math.abs(gBack  - pFront) < SNAP_THRESH) snapPos.z = pFront - gd / 2;
+    if (Math.abs(gFront - pBack)  < SNAP_THRESH) snapPos.z = pBack  + gd / 2;
+  });
+
+  ghostMesh.position.copy(snapPos);
+}
+
+function confirmGhostPlacement() {
+  if (!ghostMesh || !customGhostConfig) return;
+  const cfg = customGhostConfig;
+  const pos = ghostMesh.position.clone();
+  const { gw, gh, gd } = ghostDims(cfg);
+
+  const newPart = {
+    id: `custom_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+    type: cfg.type,
+    label: cfg.label,
+    material: cfg.material,
+    fixed: false,
+    adjustable: false,
+    dims: { w: gw, h: gh, t: gd },
+    pos: { x: pos.x, y: pos.y, z: pos.z },
+    rotation: 0,
+    customAssembly: true
+  };
+
+  cancelGhostPlacement();
+  addPart(newPart);
+  recomputeEnvelope();
+  updateCustomSummaryBar();
+  renderCustomPartsList();
+}
+
+// ─── ENVELOPE AUTO-UPDATE ────────────────────────────────────────────────────
+
+function recomputeEnvelope() {
+  if (!UNIT.parts.length) return;
+  let maxX = 0, maxY = 0, maxZ = 0;
+  UNIT.parts.forEach(p => {
+    maxX = Math.max(maxX, p.pos.x + p.dims.w / 2);
+    maxY = Math.max(maxY, p.pos.y + p.dims.h / 2);
+    maxZ = Math.max(maxZ, p.pos.z + p.dims.t / 2);
+  });
+  UNIT.envelope = { w: maxX, h: maxY, d: maxZ };
+  rebuildEnvelopeGhost();
+}
+
+// ─── CUSTOM SUMMARY BAR ──────────────────────────────────────────────────────
+
+function updateCustomSummaryBar() {
+  const matDb = MATERIALS_DB[UNIT.material] || MATERIALS_DB.plywood;
+  let totalSqin = 0, totalWeight = 0;
+  UNIT.parts.forEach(p => {
+    const sqin = p.dims.w * p.dims.h;
+    totalSqin += sqin;
+    totalWeight += (sqin / 144) * matDb.lbsPerSqft;
+  });
+  const sheetSqin = 48 * 96;
+  const sheets = matDb.sheetW ? Math.ceil(totalSqin / sheetSqin) : null;
+  const cost = sheets ? (sheets * matDb.pricePerSheet) : null;
+
+  document.getElementById('csb-parts').textContent = UNIT.parts.length;
+  document.getElementById('csb-sheets').textContent = sheets != null ? sheets : '—';
+  document.getElementById('csb-cost').textContent = cost != null ? `$${cost}` : '—';
+  document.getElementById('csb-weight').textContent = `${totalWeight.toFixed(0)}lb`;
+}
+
+// ─── CUSTOM PARTS LIST (with checkboxes, groups) ─────────────────────────────
+
+let customChecked = new Set(); // partIds checked
+
+function renderCustomPartsList() {
+  if (UNIT.mode !== 'custom') return;
+
+  const el = document.getElementById('parts-list');
+  const parts = UNIT.parts;
+  const groups = UNIT.groups || [];
+
+  // Determine which partIds are in a group
+  const groupedPartIds = new Set();
+  groups.forEach(g => g.partIds.forEach(id => groupedPartIds.add(id)));
+
+  // Ungrouped parts
+  const ungrouped = parts.filter(p => !groupedPartIds.has(p.id));
+
+  let html = '';
+
+  // Groups
+  groups.forEach(g => {
+    const collapsed = collapsedGroups[g.id];
+    const gParts = parts.filter(p => g.partIds.includes(p.id));
+    html += `
+      <div class="group-header" data-gid="${g.id}">
+        <span class="group-collapse">${collapsed ? '▶' : '▼'}</span>
+        <span class="group-name">${escHtml(g.name)}</span>
+        <button class="group-dup-btn" data-gid="${g.id}" title="Duplicate group">⧉ Dup</button>
+        <button class="cpc-del" data-gid-del="${g.id}" title="Delete group">×</button>
+      </div>`;
+    if (!collapsed) {
+      html += `<div class="group-body" data-gbody="${g.id}">`;
+      gParts.forEach(p => { html += customPartRow(p); });
+      html += `</div>`;
+    }
+  });
+
+  // Ungrouped
+  if (ungrouped.length) {
+    if (groups.length) {
+      html += `<div class="picker-section-label">Ungrouped</div>`;
+    }
+    ungrouped.forEach(p => { html += customPartRow(p); });
+  }
+
+  if (!parts.length) {
+    html = '<div style="color:var(--text-dim);font-size:11px;padding:12px 8px">No parts yet. Pick a piece type and click Place.</div>';
+  }
+
+  el.innerHTML = html;
+
+  // Bind events
+  el.querySelectorAll('.cpc-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) customChecked.add(cb.dataset.id);
+      else customChecked.delete(cb.dataset.id);
+      updateGroupSelectedBtn();
+    });
+    // Sync checked state
+    cb.checked = customChecked.has(cb.dataset.id);
+  });
+
+  el.querySelectorAll('.cpc-eye').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); toggleVisibility(btn.dataset.id); renderCustomPartsList(); });
+  });
+
+  el.querySelectorAll('.cpc-del[data-id]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); confirmRemovePart(btn.dataset.id); });
+  });
+
+  el.querySelectorAll('.custom-part-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.classList.contains('cpc-cb') || e.target.classList.contains('cpc-eye') || e.target.classList.contains('cpc-del')) return;
+      selectPart(card.dataset.id);
+    });
+  });
+
+  // Group header collapse toggle
+  el.querySelectorAll('.group-header').forEach(hdr => {
+    hdr.addEventListener('click', (e) => {
+      if (e.target.classList.contains('group-dup-btn') || e.target.closest('.cpc-del')) return;
+      const gid = hdr.dataset.gid;
+      collapsedGroups[gid] = !collapsedGroups[gid];
+      renderCustomPartsList();
+    });
+  });
+
+  // Group duplicate
+  el.querySelectorAll('.group-dup-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); duplicateGroup(btn.dataset.gid); });
+  });
+
+  // Group delete
+  el.querySelectorAll('[data-gid-del]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); deleteGroup(btn.dataset.gidDel); });
+  });
+}
+
+function customPartRow(p) {
+  const mesh = meshMap[p.id];
+  const visible = mesh ? mesh.visible : true;
+  const sel = p.id === selectedPartId ? ' selected' : '';
+  const matAbbr = customMatAbbr(p.material || UNIT.material);
+  const dims = `${fmtIn(p.dims.w)}" × ${fmtIn(p.dims.h)}" × ${fmtIn(p.dims.t)}"`;
+  return `<div class="custom-part-card${sel}" data-id="${p.id}">
+    <input type="checkbox" class="cpc-cb" data-id="${p.id}">
+    <span class="drag-handle">⠿</span>
+    <div class="cpc-info">
+      <div class="cpc-label">${escHtml(p.label)}</div>
+      <div class="cpc-meta">${dims} · ${matAbbr}</div>
+    </div>
+    <button class="cpc-eye" data-id="${p.id}" title="Toggle visibility">${visible ? '👁' : '🚫'}</button>
+    <button class="cpc-del" data-id="${p.id}" title="Remove">×</button>
+  </div>`;
+}
+
+function customMatAbbr(matKey) {
+  const map = {
+    plywood: '3/4 Ply', mdf: 'MDF', melamine: 'Mel.',
+    quarter: '1/4 Ply', pine: 'Pine', oak: 'Oak', maple: 'Maple'
+  };
+  return map[matKey] || matKey || '3/4 Ply';
+}
+
+function updateGroupSelectedBtn() {
+  const btn = document.getElementById('btn-group-selected');
+  const count = customChecked.size;
+  btn.style.display = count >= 2 ? 'inline-block' : 'none';
+  btn.textContent = `Group ${count} Selected`;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('btn-group-selected').addEventListener('click', () => {
+  if (customChecked.size < 2) return;
+  const name = prompt('Group name:', 'Cabinet Box');
+  if (!name) return;
+  const gid = `grp_${Date.now()}`;
+  if (!UNIT.groups) UNIT.groups = [];
+  UNIT.groups.push({ id: gid, name: name.trim(), partIds: [...customChecked] });
+  customChecked.clear();
+  updateGroupSelectedBtn();
+  renderCustomPartsList();
+  autoSave();
+  showToast(`Group "${name}" created`);
+});
+
+function duplicateGroup(gid) {
+  const group = UNIT.groups.find(g => g.id === gid);
+  if (!group) return;
+  const oxStr = prompt('X offset (inches):', '0');
+  const ozStr = prompt('Z offset (inches):', '24');
+  const ox = parseFloat(oxStr) || 0;
+  const oz = parseFloat(ozStr) || 0;
+  if (isNaN(ox) || isNaN(oz)) return;
+
+  pushUndo();
+  const idMap = {};
+  const newParts = [];
+  group.partIds.forEach(pid => {
+    const src = UNIT.parts.find(p => p.id === pid);
+    if (!src) return;
+    const newId = `custom_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+    idMap[pid] = newId;
+    newParts.push({
+      ...JSON.parse(JSON.stringify(src)),
+      id: newId,
+      pos: { x: src.pos.x + ox, y: src.pos.y, z: src.pos.z + oz }
+    });
+  });
+
+  newParts.forEach(p => {
+    UNIT.parts.push(p);
+    addPartMesh(p, true);
+  });
+
+  const newGid = `grp_${Date.now()}`;
+  const dupCount = UNIT.groups.filter(g => g.name.startsWith(group.name)).length + 1;
+  UNIT.groups.push({ id: newGid, name: `${group.name} (${dupCount})`, partIds: newParts.map(p => p.id) });
+
+  recomputeEnvelope();
+  updateCustomSummaryBar();
+  renderCustomPartsList();
+  renderCutList();
+  autoSave();
+  showToast(`Duplicated group "${group.name}"`);
+}
+
+function deleteGroup(gid) {
+  if (!UNIT.groups) return;
+  UNIT.groups = UNIT.groups.filter(g => g.id !== gid);
+  renderCustomPartsList();
+  autoSave();
+}
+
+// Note: renderPartsList and addPart are patched below to be mode-aware.
+
 // ─── SAVE / LOAD ─────────────────────────────────────────────────────────────
 
 function autoSave() {
@@ -2689,16 +3641,22 @@ if (saved && saved.parts && saved.parts.length > 0) {
   document.getElementById('btn-resume-load').addEventListener('click', () => {
     document.getElementById('resume-modal').style.display = 'none';
     UNIT = saved;
+    if (!UNIT.mode) UNIT.mode = 'guided';
+    if (!UNIT.groups) UNIT.groups = [];
     document.getElementById('unit-name-input').value = UNIT.name;
     document.getElementById('tb-material').value = UNIT.material;
     document.getElementById('tb-style').value = UNIT.style;
     rebuildEnvelopeGhost();
     resetCamera();
     rebuildAllMeshes();
-    renderPartsList();
-    renderCutList();
-    currentStep = STEP_DEFS.length - 1;
-    renderStepUI();
+    if (UNIT.mode === 'custom') {
+      enterCustomMode();
+    } else {
+      renderPartsList();
+      renderCutList();
+      currentStep = STEP_DEFS.length - 1;
+      renderStepUI();
+    }
     showToast(`Resumed: ${UNIT.name}`);
   });
 
@@ -2722,7 +3680,9 @@ Object.defineProperty(window, '_SB', {
     redoDepth: redoStack.length,
     meshVisible: Object.fromEntries(Object.entries(meshMap).map(([k,m]) => [k, m.visible])),
     currentStep,
-    freeMode
+    freeMode,
+    mode: UNIT.mode,
+    groups: JSON.parse(JSON.stringify(UNIT.groups || []))
   }),
   configurable: true
 });

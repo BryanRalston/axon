@@ -648,13 +648,11 @@
   .wiz-mode-card .card-icon { font-size: 28px; }
   .wiz-mode-card .card-sub { font-size: 10px; color: inherit; opacity: 0.7; text-align: center; }
 
-  /* Piece picker */
+  /* Piece picker (quick-starts only) */
   #piece-picker {
-    padding: 8px;
-    border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     overflow-y: auto;
-    max-height: 260px;
+    max-height: 180px;
   }
   #piece-picker::-webkit-scrollbar { width: 3px; }
   #piece-picker::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -948,8 +946,11 @@
     #parts-list {
       max-height: 220px;
     }
+    #mat-picker {
+      max-height: 160px;
+    }
     #piece-picker {
-      max-height: 180px;
+      max-height: 120px;
     }
 
     /* Canvas container: full width */
@@ -1020,6 +1021,86 @@
     #viewport { display: block !important; }
     #panel-right { display: flex !important; }
   }
+
+  /* ─── MATERIAL PICKER (custom mode) ─── */
+  #mat-picker {
+    padding: 6px 8px 4px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-y: auto;
+    max-height: 220px;
+  }
+  #mat-picker::-webkit-scrollbar { width: 3px; }
+  #mat-picker::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  #mat-picker.hidden { display: none; }
+  .mat-cat-header {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 5px 2px 3px;
+  }
+  .mat-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-bottom: 3px;
+  }
+  .mat-chip {
+    font-size: 11px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .mat-chip:hover { border-color: var(--border-glow); color: var(--text); }
+  .mat-chip.selected { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+
+  /* Cross-section badge */
+  .xsec-badge {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-size: 11px;
+    flex: 1;
+  }
+
+  /* Quick-starts collapsible section */
+  #quickstart-section {
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #quickstart-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 6px 8px 4px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #quickstart-toggle:hover { color: var(--text-muted); }
+  #quickstart-body {
+    padding: 0 4px 4px;
+  }
+  #quickstart-body.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -1029,8 +1110,8 @@
   <span class="logo">SHELF BUILDER</span>
   <input type="text" id="unit-name-input" value="My Shelf" title="Unit name">
   <div class="toolbar-sep"></div>
-  <select class="tb-select" id="tb-material" title="Material">
-    <option value="plywood">3/4" Plywood (Birch)</option>
+  <select class="tb-select" id="tb-material" title="Material (guided mode)">
+    <option value="plywood">3/4" Plywood</option>
     <option value="mdf">3/4" MDF</option>
     <option value="melamine">3/4" Melamine</option>
     <option value="pine">Pine Boards</option>
@@ -1064,62 +1145,67 @@
       <!-- Populated by JS based on current step -->
     </div>
 
-    <!-- CUSTOM MODE: Piece Picker (hidden in guided mode) -->
+    <!-- CUSTOM MODE: Material Picker (hidden in guided mode) -->
+    <div id="mat-picker" class="hidden">
+      <!-- Populated by JS in custom mode: renderMaterialPicker() -->
+    </div>
+
+    <!-- CUSTOM MODE: Piece Picker quick-starts (hidden in guided mode) -->
     <div id="piece-picker" style="display:none">
-      <!-- Populated by JS in custom mode -->
+      <!-- Quick-starts collapsible section injected here by JS -->
     </div>
 
     <!-- CUSTOM MODE: Per-piece config panel -->
     <div id="piece-config">
       <div class="cfg-title" id="cfg-title">Configure Piece</div>
-      <div class="cfg-row">
-        <span class="cfg-label">Label</span>
-        <input class="cfg-input" id="cfg-label" type="text" value="Panel">
+
+      <!-- Select-material prompt (shown when no material chosen yet) -->
+      <div id="cfg-no-material" style="font-size:10px;color:var(--text-muted);padding:4px 2px 6px;font-style:italic">
+        Select a material above to begin.
       </div>
-      <div class="cfg-row">
-        <span class="cfg-label">Material</span>
-        <select class="cfg-select" id="cfg-material">
-          <option value="plywood">3/4" Plywood (Birch)</option>
-          <option value="mdf">3/4" MDF</option>
-          <option value="melamine">3/4" Melamine</option>
-          <option value="quarter">1/4" Plywood (back)</option>
-          <option value="pine">Pine Board</option>
-          <option value="oak">Hardwood (oak)</option>
-          <option value="maple">Hardwood (maple)</option>
-        </select>
-      </div>
-      <div class="cfg-row">
-        <span class="cfg-label">Thickness</span>
-        <select class="cfg-select" id="cfg-thickness">
-          <option value="0.25">1/4"</option>
-          <option value="0.5">1/2"</option>
-          <option value="0.75" selected>3/4"</option>
-          <option value="1">1"</option>
-          <option value="1.5">1-1/2"</option>
-        </select>
-      </div>
-      <div class="cfg-row">
-        <span class="cfg-label">Width</span>
-        <input class="cfg-input" id="cfg-width" type="number" step="0.125" min="0.25" value="12">
-        <span style="font-size:10px;color:var(--text-dim);width:14px;flex-shrink:0">in</span>
-      </div>
-      <div class="cfg-row">
-        <span class="cfg-label">Height</span>
-        <input class="cfg-input" id="cfg-height" type="number" step="0.125" min="0.25" value="12">
-        <span style="font-size:10px;color:var(--text-dim);width:14px;flex-shrink:0">in</span>
-      </div>
-      <div class="cfg-row">
-        <span class="cfg-label">Orientation</span>
-        <div class="cfg-radio-group">
-          <input type="radio" name="cfg-orient" id="orient-v" value="vertical" checked>
-          <label for="orient-v">Vertical</label>
-          <input type="radio" name="cfg-orient" id="orient-h" value="horizontal">
-          <label for="orient-h">Horiz.</label>
-          <input type="radio" name="cfg-orient" id="orient-e" value="edge">
-          <label for="orient-e">On Edge</label>
+
+      <!-- Config fields (shown after material selected) -->
+      <div id="cfg-fields" style="display:none;flex-direction:column;gap:5px">
+        <!-- Cross-section / thickness badge (non-editable, shown per category) -->
+        <div class="cfg-row" id="cfg-xsec-row" style="display:none">
+          <span class="cfg-label" id="cfg-xsec-label">Section</span>
+          <span class="xsec-badge" id="cfg-xsec-badge">—</span>
         </div>
+
+        <!-- Width field (sheet goods / hardwood) -->
+        <div class="cfg-row" id="cfg-width-row">
+          <span class="cfg-label">Width</span>
+          <input class="cfg-input" id="cfg-width" type="number" step="0.125" min="0.25" value="12">
+          <span style="font-size:10px;color:var(--text-dim);width:14px;flex-shrink:0">in</span>
+        </div>
+
+        <!-- Height / Length field -->
+        <div class="cfg-row" id="cfg-height-row">
+          <span class="cfg-label" id="cfg-height-label">Height</span>
+          <input class="cfg-input" id="cfg-height" type="number" step="0.125" min="0.25" value="12">
+          <span style="font-size:10px;color:var(--text-dim);width:14px;flex-shrink:0">in</span>
+        </div>
+
+        <!-- Orientation -->
+        <div class="cfg-row" id="cfg-orient-row">
+          <span class="cfg-label">Orient.</span>
+          <div class="cfg-radio-group" id="cfg-orient-group">
+            <!-- populated by JS based on material category -->
+          </div>
+        </div>
+
+        <!-- Label (always free) -->
+        <div class="cfg-row">
+          <span class="cfg-label">Label</span>
+          <input class="cfg-input" id="cfg-label" type="text" value="Panel">
+        </div>
+
+        <!-- Hidden inputs for thickness (set by material selection) -->
+        <input type="hidden" id="cfg-thickness" value="0.75">
+        <input type="hidden" id="cfg-material" value="">
+
+        <button id="btn-place-piece">▶ Place</button>
       </div>
-      <button id="btn-place-piece">▶ Place</button>
     </div>
 
     <!-- Parts list header (custom mode shows group button) -->
@@ -1405,10 +1491,50 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const MATERIALS_DB = {
-  plywood:  { name: '3/4" Plywood (Birch)', pricePerSheet: 90,  lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
-  mdf:      { name: '3/4" MDF',             pricePerSheet: 55,  lbsPerSqft: 2.8, sheetW: 48, sheetH: 96 },
-  melamine: { name: '3/4" Melamine',        pricePerSheet: 75,  lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
-  pine:     { name: 'Pine Boards',          pricePerLinFt: 3.5, lbsPerSqft: 1.5, sheetW: null, sheetH: null }
+  // ── DIMENSIONAL LUMBER (nominal → actual cross-section) ──────────────────
+  '2x4':   { name: '2×4',   category: 'lumber', thick: 1.5,  width: 3.5,   pricePerLinFt: 0.55, lbsPerLinFt: 1.1  },
+  '2x6':   { name: '2×6',   category: 'lumber', thick: 1.5,  width: 5.5,   pricePerLinFt: 0.90, lbsPerLinFt: 1.7  },
+  '2x8':   { name: '2×8',   category: 'lumber', thick: 1.5,  width: 7.25,  pricePerLinFt: 1.20, lbsPerLinFt: 2.3  },
+  '2x10':  { name: '2×10',  category: 'lumber', thick: 1.5,  width: 9.25,  pricePerLinFt: 1.60, lbsPerLinFt: 2.9  },
+  '2x12':  { name: '2×12',  category: 'lumber', thick: 1.5,  width: 11.25, pricePerLinFt: 2.00, lbsPerLinFt: 3.5  },
+  '4x4':   { name: '4×4',   category: 'lumber', thick: 3.5,  width: 3.5,   pricePerLinFt: 1.10, lbsPerLinFt: 3.0  },
+  '4x6':   { name: '4×6',   category: 'lumber', thick: 3.5,  width: 5.5,   pricePerLinFt: 1.80, lbsPerLinFt: 4.8  },
+  '6x6':   { name: '6×6',   category: 'lumber', thick: 5.5,  width: 5.5,   pricePerLinFt: 2.50, lbsPerLinFt: 7.5  },
+  '1x2':   { name: '1×2',   category: 'lumber', thick: 0.75, width: 1.5,   pricePerLinFt: 0.25, lbsPerLinFt: 0.28 },
+  '1x3':   { name: '1×3',   category: 'lumber', thick: 0.75, width: 2.5,   pricePerLinFt: 0.35, lbsPerLinFt: 0.47 },
+  '1x4':   { name: '1×4',   category: 'lumber', thick: 0.75, width: 3.5,   pricePerLinFt: 0.45, lbsPerLinFt: 0.66 },
+  '1x6':   { name: '1×6',   category: 'lumber', thick: 0.75, width: 5.5,   pricePerLinFt: 0.65, lbsPerLinFt: 1.04 },
+  '1x8':   { name: '1×8',   category: 'lumber', thick: 0.75, width: 7.25,  pricePerLinFt: 0.85, lbsPerLinFt: 1.37 },
+  '1x10':  { name: '1×10',  category: 'lumber', thick: 0.75, width: 9.25,  pricePerLinFt: 1.10, lbsPerLinFt: 1.75 },
+  '1x12':  { name: '1×12',  category: 'lumber', thick: 0.75, width: 11.25, pricePerLinFt: 1.35, lbsPerLinFt: 2.13 },
+
+  // ── SHEET GOODS ──────────────────────────────────────────────────────────
+  'ply34':    { name: '3/4" Plywood',  category: 'sheet', thick: 0.75,   pricePerSheet: 90,  lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
+  'ply12':    { name: '1/2" Plywood',  category: 'sheet', thick: 0.5,    pricePerSheet: 70,  lbsPerSqft: 1.7, sheetW: 48, sheetH: 96 },
+  'ply14':    { name: '1/4" Plywood',  category: 'sheet', thick: 0.25,   pricePerSheet: 45,  lbsPerSqft: 0.9, sheetW: 48, sheetH: 96 },
+  'mdf34':    { name: '3/4" MDF',      category: 'sheet', thick: 0.75,   pricePerSheet: 55,  lbsPerSqft: 2.8, sheetW: 48, sheetH: 96 },
+  'mdf12':    { name: '1/2" MDF',      category: 'sheet', thick: 0.5,    pricePerSheet: 42,  lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
+  'melamine': { name: '3/4" Melamine', category: 'sheet', thick: 0.75,   pricePerSheet: 75,  lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
+  'osb12':    { name: '1/2" OSB',      category: 'sheet', thick: 0.5,    pricePerSheet: 32,  lbsPerSqft: 1.8, sheetW: 48, sheetH: 96 },
+  'osb716':   { name: '7/16" OSB',     category: 'sheet', thick: 0.4375, pricePerSheet: 28,  lbsPerSqft: 1.5, sheetW: 48, sheetH: 96 },
+  'pegboard': { name: 'Pegboard',      category: 'sheet', thick: 0.25,   pricePerSheet: 35,  lbsPerSqft: 0.8, sheetW: 48, sheetH: 96 },
+
+  // ── HARDWOODS (sold by board foot) ───────────────────────────────────────
+  'oak44':    { name: 'Oak (4/4)',    category: 'hardwood', thick: 0.75, pricePerBdFt: 8.0,  lbsPerBdFt: 0.44 },
+  'oak84':    { name: 'Oak (8/4)',    category: 'hardwood', thick: 1.5,  pricePerBdFt: 9.5,  lbsPerBdFt: 0.44 },
+  'maple44':  { name: 'Maple (4/4)', category: 'hardwood', thick: 0.75, pricePerBdFt: 9.0,  lbsPerBdFt: 0.45 },
+  'maple84':  { name: 'Maple (8/4)', category: 'hardwood', thick: 1.5,  pricePerBdFt: 11.0, lbsPerBdFt: 0.45 },
+  'walnut44': { name: 'Walnut (4/4)',category: 'hardwood', thick: 0.75, pricePerBdFt: 14.0, lbsPerBdFt: 0.40 },
+  'cherry44': { name: 'Cherry (4/4)',category: 'hardwood', thick: 0.75, pricePerBdFt: 11.0, lbsPerBdFt: 0.41 },
+  'poplar44': { name: 'Poplar (4/4)',category: 'hardwood', thick: 0.75, pricePerBdFt: 5.0,  lbsPerBdFt: 0.36 },
+
+  // ── BACKWARD-COMPAT ALIASES (guided mode keys) ───────────────────────────
+  'plywood':  { name: '3/4" Plywood (Birch)', category: 'sheet', thick: 0.75, pricePerSheet: 90, lbsPerSqft: 2.2, sheetW: 48, sheetH: 96 },
+  'mdf':      { name: '3/4" MDF',             category: 'sheet', thick: 0.75, pricePerSheet: 55, lbsPerSqft: 2.8, sheetW: 48, sheetH: 96 },
+  'pine':     { name: 'Pine Boards',          category: 'lumber', thick: 0.75, width: 5.5, pricePerLinFt: 0.65, lbsPerLinFt: 1.04 },
+  'quarter':  { name: '1/4" Plywood',         category: 'sheet', thick: 0.25, pricePerSheet: 45, lbsPerSqft: 0.9, sheetW: 48, sheetH: 96 },
+  'oak':      { name: 'Hardwood (Oak)',        category: 'hardwood', thick: 0.75, pricePerBdFt: 8.0, lbsPerBdFt: 0.44 },
+  'maple':    { name: 'Hardwood (Maple)',      category: 'hardwood', thick: 0.75, pricePerBdFt: 9.0, lbsPerBdFt: 0.45 },
 };
 
 const STEP_DEFS = [
@@ -1458,6 +1584,8 @@ let ghostMesh = null;
 let ghostWireframe = null;
 let customGhostConfig = null; // { label, material, thickness, width, height, orientation, type }
 let selectedPickerType = null;
+let selectedMaterialKey = null; // currently selected material key in custom mode
+let quickStartCollapsed = true;
 let collapsedGroups = {}; // groupId -> bool
 
 // ─── THREE.JS SETUP ──────────────────────────────────────────────────────────
@@ -1797,7 +1925,7 @@ function calcBack() {
   const { w, h, d } = UNIT.envelope;
   const tb = 0.25;
   return {
-    id: 'back', type: 'back', label: 'Back Panel', fixed: true,
+    id: 'back', type: 'back', label: 'Back Panel', fixed: true, material: 'quarter',
     dims: { w: w, h: h, t: tb },
     pos: { x: w/2, y: h/2, z: tb/2 },
     rotation: 0
@@ -2207,6 +2335,56 @@ function renderFreeModeUI() {
 
 function hasPart(id) { return !!UNIT.parts.find(p => p.id === id); }
 
+// ─── COST / WEIGHT HELPERS ───────────────────────────────────────────────────
+
+function calcPartCost(part) {
+  const matKey = part.material || UNIT.material;
+  const m = MATERIALS_DB[matKey];
+  if (!m) return 0;
+  const cat = m.category || 'sheet';
+  if (cat === 'lumber') {
+    // length = largest dimension stored as t (depth) in ghost placement,
+    // but in guided mode t IS thickness. Use max(w,h,t) for length.
+    const lengthIn = Math.max(part.dims.w, part.dims.h, part.dims.t);
+    return m.pricePerLinFt * (lengthIn / 12);
+  }
+  if (cat === 'sheet') {
+    const sqin = part.dims.w * part.dims.h;
+    const sheetSqin = (m.sheetW || 48) * (m.sheetH || 96);
+    const sheets = sqin / sheetSqin; // fractional
+    return m.pricePerSheet * sheets;
+  }
+  if (cat === 'hardwood') {
+    const bdFt = (part.dims.w / 12) * (Math.max(part.dims.h, part.dims.t) / 12) * (m.thick / 1); // w * l in sqft * thickness ratio
+    // board feet = (thickness_in * width_in * length_in) / 144
+    const lengthIn = Math.max(part.dims.h, part.dims.t);
+    const bf = (m.thick * part.dims.w * lengthIn) / 144;
+    return m.pricePerBdFt * bf;
+  }
+  return 0;
+}
+
+function calcPartWeight(part) {
+  const matKey = part.material || UNIT.material;
+  const m = MATERIALS_DB[matKey];
+  if (!m) return 0;
+  const cat = m.category || 'sheet';
+  if (cat === 'lumber') {
+    const lengthIn = Math.max(part.dims.w, part.dims.h, part.dims.t);
+    return m.lbsPerLinFt * (lengthIn / 12);
+  }
+  if (cat === 'sheet') {
+    const sqft = (part.dims.w * part.dims.h) / 144;
+    return sqft * m.lbsPerSqft;
+  }
+  if (cat === 'hardwood') {
+    const lengthIn = Math.max(part.dims.h, part.dims.t);
+    const bf = (m.thick * part.dims.w * lengthIn) / 144;
+    return m.lbsPerBdFt * bf;
+  }
+  return 0;
+}
+
 function renderReviewSummary() {
   const step = STEP_DEFS[currentStep];
   const matDb = MATERIALS_DB[UNIT.material];
@@ -2215,15 +2393,15 @@ function renderReviewSummary() {
   const uprights = UNIT.parts.filter(p => p.type === 'upright').length;
   const faceFrame = UNIT.parts.filter(p => p.type === 'stile' || p.type === 'rail').length;
 
-  let totalSqin = 0, totalWeight = 0;
+  let totalSqin = 0, totalWeight = 0, totalCost = 0;
   UNIT.parts.forEach(p => {
-    const sqin = p.dims.w * p.dims.h;
-    totalSqin += sqin;
-    totalWeight += (sqin / 144) * matDb.lbsPerSqft;
+    totalCost += calcPartCost(p);
+    totalWeight += calcPartWeight(p);
+    totalSqin += p.dims.w * p.dims.h;
   });
   const sheetSqin = 48 * 96;
-  const sheetsNeeded = matDb.sheetW ? Math.ceil(totalSqin / sheetSqin) : null;
-  const cost = sheetsNeeded ? (sheetsNeeded * matDb.pricePerSheet).toFixed(2) : 'N/A';
+  const sheetsNeeded = (matDb && matDb.sheetW) ? Math.ceil(totalSqin / sheetSqin) : null;
+  const cost = totalCost.toFixed(2);
 
   const promptEl = document.getElementById('step-prompt');
   promptEl.innerHTML = `
@@ -2729,16 +2907,68 @@ function fmtInPlain(v) {
 let cutlistGroupMode = 'type'; // 'type' | 'material'
 
 function getPartMaterialLabel(part) {
+  const matKey = part.material || UNIT.material;
+  const m = MATERIALS_DB[matKey];
+  if (m) return m.name;
+  // Fallback for old parts without material key
   if (part.type === 'stile' || part.type === 'rail') return '1-1/2" Solid Wood (Face Frame)';
   if (part.dims.t === 0.25) return '1/4" Plywood';
-  if (part.dims.t === 0.75) {
-    const matDb = MATERIALS_DB[UNIT.material];
-    return `3/4" ${matDb ? matDb.name : 'Plywood'}`;
+  const guidedMat = MATERIALS_DB[UNIT.material];
+  return guidedMat ? guidedMat.name : '3/4" Sheet Good';
+}
+
+function partCutListRow(p) {
+  const matKey = p.material || UNIT.material;
+  const m = MATERIALS_DB[matKey];
+  const cat = m ? (m.category || 'sheet') : 'sheet';
+
+  if (cat === 'lumber') {
+    // Lumber: Label | Length | Cross-section
+    const length = Math.max(p.dims.w, p.dims.h, p.dims.t);
+    const xsec = m ? `${fmtIn(m.thick)}" × ${fmtIn(m.width)}"` : `${fmtIn(p.dims.t)}"`;
+    return `<tr data-id="${p.id}" style="cursor:pointer">
+      <td class="td-label">${p.label}</td>
+      <td class="td-dim">${fmtIn(length)}"</td>
+      <td class="td-dim" colspan="2">${xsec}</td>
+    </tr>`;
   }
-  return `${fmtIn(part.dims.t)}" ${MATERIALS_DB[UNIT.material]?.name || 'Sheet Good'}`;
+  if (cat === 'hardwood') {
+    // Hardwood: Label | W | L | Thickness
+    const thk = m ? m.thick : p.dims.t;
+    const lengthIn = Math.max(p.dims.h, p.dims.t);
+    return `<tr data-id="${p.id}" style="cursor:pointer">
+      <td class="td-label">${p.label}</td>
+      <td class="td-dim">${fmtIn(p.dims.w)}"</td>
+      <td class="td-dim">${fmtIn(lengthIn)}"</td>
+      <td class="td-dim">${fmtIn(thk)}"</td>
+    </tr>`;
+  }
+  // Sheet goods (default): Label | W | H | Thickness
+  const thk = m ? m.thick : p.dims.t;
+  return `<tr data-id="${p.id}" style="cursor:pointer">
+    <td class="td-label">${p.label}</td>
+    <td class="td-dim">${fmtIn(p.dims.w)}"</td>
+    <td class="td-dim">${fmtIn(p.dims.h)}"</td>
+    <td class="td-dim">${fmtIn(thk)}"</td>
+  </tr>`;
 }
 
 function renderCutList() {
+  // Update table headers based on predominant material category
+  const thead = document.querySelector('#cl-table thead tr');
+  if (thead) {
+    const matKey = UNIT.parts.length ? (UNIT.parts[0].material || UNIT.material) : UNIT.material;
+    const m = MATERIALS_DB[matKey];
+    const cat = m ? (m.category || 'sheet') : 'sheet';
+    if (cat === 'lumber') {
+      thead.innerHTML = '<th>Label</th><th>Length</th><th colspan="2">Cross-Section</th>';
+    } else if (cat === 'hardwood') {
+      thead.innerHTML = '<th>Label</th><th>W</th><th>L</th><th>Thk</th>';
+    } else {
+      thead.innerHTML = '<th>Label</th><th>W</th><th>H</th><th>Thk</th>';
+    }
+  }
+
   const tbody = document.getElementById('cl-body');
   if (!UNIT.parts.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:20px">No parts yet</td></tr>';
@@ -2749,9 +2979,9 @@ function renderCutList() {
   }
 
   let rows = '';
+  const groupHeaderStyle = 'background:var(--bg-card);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.06em;padding:5px 8px;text-transform:uppercase';
 
   if (cutlistGroupMode === 'material') {
-    // Group by material/thickness
     const groups = {};
     UNIT.parts.forEach(p => {
       const key = getPartMaterialLabel(p);
@@ -2759,34 +2989,19 @@ function renderCutList() {
       groups[key].push(p);
     });
     Object.entries(groups).forEach(([matLabel, parts]) => {
-      rows += `<tr><td colspan="4" style="background:var(--bg-card);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.06em;padding:5px 8px;text-transform:uppercase">${matLabel}</td></tr>`;
-      parts.forEach(p => {
-        const vals = [p.dims.w, p.dims.h, p.dims.t].sort((a, b) => b - a);
-        rows += `<tr data-id="${p.id}" style="cursor:pointer">
-          <td class="td-label">${p.label}</td>
-          <td class="td-dim">${fmtIn(vals[0])}"</td>
-          <td class="td-dim">${fmtIn(vals[1])}"</td>
-          <td class="td-dim">${fmtIn(vals[2])}"</td>
-        </tr>`;
-      });
+      rows += `<tr><td colspan="4" style="${groupHeaderStyle}">${matLabel}</td></tr>`;
+      parts.forEach(p => { rows += partCutListRow(p); });
     });
   } else {
-    // Group by type (original behavior)
     const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
     let lastType = null;
     sorted.forEach(p => {
       if (p.type !== lastType) {
         const typeLabel = p.type.charAt(0).toUpperCase() + p.type.slice(1) + 's';
-        rows += `<tr><td colspan="4" style="background:var(--bg-card);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.06em;padding:5px 8px;text-transform:uppercase">${typeLabel}</td></tr>`;
+        rows += `<tr><td colspan="4" style="${groupHeaderStyle}">${typeLabel}</td></tr>`;
         lastType = p.type;
       }
-      const vals = [p.dims.w, p.dims.h, p.dims.t].sort((a, b) => b - a);
-      rows += `<tr data-id="${p.id}" style="cursor:pointer">
-        <td class="td-label">${p.label}</td>
-        <td class="td-dim">${fmtIn(vals[0])}"</td>
-        <td class="td-dim">${fmtIn(vals[1])}"</td>
-        <td class="td-dim">${fmtIn(vals[2])}"</td>
-      </tr>`;
+      rows += partCutListRow(p);
     });
   }
 
@@ -2801,36 +3016,33 @@ function renderCutList() {
 }
 
 function updateSummary() {
-  const matDb = MATERIALS_DB[UNIT.material];
-  let totalSqft = 0;
-  let totalWeight = 0;
-  const SQFT = 48 * 96; // one sheet in sq inches
+  if (!UNIT.parts.length) {
+    document.getElementById('sum-sheets').textContent = '—';
+    document.getElementById('sum-cost').textContent = '—';
+    document.getElementById('sum-weight').textContent = '—';
+    return;
+  }
 
+  let totalCost = 0, totalWeight = 0, totalSqin = 0;
   UNIT.parts.forEach(p => {
-    const sqin = p.dims.w * p.dims.h;
-    const sqft = sqin / 144;
-    totalSqft += sqin;
-    totalWeight += sqft * matDb.lbsPerSqft;
+    totalCost += calcPartCost(p);
+    totalWeight += calcPartWeight(p);
+    totalSqin += p.dims.w * p.dims.h;
   });
 
-  const totalSqin = totalSqft;
+  // Count sheet goods for "sheets" display
+  const matDb = MATERIALS_DB[UNIT.material] || {};
   const sheetSqin = 48 * 96;
-  const sheetsNeeded = Math.ceil(totalSqin / sheetSqin);
-
-  let costStr, sheetsStr;
-  if (matDb.pricePerSheet) {
-    costStr = `$${(sheetsNeeded * matDb.pricePerSheet).toFixed(2)}`;
+  let sheetsStr;
+  if (matDb.category === 'sheet' || matDb.sheetW) {
+    const sheetsNeeded = Math.ceil(totalSqin / sheetSqin);
     sheetsStr = `${(totalSqin / sheetSqin).toFixed(2)} → ${sheetsNeeded} sheet${sheetsNeeded !== 1 ? 's' : ''}`;
   } else {
-    // Linear feet (for pine, use width as lin ft)
-    let linFt = 0;
-    UNIT.parts.forEach(p => linFt += p.dims.w / 12 + p.dims.h / 12);
-    costStr = `$${(linFt * matDb.pricePerLinFt).toFixed(2)}`;
-    sheetsStr = `${linFt.toFixed(1)} lin.ft`;
+    sheetsStr = `${UNIT.parts.length} piece${UNIT.parts.length !== 1 ? 's' : ''}`;
   }
 
   document.getElementById('sum-sheets').textContent = sheetsStr;
-  document.getElementById('sum-cost').textContent = costStr;
+  document.getElementById('sum-cost').textContent = `$${totalCost.toFixed(2)}`;
   document.getElementById('sum-weight').textContent = `${totalWeight.toFixed(0)} lbs`;
 }
 
@@ -2840,7 +3052,7 @@ function renderSheetLayout() {
   const container = document.getElementById('sheet-svg-container');
   if (!UNIT.parts.length) { container.innerHTML = ''; return; }
 
-  const matDb = MATERIALS_DB[UNIT.material];
+  const matDb = MATERIALS_DB[UNIT.material] || {};
   if (!matDb.sheetW) { container.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--text-muted)">Dimensional lumber — no sheet layout.</div>'; return; }
 
   const SW = matDb.sheetW, SH = matDb.sheetH;
@@ -3213,13 +3425,13 @@ function printCutList() {
   const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
   const rows = sorted.map(p => `<tr><td>${p.label}</td><td>${fmtInPlain(p.dims.w)}"</td><td>${fmtInPlain(p.dims.h)}"</td><td>${fmtInPlain(p.dims.t)}"</td></tr>`).join('');
 
-  const matDb = MATERIALS_DB[UNIT.material];
+  let totalCost = 0, totalWeight = 0;
+  UNIT.parts.forEach(p => { totalCost += calcPartCost(p); totalWeight += calcPartWeight(p); });
+  const cost = totalCost.toFixed(2);
+  const matDb = MATERIALS_DB[UNIT.material] || {};
   let totalSqin = 0;
   UNIT.parts.forEach(p => totalSqin += p.dims.w * p.dims.h);
   const sheetsNeeded = matDb.sheetW ? Math.ceil(totalSqin / (48*96)) : null;
-  let totalWeight = 0;
-  UNIT.parts.forEach(p => totalWeight += (p.dims.w * p.dims.h / 144) * matDb.lbsPerSqft);
-  const cost = sheetsNeeded ? (sheetsNeeded * matDb.pricePerSheet).toFixed(2) : 'N/A';
 
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html><head><title>Cut List — ${UNIT.name}</title>
@@ -3266,7 +3478,7 @@ document.getElementById('btn-print-drill').addEventListener('click', printDrillT
 document.getElementById('btn-export-csv').addEventListener('click', () => {
   const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
   const rows = [['Label','Width (in)','Height (in)','Thickness (in)','Material']];
-  sorted.forEach(p => rows.push([p.label, fmtInPlain(p.dims.w), fmtInPlain(p.dims.h), fmtInPlain(p.dims.t), MATERIALS_DB[UNIT.material].name]));
+  sorted.forEach(p => rows.push([p.label, fmtInPlain(p.dims.w), fmtInPlain(p.dims.h), fmtInPlain(p.dims.t), getPartMaterialLabel(p)]));
   const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
@@ -3276,11 +3488,6 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
 });
 
 // ─── CUSTOM ASSEMBLY MODE ────────────────────────────────────────────────────
-
-const CUSTOM_MATERIALS_THICKNESS = {
-  plywood: 0.75, mdf: 0.75, melamine: 0.75,
-  quarter: 0.25, pine: 0.75, oak: 0.75, maple: 0.75
-};
 
 // In custom mode these are neutral starting defaults — fully editable by user.
 // Not calculated from envelope. Per spec defaults:
@@ -3306,16 +3513,23 @@ const PIECE_PICKER_DEFS = [
 function enterCustomMode() {
   UNIT.mode = 'custom';
   cancelGhostPlacement();
+  // Reset material selection state
+  selectedMaterialKey = null;
   // Hide envelope ghost in custom mode
   if (envelopeGhost) { scene.remove(envelopeGhost); envelopeGhost = null; }
   // Show/hide UI elements
   document.getElementById('step-bar').style.display = 'none';
   document.getElementById('step-actions').style.display = 'none';
+  document.getElementById('mat-picker').classList.remove('hidden');
   document.getElementById('piece-picker').style.display = 'block';
   document.getElementById('custom-parts-header').style.display = 'flex';
   document.getElementById('custom-summary-bar').classList.add('visible');
   document.getElementById('btn-mode-toggle').textContent = 'Switch to Guided Mode';
   document.getElementById('panel-left').querySelector('.panel-header').textContent = 'Custom Assembly';
+  // Show "select material" prompt, hide fields
+  document.getElementById('cfg-no-material').style.display = '';
+  document.getElementById('cfg-fields').style.display = 'none';
+  renderMaterialPicker();
   renderPiecePicker();
   renderCustomPartsList();
   updateCustomSummaryBar();
@@ -3326,6 +3540,7 @@ function exitCustomMode() {
   cancelGhostPlacement();
   document.getElementById('step-bar').style.display = '';
   document.getElementById('step-actions').style.display = '';
+  document.getElementById('mat-picker').classList.add('hidden');
   document.getElementById('piece-picker').style.display = 'none';
   document.getElementById('piece-config').classList.remove('visible');
   document.getElementById('custom-parts-header').style.display = 'none';
@@ -3333,14 +3548,172 @@ function exitCustomMode() {
   document.getElementById('btn-mode-toggle').textContent = freeMode ? 'Switch to Guided Mode' : 'Switch to Free Mode';
   document.getElementById('panel-left').querySelector('.panel-header').textContent = 'Assembly';
   selectedPickerType = null;
+  selectedMaterialKey = null;
   // Restore envelope ghost for guided/free mode
   rebuildEnvelopeGhost();
   renderPartsList();
 }
 
+// ─── MATERIAL PICKER ─────────────────────────────────────────────────────────
+
+const MAT_PICKER_GROUPS = [
+  {
+    label: 'Dimensional Lumber',
+    rows: [
+      ['2x4','2x6','2x8','2x10','2x12'],
+      ['4x4','4x6','6x6'],
+      ['1x2','1x3','1x4','1x6','1x8','1x10','1x12']
+    ]
+  },
+  {
+    label: 'Sheet Goods',
+    rows: [
+      ['ply34','ply12','ply14'],
+      ['mdf34','mdf12','melamine'],
+      ['osb12','osb716','pegboard']
+    ]
+  },
+  {
+    label: 'Hardwoods',
+    rows: [
+      ['oak44','oak84','maple44','maple84'],
+      ['walnut44','cherry44','poplar44']
+    ]
+  }
+];
+
+function renderMaterialPicker() {
+  const el = document.getElementById('mat-picker');
+  let html = '';
+  MAT_PICKER_GROUPS.forEach(group => {
+    html += `<div class="mat-cat-header">${group.label}</div>`;
+    group.rows.forEach(row => {
+      html += '<div class="mat-chips">';
+      row.forEach(key => {
+        const m = MATERIALS_DB[key];
+        if (!m) return;
+        const sel = key === selectedMaterialKey ? ' selected' : '';
+        html += `<button class="mat-chip${sel}" data-mkey="${key}">${m.name}</button>`;
+      });
+      html += '</div>';
+    });
+  });
+  el.innerHTML = html;
+  el.querySelectorAll('.mat-chip').forEach(chip => {
+    chip.addEventListener('click', () => selectMaterial(chip.dataset.mkey));
+  });
+}
+
+function selectMaterial(key) {
+  selectedMaterialKey = key;
+  renderMaterialPicker();
+  updatePieceConfigForMaterial(key);
+}
+
+function updatePieceConfigForMaterial(key) {
+  const m = MATERIALS_DB[key];
+  if (!m) return;
+  const cat = m.category || 'sheet';
+
+  // Make the config panel visible
+  document.getElementById('piece-config').classList.add('visible');
+
+  // Update hidden inputs
+  document.getElementById('cfg-material').value = key;
+  document.getElementById('cfg-thickness').value = String(m.thick || 0.75);
+
+  // Show/hide no-material prompt
+  document.getElementById('cfg-no-material').style.display = 'none';
+  const fields = document.getElementById('cfg-fields');
+  fields.style.display = 'flex';
+
+  const xsecRow = document.getElementById('cfg-xsec-row');
+  const widthRow = document.getElementById('cfg-width-row');
+  const heightRow = document.getElementById('cfg-height-row');
+  const heightLabel = document.getElementById('cfg-height-label');
+  const xsecBadge = document.getElementById('cfg-xsec-badge');
+  const xsecLabel = document.getElementById('cfg-xsec-label');
+  const orientRow = document.getElementById('cfg-orient-row');
+  const orientGroup = document.getElementById('cfg-orient-group');
+
+  if (cat === 'lumber') {
+    // Show cross-section badge, hide width, show only Length
+    xsecRow.style.display = 'flex';
+    xsecLabel.textContent = 'Section';
+    xsecBadge.textContent = `${fmtIn(m.thick)}" × ${fmtIn(m.width)}" actual`;
+    widthRow.style.display = 'none';
+    heightRow.style.display = 'flex';
+    heightLabel.textContent = 'Length';
+    // Default lumber length to 96" (8 ft) if not already set to something reasonable
+    const curH = parseFloat(document.getElementById('cfg-height').value);
+    if (!curH || curH <= 12) document.getElementById('cfg-height').value = 96;
+    // Lumber orientations: Flat, On Edge, Post
+    orientGroup.innerHTML = `
+      <input type="radio" name="cfg-orient" id="orient-flat" value="flat" checked>
+      <label for="orient-flat">Flat</label>
+      <input type="radio" name="cfg-orient" id="orient-edge" value="edge">
+      <label for="orient-edge">On Edge</label>
+      <input type="radio" name="cfg-orient" id="orient-post" value="post">
+      <label for="orient-post">Post</label>`;
+    orientRow.style.display = 'flex';
+  } else if (cat === 'hardwood') {
+    xsecRow.style.display = 'flex';
+    xsecLabel.textContent = 'Thickness';
+    xsecBadge.textContent = `${fmtIn(m.thick)}" thick`;
+    widthRow.style.display = 'flex';
+    heightRow.style.display = 'flex';
+    heightLabel.textContent = 'Length';
+    // Sheet/panel orientations
+    orientGroup.innerHTML = `
+      <input type="radio" name="cfg-orient" id="orient-v" value="vertical" checked>
+      <label for="orient-v">Vertical</label>
+      <input type="radio" name="cfg-orient" id="orient-h" value="horizontal">
+      <label for="orient-h">Horiz.</label>
+      <input type="radio" name="cfg-orient" id="orient-e" value="edge">
+      <label for="orient-e">On Edge</label>`;
+    orientRow.style.display = 'flex';
+  } else {
+    // Sheet goods
+    xsecRow.style.display = 'flex';
+    xsecLabel.textContent = 'Thickness';
+    xsecBadge.textContent = `${fmtIn(m.thick)}" thick`;
+    widthRow.style.display = 'flex';
+    heightRow.style.display = 'flex';
+    heightLabel.textContent = 'Height';
+    orientGroup.innerHTML = `
+      <input type="radio" name="cfg-orient" id="orient-v" value="vertical" checked>
+      <label for="orient-v">Vertical</label>
+      <input type="radio" name="cfg-orient" id="orient-h" value="horizontal">
+      <label for="orient-h">Horiz.</label>
+      <input type="radio" name="cfg-orient" id="orient-e" value="edge">
+      <label for="orient-e">On Edge</label>`;
+    orientRow.style.display = 'flex';
+  }
+
+  // Re-bind orientation listeners
+  document.querySelectorAll('input[name="cfg-orient"]').forEach(r => r.addEventListener('change', onCfgDimensionChange));
+
+  // Update label default if not yet customized
+  const labelEl = document.getElementById('cfg-label');
+  if (!labelEl.dataset.userEdited) {
+    const orient = document.querySelector('input[name="cfg-orient"]:checked')?.value || '';
+    labelEl.value = m.name;
+  }
+
+  // Show piece-config
+  document.getElementById('piece-config').classList.add('visible');
+
+  // Update ghost if already placing
+  onCfgDimensionChange();
+}
+
 function renderPiecePicker() {
   const picker = document.getElementById('piece-picker');
-  let html = '';
+  const arrowChar = quickStartCollapsed ? '▸' : '▾';
+  let html = `<div id="quickstart-section">
+    <button id="quickstart-toggle">${arrowChar} Shelving Quick-Starts</button>
+    <div id="quickstart-body" class="${quickStartCollapsed ? 'hidden' : ''}">`;
+
   PIECE_PICKER_DEFS.forEach(def => {
     if (def.section) {
       html += `<div class="picker-section-label">${def.section}</div>`;
@@ -3349,7 +3722,14 @@ function renderPiecePicker() {
       html += `<button class="picker-btn${active}" data-ptype="${def.type}">${def.label}</button>`;
     }
   });
+  html += `</div></div>`;
   picker.innerHTML = html;
+
+  document.getElementById('quickstart-toggle').addEventListener('click', () => {
+    quickStartCollapsed = !quickStartCollapsed;
+    renderPiecePicker();
+  });
+
   picker.querySelectorAll('.picker-btn').forEach(btn => {
     btn.addEventListener('click', () => selectPickerType(btn.dataset.ptype));
   });
@@ -3361,22 +3741,21 @@ function selectPickerType(type) {
   const def = PIECE_PICKER_DEFS.find(d => d.type === type);
   if (!def) return;
 
-  // Pre-fill config panel with neutral defaults (not computed from envelope)
-  document.getElementById('cfg-title').textContent = def.label;
-  document.getElementById('cfg-label').value = def.label;
+  // Set dimensions from defaults
   document.getElementById('cfg-width').value = def.defW;
   document.getElementById('cfg-height').value = def.defH;
+  document.getElementById('cfg-label').value = def.label;
+  document.getElementById('cfg-label').dataset.userEdited = '';
 
-  // Set material/thickness based on type
-  const matEl = document.getElementById('cfg-material');
-  if (type === 'back-panel') { matEl.value = 'quarter'; }
-  else if (type === 'stile' || type === 'rail') { matEl.value = 'oak'; }
-  else { matEl.value = 'plywood'; }
-  // Set thickness select to match defT
-  const tEl = document.getElementById('cfg-thickness');
-  tEl.value = String(def.defT || 0.75);
-
-  document.getElementById('piece-config').classList.add('visible');
+  // Auto-select a sensible default material if none chosen yet
+  if (!selectedMaterialKey) {
+    const defaultMat = (type === 'back-panel') ? 'ply14'
+      : (type === 'stile' || type === 'rail') ? 'oak44'
+      : 'ply34';
+    selectedMaterialKey = defaultMat;
+    renderMaterialPicker();
+  }
+  updatePieceConfigForMaterial(selectedMaterialKey);
 }
 
 // Update ghost mesh immediately when cfg inputs change
@@ -3394,16 +3773,11 @@ function onCfgDimensionChange() {
 }
 document.getElementById('cfg-width').addEventListener('input', onCfgDimensionChange);
 document.getElementById('cfg-height').addEventListener('input', onCfgDimensionChange);
-document.getElementById('cfg-thickness').addEventListener('change', onCfgDimensionChange);
-document.querySelectorAll('input[name="cfg-orient"]').forEach(r => r.addEventListener('change', onCfgDimensionChange));
-
-function onCfgMaterialChange() {
-  const mat = document.getElementById('cfg-material').value;
-  const t = CUSTOM_MATERIALS_THICKNESS[mat] || 0.75;
-  document.getElementById('cfg-thickness').value = String(t);
-}
-
-document.getElementById('cfg-material').addEventListener('change', onCfgMaterialChange);
+document.getElementById('cfg-label').addEventListener('input', () => {
+  document.getElementById('cfg-label').dataset.userEdited = '1';
+});
+// Note: cfg-thickness and cfg-material are now hidden inputs; no direct listeners needed.
+// Orientation listener is bound dynamically in updatePieceConfigForMaterial.
 
 function getGhostConfigFromUI() {
   const label = document.getElementById('cfg-label').value.trim() || 'Panel';
@@ -3412,11 +3786,16 @@ function getGhostConfigFromUI() {
   const width = parseFloat(document.getElementById('cfg-width').value) || 12;
   const height = parseFloat(document.getElementById('cfg-height').value) || 12;
   const orientation = document.querySelector('input[name="cfg-orient"]:checked')?.value || 'vertical';
-  return { label, material, thickness, width, height, orientation, type: selectedPickerType || 'custom-panel' };
+  const m = MATERIALS_DB[material];
+  const matCategory = m ? (m.category || 'sheet') : 'sheet';
+  const matThick = m ? m.thick : thickness;
+  const matWidth = m ? m.width : null;
+  return { label, material, thickness, width, height, orientation, type: selectedPickerType || 'custom-panel',
+           matCategory, matThick, matWidth };
 }
 
 document.getElementById('btn-place-piece').addEventListener('click', () => {
-  if (!selectedPickerType) { showToast('Select a piece type first'); return; }
+  if (!selectedMaterialKey) { showToast('Select a material above first'); return; }
   startGhostPlacement();
 });
 
@@ -3451,17 +3830,34 @@ function startGhostPlacement() {
 }
 
 function ghostDims(cfg) {
-  const { width: pw, height: ph, thickness: pt, orientation } = cfg;
+  const { width: pw, height: ph, thickness: pt, orientation, matCategory, matThick, matWidth } = cfg;
   let gw, gh, gd;
-  if (orientation === 'vertical') {
-    // Standing tall: width=X, height=Y, depth=thickness
-    gw = pw; gh = ph; gd = pt;
-  } else if (orientation === 'horizontal') {
-    // Lying flat: width=X, height=thickness, depth=height
-    gw = pw; gh = pt; gd = ph;
+
+  if (matCategory === 'lumber') {
+    // For lumber: cfg.height = length (the "Length" field), matThick = actual thickness, matWidth = actual board width
+    const lLen = ph; // height input is labeled "Length" for lumber
+    const lThick = matThick || pt;
+    const lWidth = matWidth || 3.5; // fallback to common width
+    if (orientation === 'flat') {
+      // Lying flat (wide face up): X=boardWidth, Y=thickness, Z=length
+      gw = lWidth; gh = lThick; gd = lLen;
+    } else if (orientation === 'edge') {
+      // On edge: X=thickness, Y=boardWidth, Z=length
+      gw = lThick; gh = lWidth; gd = lLen;
+    } else {
+      // Post / column: X=thickness, Y=length, Z=boardWidth
+      gw = lThick; gh = lLen; gd = lWidth;
+    }
   } else {
-    // On edge: width=thickness, height=height, depth=width
-    gw = pt; gh = ph; gd = pw;
+    // Sheet goods / hardwood: use original orientation logic
+    if (orientation === 'vertical') {
+      gw = pw; gh = ph; gd = pt;
+    } else if (orientation === 'horizontal') {
+      gw = pw; gh = pt; gd = ph;
+    } else {
+      // On edge
+      gw = pt; gh = ph; gd = pw;
+    }
   }
   return { gw, gh, gd };
 }
@@ -3600,21 +3996,16 @@ function recomputeEnvelope() {
 // ─── CUSTOM SUMMARY BAR ──────────────────────────────────────────────────────
 
 function updateCustomSummaryBar() {
-  const matDb = MATERIALS_DB[UNIT.material] || MATERIALS_DB.plywood;
-  let totalSqin = 0, totalWeight = 0;
+  let totalCost = 0, totalWeight = 0;
   UNIT.parts.forEach(p => {
-    const sqin = p.dims.w * p.dims.h;
-    totalSqin += sqin;
-    totalWeight += (sqin / 144) * matDb.lbsPerSqft;
+    totalCost += calcPartCost(p);
+    totalWeight += calcPartWeight(p);
   });
-  const sheetSqin = 48 * 96;
-  const sheets = matDb.sheetW ? Math.ceil(totalSqin / sheetSqin) : null;
-  const cost = sheets ? (sheets * matDb.pricePerSheet) : null;
 
   document.getElementById('csb-parts').textContent = UNIT.parts.length;
-  document.getElementById('csb-sheets').textContent = sheets != null ? sheets : '—';
-  document.getElementById('csb-cost').textContent = cost != null ? `$${cost}` : '—';
-  document.getElementById('csb-weight').textContent = `${totalWeight.toFixed(0)}lb`;
+  document.getElementById('csb-sheets').textContent = UNIT.parts.length ? '—' : '—';
+  document.getElementById('csb-cost').textContent = UNIT.parts.length ? `$${totalCost.toFixed(0)}` : '—';
+  document.getElementById('csb-weight').textContent = UNIT.parts.length ? `${totalWeight.toFixed(0)}lb` : '—';
 }
 
 // ─── CUSTOM PARTS LIST (with checkboxes, groups) ─────────────────────────────
@@ -3735,11 +4126,14 @@ function customPartRow(p) {
 }
 
 function customMatAbbr(matKey) {
-  const map = {
-    plywood: '3/4 Ply', mdf: 'MDF', melamine: 'Mel.',
-    quarter: '1/4 Ply', pine: 'Pine', oak: 'Oak', maple: 'Maple'
-  };
-  return map[matKey] || matKey || '3/4 Ply';
+  const m = MATERIALS_DB[matKey];
+  if (m) {
+    // Abbreviated version of the name
+    return m.name.replace('" Plywood', '" Ply').replace('" MDF', ' MDF')
+                 .replace('Hardwood (', '').replace(')', '')
+                 .replace(' (Birch)', '');
+  }
+  return matKey || '—';
 }
 
 function updateGroupSelectedBtn() {

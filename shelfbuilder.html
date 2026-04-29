@@ -1280,6 +1280,15 @@
         <input class="prop-input" id="prop-y" type="number" step="0.125">
         <span class="prop-unit">in</span>
       </div>
+      <div class="prop-row" id="prop-rot-row">
+        <span class="prop-label">Rotate</span>
+        <div style="display:flex;gap:4px;flex:1">
+          <button class="action-btn secondary" style="flex:1;padding:3px 0;font-size:13px" id="btn-rot-y-ccw" title="Rotate left 90°">↺ Y</button>
+          <button class="action-btn secondary" style="flex:1;padding:3px 0;font-size:13px" id="btn-rot-y-cw"  title="Rotate right 90°">↻ Y</button>
+          <button class="action-btn secondary" style="flex:1;padding:3px 0;font-size:12px" id="btn-rot-x-ccw" title="Tilt back 90°">↺ X</button>
+          <button class="action-btn secondary" style="flex:1;padding:3px 0;font-size:12px" id="btn-rot-x-cw"  title="Tilt forward 90°">↻ X</button>
+        </div>
+      </div>
     </div>
 
     <!-- CUT LIST TAB -->
@@ -1743,6 +1752,7 @@ function addPartMesh(part, animate = false) {
   }
 
   mesh.rotation.y = finalRot;
+  mesh.rotation.x = part.rotationX || 0;
   scene.add(mesh);
   meshMap[part.id] = mesh;
 }
@@ -2582,6 +2592,71 @@ document.getElementById('prop-y').addEventListener('change', (e) => {
     autoSave();
   }
 });
+
+// ─── PIECE ROTATION ──────────────────────────────────────────────────────────
+
+function rotatePart(partId, axis, dir) {
+  const part = UNIT.parts.find(p => p.id === partId);
+  if (!part) return;
+  pushUndo();
+  const delta = dir * Math.PI / 2;
+  if (axis === 'y') {
+    part.rotation = ((part.rotation || 0) + delta + Math.PI * 4) % (Math.PI * 2);
+  } else {
+    part.rotationX = (((part.rotationX || 0) + delta) + Math.PI * 4) % (Math.PI * 2);
+  }
+  const mesh = meshMap[partId];
+  if (mesh) {
+    if (axis === 'y') mesh.rotation.y = part.rotation;
+    else mesh.rotation.x = part.rotationX || 0;
+  }
+  autoSave();
+}
+
+function rotateGroup(gid, axis, dir) {
+  const group = (UNIT.groups || []).find(g => g.id === gid);
+  if (!group) return;
+  const parts = group.partIds.map(id => UNIT.parts.find(p => p.id === id)).filter(Boolean);
+  if (!parts.length) return;
+  pushUndo();
+
+  // Group center in X-Z plane (for Y rotation) or X-Y (for X rotation)
+  const cx = parts.reduce((s,p) => s + p.pos.x, 0) / parts.length;
+  const cy = parts.reduce((s,p) => s + p.pos.y, 0) / parts.length;
+  const cz = parts.reduce((s,p) => s + p.pos.z, 0) / parts.length;
+  const delta = dir * Math.PI / 2;
+
+  parts.forEach(part => {
+    const dx = part.pos.x - cx;
+    const dz = part.pos.z - cz;
+    const dy = part.pos.y - cy;
+    if (axis === 'y') {
+      // Rotate position around Y axis (in X-Z plane)
+      part.pos.x = cx + dx * Math.cos(delta) - dz * Math.sin(delta);
+      part.pos.z = cz + dx * Math.sin(delta) + dz * Math.cos(delta);
+      part.rotation = ((part.rotation || 0) + delta + Math.PI * 4) % (Math.PI * 2);
+    } else {
+      // Rotate position around X axis (in Y-Z plane)
+      part.pos.y = cy + dy * Math.cos(delta) - dz * Math.sin(delta);
+      part.pos.z = cz + dy * Math.sin(delta) + dz * Math.cos(delta);
+      part.rotationX = (((part.rotationX || 0) + delta) + Math.PI * 4) % (Math.PI * 2);
+    }
+    const mesh = meshMap[part.id];
+    if (mesh) {
+      mesh.position.set(part.pos.x, part.pos.y, part.pos.z);
+      if (axis === 'y') mesh.rotation.y = part.rotation;
+      else mesh.rotation.x = part.rotationX || 0;
+    }
+  });
+  recomputeEnvelope();
+  autoSave();
+  showToast(`Group rotated 90°`);
+}
+
+document.getElementById('btn-rot-y-ccw').addEventListener('click', () => rotatePart(selectedPartId, 'y', -1));
+document.getElementById('btn-rot-y-cw' ).addEventListener('click', () => rotatePart(selectedPartId, 'y',  1));
+document.getElementById('btn-rot-x-ccw').addEventListener('click', () => rotatePart(selectedPartId, 'x', -1));
+document.getElementById('btn-rot-x-cw' ).addEventListener('click', () => rotatePart(selectedPartId, 'x',  1));
 
 // ─── SHELF PLACEMENT ─────────────────────────────────────────────────────────
 
@@ -4037,6 +4112,8 @@ function renderCustomPartsList() {
         <span class="group-collapse">${collapsed ? '▶' : '▼'}</span>
         <span class="group-name">${escHtml(g.name)}</span>
         <button class="group-dup-btn" data-gid="${g.id}" title="Duplicate group">⧉ Dup</button>
+        <button class="group-dup-btn" data-rot-gid="${g.id}" data-rot-axis="y" data-rot-dir="1"  title="Rotate group 90° (Y)">↻Y</button>
+        <button class="group-dup-btn" data-rot-gid="${g.id}" data-rot-axis="x" data-rot-dir="1"  title="Rotate group 90° (X)">↻X</button>
         <button class="cpc-del" data-gid-del="${g.id}" title="Delete group">×</button>
       </div>`;
     if (!collapsed) {
@@ -4097,8 +4174,16 @@ function renderCustomPartsList() {
   });
 
   // Group duplicate
-  el.querySelectorAll('.group-dup-btn').forEach(btn => {
+  el.querySelectorAll('.group-dup-btn[data-gid]').forEach(btn => {
     btn.addEventListener('click', (e) => { e.stopPropagation(); duplicateGroup(btn.dataset.gid); });
+  });
+
+  // Group rotate
+  el.querySelectorAll('[data-rot-gid]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      rotateGroup(btn.dataset.rotGid, btn.dataset.rotAxis, parseInt(btn.dataset.rotDir));
+    });
   });
 
   // Group delete

@@ -1665,6 +1665,8 @@ function initThree() {
   // Events
   renderer.domElement.addEventListener('click', onCanvasClick);
   renderer.domElement.addEventListener('mousemove', onCanvasMouseMove);
+  renderer.domElement.addEventListener('mousedown', onCanvasDragStart);
+  renderer.domElement.addEventListener('mouseup', onCanvasDragEnd);
 
   animate();
 }
@@ -2810,6 +2812,72 @@ window.confirmUprightPlacement = confirmUprightPlacement;
 let lastHoverId = null;
 const tooltipEl = document.getElementById('tooltip');
 
+// ─── DRAG STATE ───────────────────────────────────────────────────────────────
+let isDraggingPart   = false;
+let dragPartId_      = null;   // piece under the grab
+let dragGroupId_     = null;   // if piece is in a group, drag the group
+let dragBasePositions_ = {};   // { partId: {x,y,z} } snapshot at drag-start
+let dragAnchorWorld_ = null;   // world XZ point where mouse first hit the drag plane
+let dragFloorY_      = 0;      // Y-level to drag on (piece center height)
+let dragUndoPushed_  = false;
+const DRAG_THRESHOLD_ = 5;     // px before drag activates
+let dragMouseStart_  = { x: 0, y: 0 };
+
+function onCanvasDragStart(e) {
+  if (e.button !== 0) return;
+  if (isPlacingShelf || isPlacingUpright || isGhostPlacing) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(mx, my), camera);
+  const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
+  const hits = rc.intersectObjects(meshes);
+  if (!hits.length) return;
+  const hitId = hits[0].object.userData.partId;
+  const hitPart = UNIT.parts.find(p => p.id === hitId);
+  if (!hitPart) return;
+
+  dragPartId_      = hitId;
+  dragMouseStart_  = { x: e.clientX, y: e.clientY };
+  dragFloorY_      = hitPart.pos.y;
+  dragUndoPushed_  = false;
+  isDraggingPart   = false;
+  dragAnchorWorld_ = null;
+
+  // If piece belongs to a group, drag the whole group
+  dragGroupId_ = null;
+  const grp = (UNIT.groups || []).find(g => g.partIds.includes(hitId));
+  if (grp) dragGroupId_ = grp.id;
+
+  const partIds = dragGroupId_
+    ? ((UNIT.groups || []).find(g => g.id === dragGroupId_)?.partIds || [hitId])
+    : [hitId];
+  dragBasePositions_ = {};
+  partIds.forEach(id => {
+    const p = UNIT.parts.find(p => p.id === id);
+    if (p) dragBasePositions_[id] = { x: p.pos.x, y: p.pos.y, z: p.pos.z };
+  });
+}
+
+function onCanvasDragEnd(e) {
+  if (!dragPartId_) return;
+  if (isDraggingPart) {
+    recomputeEnvelope();
+    renderCutList();
+    autoSave();
+    showToast('Placed');
+    if (controls) controls.enabled = true;
+    renderer.domElement.style.cursor = '';
+  }
+  isDraggingPart   = false;
+  dragPartId_      = null;
+  dragGroupId_     = null;
+  dragBasePositions_ = {};
+  dragAnchorWorld_ = null;
+  dragUndoPushed_  = false;
+}
+
 function onCanvasMouseMove(e) {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -2825,6 +2893,9 @@ function onCanvasMouseMove(e) {
       lastHoverId = partId;
       highlightHover(partId);
     }
+    if (!isDraggingPart && !isPlacingShelf && !isPlacingUpright && !isGhostPlacing) {
+      renderer.domElement.style.cursor = 'grab';
+    }
     const part = UNIT.parts.find(p => p.id === partId);
     if (part) {
       tooltipEl.style.display = 'block';
@@ -2835,6 +2906,7 @@ function onCanvasMouseMove(e) {
   } else {
     if (lastHoverId) { lastHoverId = null; highlightHover(null); }
     tooltipEl.style.display = 'none';
+    if (!isDraggingPart) renderer.domElement.style.cursor = '';
   }
 
   // Ghost shelf drag (vertical plane at x=w/2)
@@ -2883,6 +2955,44 @@ function onCanvasMouseMove(e) {
   // Custom ghost mesh placement
   if (isGhostPlacing && ghostMesh && customGhostConfig) {
     updateGhostPosition(e);
+  }
+
+  // Drag-to-reposition
+  if (dragPartId_ && !isPlacingShelf && !isPlacingUpright && !isGhostPlacing) {
+    const mdx = e.clientX - dragMouseStart_.x;
+    const mdy = e.clientY - dragMouseStart_.y;
+    if (!isDraggingPart && Math.sqrt(mdx*mdx + mdy*mdy) > DRAG_THRESHOLD_) {
+      isDraggingPart = true;
+      if (controls) controls.enabled = false;
+      renderer.domElement.style.cursor = 'grabbing';
+      // Compute world anchor on drag plane
+      const dragPlane = new THREE.Plane(new THREE.Vector3(0,1,0), -dragFloorY_);
+      dragAnchorWorld_ = new THREE.Vector3();
+      raycaster.setFromCamera(mouse, camera);
+      raycaster.ray.intersectPlane(dragPlane, dragAnchorWorld_);
+    }
+    if (isDraggingPart && dragAnchorWorld_) {
+      if (!dragUndoPushed_) { pushUndo(); dragUndoPushed_ = true; }
+      const dragPlane = new THREE.Plane(new THREE.Vector3(0,1,0), -dragFloorY_);
+      const current = new THREE.Vector3();
+      raycaster.setFromCamera(mouse, camera);
+      raycaster.ray.intersectPlane(dragPlane, current);
+      if (current) {
+        // Snap delta to 0.25" grid
+        const rawDX = current.x - dragAnchorWorld_.x;
+        const rawDZ = current.z - dragAnchorWorld_.z;
+        const snapDX = Math.round(rawDX / 0.25) * 0.25;
+        const snapDZ = Math.round(rawDZ / 0.25) * 0.25;
+        Object.entries(dragBasePositions_).forEach(([id, base]) => {
+          const p = UNIT.parts.find(p => p.id === id);
+          if (!p) return;
+          p.pos.x = base.x + snapDX;
+          p.pos.z = base.z + snapDZ;
+          const mesh = meshMap[id];
+          if (mesh) { mesh.position.x = p.pos.x; mesh.position.z = p.pos.z; }
+        });
+      }
+    }
   }
 }
 

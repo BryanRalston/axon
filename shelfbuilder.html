@@ -4164,11 +4164,13 @@ document.getElementById('btn-group-selected').addEventListener('click', () => {
 function duplicateGroup(gid) {
   const group = UNIT.groups.find(g => g.id === gid);
   if (!group) return;
-  const oxStr = prompt('X offset (inches):', '0');
-  const ozStr = prompt('Z offset (inches):', '24');
+  const oxStr = prompt('X offset (inches, left/right):', '0');
+  const oyStr = prompt('Y offset (inches, up/down):', '12');
+  const ozStr = prompt('Z offset (inches, front/back):', '0');
   const ox = parseFloat(oxStr) || 0;
+  const oy = parseFloat(oyStr) || 0;
   const oz = parseFloat(ozStr) || 0;
-  if (isNaN(ox) || isNaN(oz)) return;
+  if (isNaN(ox) || isNaN(oy) || isNaN(oz)) return;
 
   pushUndo();
   const idMap = {};
@@ -4181,7 +4183,7 @@ function duplicateGroup(gid) {
     newParts.push({
       ...JSON.parse(JSON.stringify(src)),
       id: newId,
-      pos: { x: src.pos.x + ox, y: src.pos.y, z: src.pos.z + oz }
+      pos: { x: src.pos.x + ox, y: src.pos.y + oy, z: src.pos.z + oz }
     });
   });
 

@@ -1126,6 +1126,14 @@
   <div class="toolbar-sep"></div>
   <button class="tb-btn" id="btn-explode">⊞ Explode</button>
   <button class="tb-btn" id="btn-reset-cam">⊹ Reset View</button>
+  <div class="toolbar-sep"></div>
+  <button class="tb-btn" id="btn-view-top">⊤ Top</button>
+  <button class="tb-btn" id="btn-view-front">↕ Front</button>
+  <button class="tb-btn" id="btn-view-right">↔ Right</button>
+  <button class="tb-btn" id="btn-view-iso">◈ Iso</button>
+  <div class="toolbar-sep"></div>
+  <button class="tb-btn" id="btn-ortho">⊡ Ortho</button>
+  <button class="tb-btn" id="btn-frame-sel" style="display:none">⊙ Focus</button>
 </div>
 
 <!-- MAIN APP -->
@@ -1603,6 +1611,173 @@ let scene, camera, renderer, controls, raycaster, mouse;
 let meshMap = {};  // partId -> THREE.Mesh
 let frameId = null;
 
+// ─── ORTHO / PERSP TOGGLE ────────────────────────────────────────────────────
+let useOrtho = false;
+let orthoCamera = null;
+
+function activeCamera() { return useOrtho && orthoCamera ? orthoCamera : camera; }
+
+function toggleOrtho() {
+  useOrtho = !useOrtho;
+  const btn = document.getElementById('btn-ortho');
+  if (useOrtho) {
+    const d = camera.position.distanceTo(controls.target);
+    const aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+    const fovRad = THREE.MathUtils.degToRad(camera.fov);
+    const h = 2 * Math.tan(fovRad / 2) * d;
+    const w = h * aspect;
+    orthoCamera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, 0.1, 5000);
+    orthoCamera.position.copy(camera.position);
+    orthoCamera.quaternion.copy(camera.quaternion);
+    controls.object = orthoCamera;
+    btn.classList.add('active');
+    btn.textContent = '⊡ Persp';
+  } else {
+    if (orthoCamera) {
+      camera.position.copy(orthoCamera.position);
+      camera.quaternion.copy(orthoCamera.quaternion);
+    }
+    controls.object = camera;
+    orthoCamera = null;
+    btn.classList.remove('active');
+    btn.textContent = '⊡ Ortho';
+  }
+  controls.update();
+}
+
+function updateOrthoFrustum() {
+  if (!useOrtho || !orthoCamera) return;
+  const d = orthoCamera.position.distanceTo(controls.target);
+  const aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+  const fovRad = THREE.MathUtils.degToRad(camera.fov);
+  const h = 2 * Math.tan(fovRad / 2) * d;
+  const w = h * aspect;
+  orthoCamera.left   = -w/2; orthoCamera.right = w/2;
+  orthoCamera.top    =  h/2; orthoCamera.bottom = -h/2;
+  orthoCamera.updateProjectionMatrix();
+}
+
+// ─── VIEW PRESETS ────────────────────────────────────────────────────────────
+
+function getSceneCenter() {
+  if (!UNIT.parts.length) {
+    const { w, h, d } = UNIT.envelope;
+    return { cx: w/2, cy: h/2, cz: d/2, span: Math.max(w, h, d) };
+  }
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  UNIT.parts.forEach(p => {
+    minX = Math.min(minX, p.pos.x - p.dims.w/2); maxX = Math.max(maxX, p.pos.x + p.dims.w/2);
+    minY = Math.min(minY, p.pos.y - p.dims.h/2); maxY = Math.max(maxY, p.pos.y + p.dims.h/2);
+    minZ = Math.min(minZ, p.pos.z - p.dims.t/2); maxZ = Math.max(maxZ, p.pos.z + p.dims.t/2);
+  });
+  return {
+    cx: (minX+maxX)/2, cy: (minY+maxY)/2, cz: (minZ+maxZ)/2,
+    span: Math.max(maxX-minX, maxY-minY, maxZ-minZ) || 48
+  };
+}
+
+function applyViewPreset(preset) {
+  const { cx, cy, cz, span } = getSceneCenter();
+  const cam = activeCamera();
+  switch (preset) {
+    case 'top':
+      cam.position.set(cx, cy + span * 2, cz);
+      cam.up.set(0, 0, -1);
+      break;
+    case 'front':
+      cam.position.set(cx, cy, cz + span * 1.8);
+      cam.up.set(0, 1, 0);
+      break;
+    case 'right':
+      cam.position.set(cx + span * 1.8, cy, cz);
+      cam.up.set(0, 1, 0);
+      break;
+    case 'iso':
+    default:
+      cam.position.set(cx + span, cy + span * 0.9, cz + span);
+      cam.up.set(0, 1, 0);
+      break;
+  }
+  controls.target.set(cx, cy, cz);
+  controls.update();
+  if (useOrtho && orthoCamera) updateOrthoFrustum();
+}
+
+// ─── FRAME SELECTION / ALL ───────────────────────────────────────────────────
+
+function frameAll() {
+  const s = getSceneCenter();
+  const cam = activeCamera();
+  cam.up.set(0, 1, 0);
+  cam.position.set(s.cx + s.span * 0.7, s.cy + s.span * 0.6, s.cz + s.span * 1.1);
+  controls.target.set(s.cx, s.cy, s.cz);
+  controls.update();
+  if (useOrtho && orthoCamera) updateOrthoFrustum();
+}
+
+function frameSelection() {
+  if (!selectedPartId) { frameAll(); return; }
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) return;
+  const span = Math.max(part.dims.w, part.dims.h, part.dims.t) * 3;
+  const tx = part.pos.x, ty = part.pos.y, tz = part.pos.z;
+  const cam = activeCamera();
+  cam.up.set(0, 1, 0);
+  const dir = new THREE.Vector3().subVectors(cam.position, controls.target).normalize();
+  cam.position.set(tx + dir.x * span, ty + dir.y * span + span * 0.3, tz + dir.z * span);
+  controls.target.set(tx, ty, tz);
+  controls.update();
+  if (useOrtho && orthoCamera) updateOrthoFrustum();
+}
+
+// ─── PROXIMITY SNAP ──────────────────────────────────────────────────────────
+
+function proximitySnap(draggedParts, allParts, proposedDX, proposedDZ) {
+  const SNAP_THRESH = 1.5;
+  let bestDX = proposedDX, bestDZ = proposedDZ;
+  let bestErrX = SNAP_THRESH, bestErrZ = SNAP_THRESH;
+
+  draggedParts.forEach(dp => {
+    const cx = dp.basePos.x + proposedDX;
+    const cz = dp.basePos.z + proposedDZ;
+    const dLeft  = cx - dp.dims.w/2, dRight = cx + dp.dims.w/2;
+    const dFront = cz - dp.dims.t/2, dBack  = cz + dp.dims.t/2;
+
+    allParts.forEach(sp => {
+      const sLeft  = sp.pos.x - sp.dims.w/2, sRight = sp.pos.x + sp.dims.w/2;
+      const sFront = sp.pos.z - sp.dims.t/2, sBack  = sp.pos.z + sp.dims.t/2;
+
+      const xCandidates = [
+        { err: Math.abs(dRight - sLeft),  target: sLeft  - dp.dims.w/2 },
+        { err: Math.abs(dLeft  - sRight), target: sRight + dp.dims.w/2 },
+        { err: Math.abs(dLeft  - sLeft),  target: sLeft  + dp.dims.w/2 },
+        { err: Math.abs(dRight - sRight), target: sRight - dp.dims.w/2 },
+      ];
+      xCandidates.forEach(c => {
+        if (c.err < bestErrX) {
+          bestErrX = c.err;
+          bestDX = c.target - dp.basePos.x;
+        }
+      });
+
+      const zCandidates = [
+        { err: Math.abs(dBack  - sFront), target: sFront - dp.dims.t/2 },
+        { err: Math.abs(dFront - sBack),  target: sBack  + dp.dims.t/2 },
+        { err: Math.abs(dFront - sFront), target: sFront + dp.dims.t/2 },
+        { err: Math.abs(dBack  - sBack),  target: sBack  - dp.dims.t/2 },
+      ];
+      zCandidates.forEach(c => {
+        if (c.err < bestErrZ) {
+          bestErrZ = c.err;
+          bestDZ = c.target - dp.basePos.z;
+        }
+      });
+    });
+  });
+
+  return { dx: bestDX, dz: bestDZ, snapped: bestErrX < SNAP_THRESH || bestErrZ < SNAP_THRESH };
+}
+
 function initThree() {
   const canvas = document.getElementById('three-canvas');
   const vp = document.getElementById('viewport');
@@ -1702,6 +1877,7 @@ function resizeRenderer() {
   renderer.setSize(W, H, false);
   camera.aspect = W / H;
   camera.updateProjectionMatrix();
+  updateOrthoFrustum();
 }
 
 // Three.js materials
@@ -1873,7 +2049,7 @@ function animate() {
     ghostShelf.material.opacity = conflict ? 0.3 : 0.5;
   }
 
-  renderer.render(scene, camera);
+  renderer.render(scene, activeCamera());
 }
 
 function toSceneUnits(inches) { return inches; } // 1 unit = 1 inch
@@ -2534,9 +2710,15 @@ function deselectAll() {
 
 function updatePropsPane() {
   const pane = document.getElementById('props-pane');
-  if (!selectedPartId) { pane.classList.add('empty'); return; }
+  const focusBtn = document.getElementById('btn-frame-sel');
+  if (!selectedPartId) {
+    pane.classList.add('empty');
+    if (focusBtn) focusBtn.style.display = 'none';
+    return;
+  }
   const part = UNIT.parts.find(p => p.id === selectedPartId);
-  if (!part) { pane.classList.remove('empty'); pane.classList.add('empty'); return; }
+  if (!part) { pane.classList.remove('empty'); pane.classList.add('empty'); if (focusBtn) focusBtn.style.display = 'none'; return; }
+  if (focusBtn) focusBtn.style.display = '';
 
   pane.classList.remove('empty');
   document.getElementById('prop-label').value = part.label;
@@ -2830,7 +3012,7 @@ function onCanvasDragStart(e) {
   const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   const rc = new THREE.Raycaster();
-  rc.setFromCamera(new THREE.Vector2(mx, my), camera);
+  rc.setFromCamera(new THREE.Vector2(mx, my), activeCamera());
   const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
   const hits = rc.intersectObjects(meshes);
   if (!hits.length) return;
@@ -2876,6 +3058,7 @@ function onCanvasDragEnd(e) {
   dragBasePositions_ = {};
   dragAnchorWorld_ = null;
   dragUndoPushed_  = false;
+  snapToastFired   = false;
 }
 
 function onCanvasMouseMove(e) {
@@ -2883,7 +3066,7 @@ function onCanvasMouseMove(e) {
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-  raycaster.setFromCamera(mouse, camera);
+  raycaster.setFromCamera(mouse, activeCamera());
   const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
   const hits = raycaster.intersectObjects(meshes);
 
@@ -2968,21 +3151,39 @@ function onCanvasMouseMove(e) {
       // Compute world anchor on drag plane
       const dragPlane = new THREE.Plane(new THREE.Vector3(0,1,0), -dragFloorY_);
       dragAnchorWorld_ = new THREE.Vector3();
-      raycaster.setFromCamera(mouse, camera);
+      raycaster.setFromCamera(mouse, activeCamera());
       raycaster.ray.intersectPlane(dragPlane, dragAnchorWorld_);
     }
     if (isDraggingPart && dragAnchorWorld_) {
       if (!dragUndoPushed_) { pushUndo(); dragUndoPushed_ = true; }
       const dragPlane = new THREE.Plane(new THREE.Vector3(0,1,0), -dragFloorY_);
       const current = new THREE.Vector3();
-      raycaster.setFromCamera(mouse, camera);
+      raycaster.setFromCamera(mouse, activeCamera());
       raycaster.ray.intersectPlane(dragPlane, current);
       if (current) {
         // Snap delta to 0.25" grid
         const rawDX = current.x - dragAnchorWorld_.x;
         const rawDZ = current.z - dragAnchorWorld_.z;
-        const snapDX = Math.round(rawDX / 0.25) * 0.25;
-        const snapDZ = Math.round(rawDZ / 0.25) * 0.25;
+        let snapDX = Math.round(rawDX / 0.25) * 0.25;
+        let snapDZ = Math.round(rawDZ / 0.25) * 0.25;
+
+        // Proximity snap: check if dragged piece faces are near any stationary piece faces
+        const draggedIds = new Set(Object.keys(dragBasePositions_));
+        const stationaryParts = UNIT.parts.filter(p => !draggedIds.has(p.id));
+        const draggedDescs = Object.entries(dragBasePositions_).map(([id, base]) => {
+          const p = UNIT.parts.find(p => p.id === id);
+          return p ? { id, basePos: base, dims: p.dims } : null;
+        }).filter(Boolean);
+
+        if (stationaryParts.length && draggedDescs.length) {
+          const snap = proximitySnap(draggedDescs, stationaryParts, snapDX, snapDZ);
+          if (snap.snapped) {
+            snapDX = snap.dx;
+            snapDZ = snap.dz;
+            showSnapToast();
+          }
+        }
+
         Object.entries(dragBasePositions_).forEach(([id, base]) => {
           const p = UNIT.parts.find(p => p.id === id);
           if (!p) return;
@@ -3011,7 +3212,7 @@ function onCanvasClick(e) {
     return;
   }
 
-  raycaster.setFromCamera(mouse, camera);
+  raycaster.setFromCamera(mouse, activeCamera());
   const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
   const hits = raycaster.intersectObjects(meshes);
 
@@ -3491,6 +3692,12 @@ document.getElementById('btn-undo').addEventListener('click', undo);
 document.getElementById('btn-redo').addEventListener('click', redo);
 document.getElementById('btn-explode').addEventListener('click', toggleExplode);
 document.getElementById('btn-reset-cam').addEventListener('click', () => { resetCamera(); showToast('Camera reset'); });
+document.getElementById('btn-view-top').addEventListener('click', () => applyViewPreset('top'));
+document.getElementById('btn-view-front').addEventListener('click', () => applyViewPreset('front'));
+document.getElementById('btn-view-right').addEventListener('click', () => applyViewPreset('right'));
+document.getElementById('btn-view-iso').addEventListener('click', () => applyViewPreset('iso'));
+document.getElementById('btn-ortho').addEventListener('click', toggleOrtho);
+document.getElementById('btn-frame-sel').addEventListener('click', frameSelection);
 
 // ─── TAB SWITCHING ───────────────────────────────────────────────────────────
 
@@ -3556,6 +3763,7 @@ document.addEventListener('keydown', (e) => {
     if (isPlacingShelf) confirmShelfPlacement();
     if (isPlacingUpright) confirmUprightPlacement();
   }
+  if (e.key === 'f' || e.key === 'F') frameSelection();
 });
 
 // ─── CONFIRM MODAL ───────────────────────────────────────────────────────────
@@ -4079,7 +4287,7 @@ function updateGhostPosition(mouseEvent) {
   const mx = ((mouseEvent.clientX - rect.left) / rect.width) * 2 - 1;
   const my = -((mouseEvent.clientY - rect.top) / rect.height) * 2 + 1;
   const rc = new THREE.Raycaster();
-  rc.setFromCamera(new THREE.Vector2(mx, my), camera);
+  rc.setFromCamera(new THREE.Vector2(mx, my), activeCamera());
 
   // 1. Try to intersect top face of existing meshes
   const existingMeshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
@@ -4437,6 +4645,17 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
+// Debounced snap toast — fires at most once per drag gesture
+let snapToastTimer = null;
+let snapToastFired = false;
+function showSnapToast() {
+  if (snapToastFired) return;
+  snapToastFired = true;
+  showToast('⊡ Snapped');
+  clearTimeout(snapToastTimer);
+  snapToastTimer = setTimeout(() => { snapToastFired = false; }, 800);
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
 initThree();
@@ -4498,6 +4717,7 @@ function setMobileTab(tab) {
       renderer.setSize(W, H, false);
       camera.aspect = W / H;
       camera.updateProjectionMatrix();
+      updateOrthoFrustum();
     });
   }
 }
@@ -4525,7 +4745,7 @@ renderer.domElement.addEventListener('touchmove', (e) => {
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
+    raycaster.setFromCamera(mouse, activeCamera());
     const { w, d } = UNIT.envelope;
     const planeNormal = new THREE.Vector3(1, 0, 0);
     const planePoint = new THREE.Vector3(w/2, 0, d/2);

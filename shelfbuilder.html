@@ -4897,8 +4897,6 @@ function repositionPart() {
   const mesh = meshMap[partId];
   if (mesh) mesh.visible = false;
 
-  repositionPartId = partId;
-
   // Build a ghost config from the part's saved data
   customGhostConfig = {
     label: part.label,
@@ -4913,7 +4911,11 @@ function repositionPart() {
     matWidth: null
   };
 
-  cancelGhostPlacement();
+  // Clear any existing ghost first (without affecting repositionPartId)
+  if (ghostMesh) { scene.remove(ghostMesh); ghostMesh.geometry.dispose(); ghostMesh.material.dispose(); ghostMesh = null; }
+  if (ghostWireframe) { ghostWireframe.geometry.dispose(); ghostWireframe.material.dispose(); ghostWireframe = null; }
+
+  repositionPartId = partId; // Set AFTER clearing old ghost so cancelGhostPlacement doesn't wipe it
   ghostSnapMode = 'floor';
   angleStartPoint = null;
   const snapBtn = document.getElementById('ghost-snap-btn');
@@ -4937,9 +4939,10 @@ function repositionPart() {
   ghostMesh.add(ghostWireframe);
 
   isGhostPlacing = true;
-  controls.enabled = false;
-  document.getElementById('ghost-hud').classList.add('visible');
-  renderer.domElement.addEventListener('contextmenu', onGhostRightClick);
+  if (controls) controls.enabled = false;
+  const hudEl = document.getElementById('ghost-hud');
+  if (hudEl) hudEl.classList.add('visible');
+  if (renderer?.domElement) renderer.domElement.addEventListener('contextmenu', onGhostRightClick);
 }
 
 function startGhostPlacement() {
@@ -6280,7 +6283,14 @@ Object.defineProperty(window, '_SB', {
     currentStep,
     freeMode,
     mode: UNIT.mode,
-    groups: JSON.parse(JSON.stringify(UNIT.groups || []))
+    groups: JSON.parse(JSON.stringify(UNIT.groups || [])),
+    ghostActive: isGhostPlacing,
+    repoId: repositionPartId,
+    // Test API — direct function access for audit
+    addPart,
+    selectPart,
+    cancelGhostPlacement,
+    updatePropsPane,
   }),
   configurable: true
 });

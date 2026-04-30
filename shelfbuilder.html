@@ -1377,9 +1377,11 @@
         <input class="prop-input" id="prop-h" type="number" step="0.125">
         <span class="prop-unit">in</span>
       </div>
-      <div class="prop-row" id="prop-y-row">
-        <span class="prop-label" title="Vertical position — distance from floor to center of piece">Elevation</span>
-        <input class="prop-input" id="prop-y" type="number" step="0.125" title="Type a value and press Enter to move piece up/down">
+      <div class="prop-row" id="prop-y-row" style="gap:3px">
+        <span class="prop-label" title="Vertical position — distance from floor to center of piece" style="color:var(--accent)">▲ Elev</span>
+        <button class="action-btn secondary" id="btn-y-down" style="padding:2px 7px;font-size:14px;flex-shrink:0" title="Move down 0.25&quot;">−</button>
+        <input class="prop-input" id="prop-y" type="number" step="0.125" title="Type a value and press Enter to move piece up/down" style="text-align:center">
+        <button class="action-btn secondary" id="btn-y-up" style="padding:2px 7px;font-size:14px;flex-shrink:0" title="Move up 0.25&quot;">+</button>
         <span class="prop-unit">in</span>
       </div>
       <div class="prop-row" id="prop-rot-row">
@@ -3191,6 +3193,15 @@ document.getElementById('btn-rot-y-cw' ).addEventListener('click', () => rotateP
 document.getElementById('btn-rot-x-ccw').addEventListener('click', () => rotatePart(selectedPartId, 'x', -1));
 document.getElementById('btn-rot-x-cw' ).addEventListener('click', () => rotatePart(selectedPartId, 'x',  1));
 document.getElementById('btn-reposition').addEventListener('click', () => repositionPart());
+document.getElementById('btn-y-up').addEventListener('click',   () => nudgeElevation( 0.25));
+document.getElementById('btn-y-down').addEventListener('click', () => nudgeElevation(-0.25));
+
+function nudgeElevation(delta) {
+  const input = document.getElementById('prop-y');
+  const cur = parseFloat(input.value) || 0;
+  input.value = Math.round((cur + delta) * 1000) / 1000;
+  input.dispatchEvent(new Event('change'));
+}
 document.getElementById('btn-duplicate').addEventListener('click', () => duplicatePart());
 
 function duplicatePart() {

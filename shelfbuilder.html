@@ -1363,6 +1363,7 @@
       </div>
       <div class="prop-row" id="prop-reposition-row">
         <button class="action-btn secondary" id="btn-reposition" style="flex:1;font-size:12px" title="Re-place this piece with full snap + angle control">⤢ Reposition</button>
+        <button class="action-btn secondary" id="btn-duplicate" style="flex:1;font-size:12px;margin-left:4px" title="Duplicate this piece">⧉ Duplicate</button>
       </div>
     </div>
 
@@ -2823,7 +2824,9 @@ function updatePropsPane() {
   }
 
   const reposRow = document.getElementById('prop-reposition-row');
-  if (reposRow) reposRow.style.display = part.customAssembly ? 'flex' : 'none';
+  if (reposRow) reposRow.style.display = 'flex';
+  const reposBtn = document.getElementById('btn-reposition');
+  if (reposBtn) reposBtn.style.display = part.customAssembly ? '' : 'none';
 }
 
 // Props pane changes
@@ -2934,6 +2937,27 @@ document.getElementById('btn-rot-y-cw' ).addEventListener('click', () => rotateP
 document.getElementById('btn-rot-x-ccw').addEventListener('click', () => rotatePart(selectedPartId, 'x', -1));
 document.getElementById('btn-rot-x-cw' ).addEventListener('click', () => rotatePart(selectedPartId, 'x',  1));
 document.getElementById('btn-reposition').addEventListener('click', () => repositionPart());
+document.getElementById('btn-duplicate').addEventListener('click', () => duplicatePart());
+
+function duplicatePart() {
+  if (!selectedPartId) return;
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) return;
+  pushUndo();
+  const copy = JSON.parse(JSON.stringify(part));
+  copy.id = `custom_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  copy.label = part.label + ' (copy)';
+  copy.pos = { x: part.pos.x + 2, y: part.pos.y, z: part.pos.z + 2 };
+  copy.customAssembly = true;
+  addPart(copy);
+  selectPart(copy.id);
+  recomputeEnvelope();
+  updateCustomSummaryBar();
+  renderCustomPartsList();
+  renderCutList();
+  autoSave();
+  showToast('Duplicated');
+}
 
 // ─── SHELF PLACEMENT ─────────────────────────────────────────────────────────
 

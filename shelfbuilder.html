@@ -911,6 +911,30 @@
   .csb-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 
   /* ─── MOBILE TAB BAR ─── */
+  #mobile-piece-bar {
+    position: fixed;
+    bottom: 56px; left: 0; right: 0;
+    background: var(--bg-base);
+    border-top: 1px solid var(--border-glow);
+    padding: 8px 12px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 199;
+  }
+  #mobile-piece-bar.visible { display: flex; }
+  .mpb-btn {
+    background: var(--accent-bg);
+    border: 1px solid var(--border-glow);
+    border-radius: 4px;
+    color: var(--accent);
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 4px 12px;
+    min-width: 36px;
+    min-height: 36px;
+  }
   #mobile-tabs {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -1563,6 +1587,24 @@
 <div id="print-area"></div>
 
 <!-- MOBILE TAB BAR -->
+<!-- Mobile piece property bar — slides up when a piece is selected in 3D view -->
+<div id="mobile-piece-bar">
+  <div style="display:flex;align-items:center;gap:8px;width:100%">
+    <span id="mpb-label" style="flex:1;font-size:12px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <span style="font-size:10px;color:var(--text-muted)">tap 3D to deselect</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;width:100%">
+    <span style="font-size:11px;color:var(--text-muted);width:36px;flex-shrink:0">Height</span>
+    <button class="mpb-btn" onclick="mpbAdjustY(-1)">−</button>
+    <input id="mpb-y" type="number" step="0.125"
+      style="flex:1;background:var(--bg-glass);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:14px;padding:4px 6px;text-align:center;min-width:0">
+    <button class="mpb-btn" onclick="mpbAdjustY(1)">+</button>
+    <span style="font-size:11px;color:var(--text-muted)">in</span>
+    <button id="mpb-reposition" class="mpb-btn" onclick="repositionPart()" style="padding:4px 10px;font-size:11px">⤢</button>
+    <button id="mpb-duplicate" class="mpb-btn" onclick="duplicatePart()" style="padding:4px 10px;font-size:11px">⧉</button>
+  </div>
+</div>
+
 <div id="mobile-tabs">
   <button class="mob-tab active" data-tab="build" onclick="setMobileTab('build')">🏗 Build</button>
   <button class="mob-tab" data-tab="3d" onclick="setMobileTab('3d')">📦 3D View</button>
@@ -1946,7 +1988,9 @@ function resetCamera() {
 function getMobileViewportH() {
   const toolbar = document.getElementById('toolbar');
   const tabs = document.getElementById('mobile-tabs');
-  return window.innerHeight - toolbar.offsetHeight - tabs.offsetHeight;
+  const piecebar = document.getElementById('mobile-piece-bar');
+  const piecebarH = piecebar && piecebar.classList.contains('visible') ? piecebar.offsetHeight : 0;
+  return window.innerHeight - toolbar.offsetHeight - tabs.offsetHeight - piecebarH;
 }
 
 function resizeRenderer() {
@@ -2937,6 +2981,7 @@ function selectPart(partId) {
   selectedPartId = partId;
   updateSelectionHighlight();
   updatePropsPane();
+  updateMobilePieceBar();
   renderPartsList();
 }
 
@@ -2944,8 +2989,42 @@ function deselectAll() {
   selectedPartId = null;
   updateSelectionHighlight();
   updatePropsPane();
+  updateMobilePieceBar();
   renderPartsList();
 }
+
+function updateMobilePieceBar() {
+  const bar = document.getElementById('mobile-piece-bar');
+  if (!bar) return;
+  if (!selectedPartId || window.innerWidth > 768) { bar.classList.remove('visible'); return; }
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) { bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  document.getElementById('mpb-label').textContent = part.label;
+  const yVal = part.shelfY !== undefined ? part.shelfY : part.pos.y;
+  document.getElementById('mpb-y').value = parseFloat(yVal.toFixed(4));
+  const reposBtn = document.getElementById('mpb-reposition');
+  if (reposBtn) reposBtn.style.display = part.customAssembly ? '' : 'none';
+}
+
+function mpbAdjustY(dir) {
+  if (!selectedPartId) return;
+  const input = document.getElementById('mpb-y');
+  const current = parseFloat(input.value) || 0;
+  const next = Math.round((current + dir * 0.25) * 1000) / 1000;
+  input.value = next;
+  input.dispatchEvent(new Event('change'));
+  // Sync back after change handler updates part.pos.y
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (part) input.value = parseFloat((part.shelfY !== undefined ? part.shelfY : part.pos.y).toFixed(4));
+}
+
+document.getElementById('mpb-y').addEventListener('change', (e) => {
+  // Delegate to the same handler as prop-y by syncing its value and firing change
+  const propY = document.getElementById('prop-y');
+  propY.value = e.target.value;
+  propY.dispatchEvent(new Event('change'));
+});
 
 function updatePropsPane() {
   const pane = document.getElementById('props-pane');

@@ -787,6 +787,27 @@
   #ghost-hud.visible { display: flex; }
   #ghost-hud .hud-text { color: var(--text-muted); font-size: 11px; }
 
+  /* Measurement HUD — live dimension readout while placing */
+  #ghost-measure-hud {
+    position: absolute;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(9,9,11,0.92);
+    border: 1px solid rgba(255,215,0,0.45);
+    border-radius: 6px;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: #FFD700;
+    display: none;
+    z-index: 44;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    pointer-events: none;
+    letter-spacing: 0.03em;
+  }
+  #ghost-measure-hud.visible { display: block; }
+
   /* Custom mode parts list with checkboxes */
   .custom-parts-header {
     display: flex;
@@ -975,7 +996,7 @@
     body[data-mobile-tab="3d"] #panel-left { display: none; }
     body[data-mobile-tab="3d"] #viewport {
       display: block;
-      height: calc(100vh - 44px - 56px);
+      height: 300px; /* overridden by setMobileTab() JS */
     }
     body[data-mobile-tab="3d"] #panel-right { display: none; }
 
@@ -987,10 +1008,49 @@
     #toolbar {
       flex-wrap: wrap;
       height: auto;
-      padding: 6px 8px;
-      gap: 6px;
+      padding: 4px 8px;
+      gap: 4px;
     }
-    #unit-name-input { width: 110px; }
+    #unit-name-input { width: 90px; font-size: 16px; }
+
+    /* Hide 3D-specific toolbar controls on non-3D tabs */
+    body[data-mobile-tab="build"] .tb-3d-only,
+    body[data-mobile-tab="cuts"] .tb-3d-only { display: none !important; }
+
+    /* iOS: prevent font zoom on input focus (must be ≥16px) */
+    input[type="text"], input[type="number"], select, textarea {
+      font-size: 16px !important;
+    }
+    .tb-btn { font-size: 11px; padding: 4px 7px; }
+    .tb-select { font-size: 14px; padding: 3px 22px 3px 6px; }
+
+    /* Action buttons: 44px min touch target */
+    .action-btn { min-height: 44px; font-size: 14px; }
+
+    /* Panel-left fills screen on build tab (no black void below content) */
+    body[data-mobile-tab="build"] #panel-left {
+      min-height: calc(100vh - 44px - 56px);
+    }
+
+    /* Shelf placement HUD: bigger touch targets */
+    #shelf-place-hud { padding: 10px 14px; gap: 10px; }
+    #shelf-height-input { width: 64px; min-height: 44px; padding: 4px 8px; }
+    #btn-confirm-shelf, #btn-cancel-shelf { min-height: 44px; padding: 8px 16px; font-size: 14px; }
+
+    /* Cut list: prevent horizontal overflow */
+    #cutlist-pane { overflow-x: hidden; }
+    .cutlist-table { font-size: 12px; }
+    .cutlist-table th, .cutlist-table td { padding: 7px 5px; }
+
+    /* Cut list action buttons */
+    .cutlist-btns { flex-wrap: wrap; }
+    .cutlist-btns .action-btn { min-height: 44px; font-size: 12px; flex: 1 1 40%; }
+
+    /* Parts list: bigger touch targets for eye/remove buttons */
+    .part-card button, .part-item button { min-width: 32px; min-height: 32px; }
+
+    /* Upright placement prompt inputs */
+    #upright-x-input { font-size: 16px !important; min-height: 36px; padding: 4px 8px; }
 
     /* Wizard modal: scrollable on mobile */
     .modal {
@@ -1011,6 +1071,7 @@
 
     /* Ghost HUD: above tab bar */
     #ghost-hud { bottom: 72px; }
+    #ghost-measure-hud { bottom: 122px; }
     #shelf-place-hud { bottom: 72px; flex-wrap: wrap; gap: 8px; }
   }
 
@@ -1123,17 +1184,17 @@
   <div class="toolbar-sep"></div>
   <button class="tb-btn" id="btn-undo" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
   <button class="tb-btn" id="btn-redo" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
-  <div class="toolbar-sep"></div>
-  <button class="tb-btn" id="btn-explode">⊞ Explode</button>
-  <button class="tb-btn" id="btn-reset-cam">⊹ Reset View</button>
-  <div class="toolbar-sep"></div>
-  <button class="tb-btn" id="btn-view-top">⊤ Top</button>
-  <button class="tb-btn" id="btn-view-front">↕ Front</button>
-  <button class="tb-btn" id="btn-view-right">↔ Right</button>
-  <button class="tb-btn" id="btn-view-iso">◈ Iso</button>
-  <div class="toolbar-sep"></div>
-  <button class="tb-btn" id="btn-ortho">⊡ Ortho</button>
-  <button class="tb-btn" id="btn-frame-sel" style="display:none">⊙ Focus</button>
+  <div class="toolbar-sep tb-3d-only"></div>
+  <button class="tb-btn tb-3d-only" id="btn-explode">⊞ Explode</button>
+  <button class="tb-btn tb-3d-only" id="btn-reset-cam">⊹ Reset View</button>
+  <div class="toolbar-sep tb-3d-only"></div>
+  <button class="tb-btn tb-3d-only" id="btn-view-top">⊤ Top</button>
+  <button class="tb-btn tb-3d-only" id="btn-view-front">↕ Front</button>
+  <button class="tb-btn tb-3d-only" id="btn-view-right">↔ Right</button>
+  <button class="tb-btn tb-3d-only" id="btn-view-iso">◈ Iso</button>
+  <div class="toolbar-sep tb-3d-only"></div>
+  <button class="tb-btn tb-3d-only" id="btn-ortho">⊡ Ortho</button>
+  <button class="tb-btn tb-3d-only" id="btn-frame-sel" style="display:none">⊙ Focus</button>
 </div>
 
 <!-- MAIN APP -->
@@ -1245,10 +1306,13 @@
     <div id="tooltip"></div>
     <div id="shelf-place-overlay"></div>
     <div id="ghost-hud">
-      <span class="hud-text">Click to place</span>
+      <button id="ghost-snap-btn" onclick="cycleGhostSnap()" title="Cycle snap mode (F key)" style="background:var(--accent-bg);border:1px solid var(--border-glow);border-radius:4px;color:var(--accent);padding:3px 9px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">⬆ Floor</button>
+      <span style="color:var(--border-glow)">•</span>
+      <span class="hud-text" id="ghost-hud-instruction">Click to place</span>
       <span style="color:var(--border-glow)">•</span>
       <span class="hud-text">Esc to cancel</span>
     </div>
+    <div id="ghost-measure-hud"></div>
     <div id="shelf-place-hud">
       <label>Height from floor:</label>
       <input type="number" id="shelf-height-input" step="0.125" min="0" value="24">
@@ -1600,6 +1664,9 @@ let isGhostPlacing = false;
 let ghostMesh = null;
 let ghostWireframe = null;
 let customGhostConfig = null; // { label, material, thickness, width, height, orientation, type }
+let ghostSnapMode = 'floor'; // 'floor' | 'ceiling' | 'free' | 'angle'
+let angleStartPoint = null;  // THREE.Vector3 — first click in angle mode
+let measureObjects = [];     // THREE.Object3D array for dimension lines
 let selectedPickerType = null;
 let selectedMaterialKey = null; // currently selected material key in custom mode
 let quickStartCollapsed = true;
@@ -1871,13 +1938,29 @@ function resetCamera() {
   }
 }
 
+function getMobileViewportH() {
+  const toolbar = document.getElementById('toolbar');
+  const tabs = document.getElementById('mobile-tabs');
+  return window.innerHeight - toolbar.offsetHeight - tabs.offsetHeight;
+}
+
 function resizeRenderer() {
   const vp = document.getElementById('viewport');
-  const W = vp.clientWidth, H = vp.clientHeight;
-  renderer.setSize(W, H, false);
-  camera.aspect = W / H;
-  camera.updateProjectionMatrix();
-  updateOrthoFrustum();
+  let W, H;
+  if (window.innerWidth <= 768 && document.body.dataset.mobileTab === '3d') {
+    H = getMobileViewportH();
+    vp.style.height = H + 'px';
+    W = window.innerWidth;
+  } else {
+    W = vp.clientWidth;
+    H = vp.clientHeight;
+  }
+  if (W > 0 && H > 0) {
+    renderer.setSize(W, H, false);
+    camera.aspect = W / H;
+    camera.updateProjectionMatrix();
+    updateOrthoFrustum();
+  }
 }
 
 // Three.js materials
@@ -1931,6 +2014,7 @@ function addPartMesh(part, animate = false) {
 
   mesh.rotation.y = finalRot;
   mesh.rotation.x = part.rotationX || 0;
+  mesh.rotation.z = part.rotationZ || 0;
   scene.add(mesh);
   meshMap[part.id] = mesh;
 }
@@ -2455,6 +2539,7 @@ function renderStepUI() {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelector('.panel-tab[data-tab="drill"]').classList.add('active');
         document.getElementById('tab-drill').classList.add('active');
+        if (window.innerWidth <= 768) setMobileTab('cuts');
       });
       btn('Export to BuildPlan', '', () => showExportModal());
       btn('+ Start New Unit', 'secondary', () => {
@@ -2846,6 +2931,7 @@ document.getElementById('btn-rot-x-cw' ).addEventListener('click', () => rotateP
 
 function startShelfPlacement() {
   isPlacingShelf = true;
+  if (window.innerWidth <= 768) setMobileTab('3d');
   const { w, h, d } = UNIT.envelope;
   const t = UNIT.thickness;
   const innerW = w - 2 * t;
@@ -2896,6 +2982,7 @@ function cancelShelfPlacement() {
   document.getElementById('shelf-place-hud').classList.remove('visible');
   document.getElementById('shelf-place-overlay').classList.remove('visible');
   controls.enabled = true;
+  if (window.innerWidth <= 768) setMobileTab('build');
 }
 
 function confirmShelfPlacement() {
@@ -2928,6 +3015,7 @@ document.getElementById('btn-cancel-shelf').addEventListener('click', cancelShel
 
 function startUprightPlacement() {
   isPlacingUpright = true;
+  if (window.innerWidth <= 768) setMobileTab('3d');
   const { w, h, d } = UNIT.envelope;
   const t = UNIT.thickness;
   ghostUprightX = Math.round(w / 2 / 0.125) * 0.125;
@@ -2977,6 +3065,7 @@ function cancelUprightPlacement() {
   isPlacingUpright = false;
   controls.enabled = true;
   renderStepUI();
+  if (window.innerWidth <= 768) setMobileTab('build');
 }
 window.cancelUprightPlacement = cancelUprightPlacement;
 
@@ -3208,6 +3297,13 @@ function onCanvasClick(e) {
     return;
   }
   if (isGhostPlacing && ghostMesh) {
+    if (ghostSnapMode === 'angle' && !angleStartPoint) {
+      // Phase 1: anchor the start point
+      angleStartPoint = ghostMesh.position.clone();
+      const instr = document.getElementById('ghost-hud-instruction');
+      if (instr) instr.textContent = 'Click end point';
+      return;
+    }
     confirmGhostPlacement();
     return;
   }
@@ -3763,7 +3859,9 @@ document.addEventListener('keydown', (e) => {
     if (isPlacingShelf) confirmShelfPlacement();
     if (isPlacingUpright) confirmUprightPlacement();
   }
-  if (e.key === 'f' || e.key === 'F') frameSelection();
+  if (e.key === 'f' || e.key === 'F') {
+    if (isGhostPlacing) cycleGhostSnap(); else frameSelection();
+  }
 });
 
 // ─── CONFIRM MODAL ───────────────────────────────────────────────────────────
@@ -4194,6 +4292,13 @@ document.getElementById('btn-place-piece').addEventListener('click', () => {
 
 function startGhostPlacement() {
   cancelGhostPlacement();
+  ghostSnapMode = 'floor';
+  angleStartPoint = null;
+  const snapBtn = document.getElementById('ghost-snap-btn');
+  if (snapBtn) snapBtn.textContent = '⬆ Floor';
+  const instr = document.getElementById('ghost-hud-instruction');
+  if (instr) instr.textContent = 'Click to place';
+  if (window.innerWidth <= 768) setMobileTab('3d');
   customGhostConfig = getGhostConfigFromUI();
   const { width: pw, height: ph, thickness: pt } = customGhostConfig;
 
@@ -4255,6 +4360,109 @@ function ghostDims(cfg) {
   return { gw, gh, gd };
 }
 
+// ─── DIMENSION LINE HELPERS ───────────────────────────────────────────────────
+
+function clearMeasureObjects() {
+  measureObjects.forEach(o => { scene.remove(o); o.geometry?.dispose(); o.material?.dispose(); });
+  measureObjects = [];
+}
+
+function makeDimLine(p1, p2, color = 0xFFD700) {
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(p1.x, p1.y, p1.z),
+    new THREE.Vector3(p2.x, p2.y, p2.z)
+  ]);
+  const mat = new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.9 });
+  const line = new THREE.Line(geo, mat);
+  line.renderOrder = 999;
+  scene.add(line);
+  measureObjects.push(line);
+}
+
+function makeTick(cx, cy, cz, axis, size, color = 0xFFD700) {
+  const dx = axis === 'y' ? size : 0, dy = axis === 'x' ? size : 0;
+  makeDimLine({ x: cx - dx, y: cy - dy, z: cz }, { x: cx + dx, y: cy + dy, z: cz }, color);
+}
+
+function updateMeasureDisplay(snapPos, gw, gh, gd) {
+  clearMeasureObjects();
+  const el = document.getElementById('ghost-measure-hud');
+  if (!el || !ghostMesh) { el?.classList.remove('visible'); return; }
+
+  const ghostLeft  = snapPos.x - gw / 2;
+  const ghostRight = snapPos.x + gw / 2;
+  const ghostFront = snapPos.z - gd / 2;
+  const ghostBack  = snapPos.z + gd / 2;
+  // Draw dim lines at the ghost's vertical center so they're always visible
+  const lineY = snapPos.y;
+  const lineZ = snapPos.z; // center Z
+
+  const DIM = 0xFFD700;
+  const TICK = 0.6;
+
+  let leftX = null, rightX = null, leftDist = Infinity, rightDist = Infinity;
+
+  UNIT.parts.forEach(p => {
+    const pm = meshMap[p.id];
+    if (!pm || pm === ghostMesh) return;
+    const geo = pm.geometry.parameters;
+    const pLeft  = pm.position.x - geo.width / 2;
+    const pRight = pm.position.x + geo.width / 2;
+    const pFront = pm.position.z - geo.depth / 2;
+    const pBack  = pm.position.z + geo.depth / 2;
+    const zOverlap = pFront < ghostBack - 0.01 && pBack > ghostFront + 0.01;
+    if (!zOverlap) return;
+
+    if (pRight <= ghostLeft + 0.01) {
+      const d = ghostLeft - pRight;
+      if (d < leftDist) { leftDist = d; leftX = pRight; }
+    }
+    if (pLeft >= ghostRight - 0.01) {
+      const d = pLeft - ghostRight;
+      if (d < rightDist) { rightDist = d; rightX = pLeft; }
+    }
+  });
+
+  const parts = [];
+  if (leftX !== null) {
+    makeDimLine({ x: leftX, y: lineY, z: lineZ }, { x: ghostLeft, y: lineY, z: lineZ }, DIM);
+    makeTick(leftX,    lineY, lineZ, 'x', TICK, DIM);
+    makeTick(ghostLeft, lineY, lineZ, 'x', TICK, DIM);
+    parts.push(`← ${fmtIn(leftDist)}"`);
+  }
+  if (rightX !== null) {
+    makeDimLine({ x: ghostRight, y: lineY, z: lineZ }, { x: rightX, y: lineY, z: lineZ }, DIM);
+    makeTick(ghostRight, lineY, lineZ, 'x', TICK, DIM);
+    makeTick(rightX,     lineY, lineZ, 'x', TICK, DIM);
+    parts.push(`${fmtIn(rightDist)}" →`);
+  }
+
+  if (parts.length > 0) {
+    el.textContent = parts.join('   ·   ');
+    el.classList.add('visible');
+  } else {
+    el.classList.remove('visible');
+  }
+}
+
+function cycleGhostSnap() {
+  const modes = ['floor', 'ceiling', 'free', 'angle'];
+  ghostSnapMode = modes[(modes.indexOf(ghostSnapMode) + 1) % modes.length];
+  const labels = { floor: '⬆ Floor', ceiling: '⬇ Ceiling', free: '↕ Free', angle: '📐 Angle' };
+  const btn = document.getElementById('ghost-snap-btn');
+  if (btn) btn.textContent = labels[ghostSnapMode];
+  // Reset angle state when switching away
+  if (ghostSnapMode !== 'angle') {
+    angleStartPoint = null;
+    const instr = document.getElementById('ghost-hud-instruction');
+    if (instr) instr.textContent = 'Click to place';
+  } else {
+    const instr = document.getElementById('ghost-hud-instruction');
+    if (instr) instr.textContent = 'Click start point';
+  }
+}
+window.cycleGhostSnap = cycleGhostSnap;
+
 function onGhostRightClick(e) {
   e.preventDefault();
   cancelGhostPlacement();
@@ -4274,9 +4482,13 @@ function cancelGhostPlacement() {
   }
   isGhostPlacing = false;
   customGhostConfig = null;
+  angleStartPoint = null;
+  clearMeasureObjects();
+  document.getElementById('ghost-measure-hud')?.classList.remove('visible');
   if (controls) controls.enabled = true;
   document.getElementById('ghost-hud').classList.remove('visible');
   if (renderer) renderer.domElement.removeEventListener('contextmenu', onGhostRightClick);
+  if (window.innerWidth <= 768) setMobileTab('build');
 }
 
 function updateGhostPosition(mouseEvent) {
@@ -4289,15 +4501,18 @@ function updateGhostPosition(mouseEvent) {
   const rc = new THREE.Raycaster();
   rc.setFromCamera(new THREE.Vector2(mx, my), activeCamera());
 
-  // 1. Try to intersect top face of existing meshes
+  // 1. Try to intersect existing meshes
   const existingMeshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
   const hits = rc.intersectObjects(existingMeshes);
   let snapPos = null;
 
   if (hits.length > 0) {
     const hit = hits[0];
-    // Check if hit face is roughly upward-facing (normal.y > 0.5)
-    if (hit.face && hit.face.normal.y > 0.5) {
+    if (ghostSnapMode === 'angle' && angleStartPoint) {
+      // Angle phase 2: snap endpoint to exact hit point on any face
+      snapPos = new THREE.Vector3(hit.point.x, hit.point.y, hit.point.z);
+    } else if (hit.face && hit.face.normal.y > 0.5) {
+      // Normal modes: snap to top face of existing meshes
       const topY = hit.object.position.y + hit.object.geometry.parameters.height / 2;
       snapPos = new THREE.Vector3(hit.point.x, topY + gh / 2, hit.point.z);
     }
@@ -4319,9 +4534,35 @@ function updateGhostPosition(mouseEvent) {
   snapPos.x = Math.round(snapPos.x / 0.25) * 0.25;
   snapPos.z = Math.round(snapPos.z / 0.25) * 0.25;
 
-  // 4. Edge snap: if ghost face is within 0.5" of any existing piece face, snap flush
+  // 3b. Footprint scan: snap Y based on ghostSnapMode (floor/ceiling only)
+  if (ghostSnapMode !== 'free' && ghostSnapMode !== 'angle') {
+    let highestTopY = -Infinity;
+    let lowestBotY  =  Infinity;
+    UNIT.parts.forEach(p => {
+      const pm = meshMap[p.id];
+      if (!pm) return;
+      const geo = pm.geometry.parameters;
+      const pLeft  = pm.position.x - geo.width / 2,  pRight = pm.position.x + geo.width / 2;
+      const pFront = pm.position.z - geo.depth / 2,   pBack  = pm.position.z + geo.depth / 2;
+      const gLeft  = snapPos.x - gw / 2,              gRight  = snapPos.x + gw / 2;
+      const gFront = snapPos.z - gd / 2,              gBack   = snapPos.z + gd / 2;
+      if (gLeft < pRight && gRight > pLeft && gFront < pBack && gBack > pFront) {
+        const topY = pm.position.y + geo.height / 2;
+        const botY = pm.position.y - geo.height / 2;
+        if (topY > highestTopY) highestTopY = topY;
+        if (botY < lowestBotY)  lowestBotY  = botY;
+      }
+    });
+    if (ghostSnapMode === 'floor' && highestTopY > -Infinity) {
+      snapPos.y = highestTopY + gh / 2;   // ghost bottom sits on highest top-face
+    } else if (ghostSnapMode === 'ceiling' && lowestBotY < Infinity) {
+      snapPos.y = lowestBotY - gh / 2;    // ghost top flush with lowest bottom-face
+    }
+  }
+
+  // 4. Edge snap: flush-align to nearby faces (skipped in angle mode)
   const SNAP_THRESH = 0.5;
-  UNIT.parts.forEach(p => {
+  if (ghostSnapMode !== 'angle') UNIT.parts.forEach(p => {
     const pm = meshMap[p.id];
     if (!pm) return;
     const pPos = pm.position;
@@ -4343,6 +4584,48 @@ function updateGhostPosition(mouseEvent) {
   });
 
   ghostMesh.position.copy(snapPos);
+
+  // ── Angle mode: stretch ghost from start point to current snap position ──
+  if (ghostSnapMode === 'angle' && angleStartPoint) {
+    const dx = snapPos.x - angleStartPoint.x;
+    const dy = snapPos.y - angleStartPoint.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0.25) {
+      const angleZ = Math.atan2(dy, dx);
+      // Rebuild geometry to match exact length
+      ghostMesh.geometry.dispose();
+      ghostMesh.geometry = new THREE.BoxGeometry(len, gh, gd);
+      if (ghostWireframe) {
+        ghostWireframe.geometry.dispose();
+        ghostWireframe.geometry = new THREE.EdgesGeometry(ghostMesh.geometry);
+      }
+      ghostMesh.rotation.set(0, 0, angleZ);
+      ghostMesh.position.set(
+        angleStartPoint.x + dx / 2,
+        angleStartPoint.y + dy / 2,
+        snapPos.z
+      );
+      // Show angle and length in measure HUD
+      const deg = (angleZ * 180 / Math.PI).toFixed(1);
+      const compDeg = (90 - Math.abs(parseFloat(deg))).toFixed(1);
+      const el = document.getElementById('ghost-measure-hud');
+      if (el) {
+        el.textContent = `${fmtIn(len)}"  ·  ${Math.abs(parseFloat(deg))}° from horiz  ·  ${Math.abs(parseFloat(compDeg))}° from vert`;
+        el.classList.add('visible');
+      }
+      clearMeasureObjects();
+      // Draw a line showing the span
+      makeDimLine(
+        { x: angleStartPoint.x, y: angleStartPoint.y, z: snapPos.z },
+        { x: snapPos.x, y: snapPos.y, z: snapPos.z },
+        0xFF8C00
+      );
+    }
+    return;
+  }
+
+  // ── Normal modes: show gap measurements ──
+  updateMeasureDisplay(snapPos, gw, gh, gd);
 }
 
 function confirmGhostPlacement() {
@@ -4351,6 +4634,15 @@ function confirmGhostPlacement() {
   const pos = ghostMesh.position.clone();
   const { gw, gh, gd } = ghostDims(cfg);
 
+  // Angle mode: compute actual length and rotation from current ghost state
+  let finalW = gw, finalH = gh, rotZ = 0;
+  if (ghostSnapMode === 'angle' && angleStartPoint) {
+    const dx = pos.x - angleStartPoint.x;
+    const dy = pos.y - angleStartPoint.y;
+    finalW = Math.sqrt(dx * dx + dy * dy);
+    rotZ = Math.atan2(dy, dx);
+  }
+
   const newPart = {
     id: `custom_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
     type: cfg.type,
@@ -4358,9 +4650,10 @@ function confirmGhostPlacement() {
     material: cfg.material,
     fixed: false,
     adjustable: false,
-    dims: { w: gw, h: gh, t: gd },
+    dims: { w: finalW, h: finalH, t: gd },
     pos: { x: pos.x, y: pos.y, z: pos.z },
     rotation: 0,
+    rotationZ: rotZ,
     customAssembly: true
   };
 
@@ -4565,46 +4858,39 @@ document.getElementById('btn-group-selected').addEventListener('click', () => {
 });
 
 function duplicateGroup(gid) {
-  const group = UNIT.groups.find(g => g.id === gid);
+  const group = (UNIT.groups || []).find(g => g.id === gid);
   if (!group) return;
-  const oxStr = prompt('X offset (inches, left/right):', '0');
-  const oyStr = prompt('Y offset (inches, up/down):', '12');
-  const ozStr = prompt('Z offset (inches, front/back):', '0');
-  const ox = parseFloat(oxStr) || 0;
-  const oy = parseFloat(oyStr) || 0;
-  const oz = parseFloat(ozStr) || 0;
-  if (isNaN(ox) || isNaN(oy) || isNaN(oz)) return;
+  const parts = group.partIds.map(id => UNIT.parts.find(p => p.id === id)).filter(Boolean);
+  if (!parts.length) return;
+
+  // Bounding box to compute offset
+  let minX = Infinity, maxX = -Infinity;
+  parts.forEach(p => {
+    minX = Math.min(minX, p.pos.x - p.dims.w / 2);
+    maxX = Math.max(maxX, p.pos.x + p.dims.w / 2);
+  });
+  const ox = (maxX - minX) + 4; // place copy group-width + 4" to the right
 
   pushUndo();
-  const idMap = {};
   const newParts = [];
   group.partIds.forEach(pid => {
     const src = UNIT.parts.find(p => p.id === pid);
     if (!src) return;
-    const newId = `custom_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
-    idMap[pid] = newId;
-    newParts.push({
-      ...JSON.parse(JSON.stringify(src)),
-      id: newId,
-      pos: { x: src.pos.x + ox, y: src.pos.y + oy, z: src.pos.z + oz }
-    });
+    const newId = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    newParts.push({ ...JSON.parse(JSON.stringify(src)), id: newId, pos: { x: src.pos.x + ox, y: src.pos.y, z: src.pos.z } });
   });
-
-  newParts.forEach(p => {
-    UNIT.parts.push(p);
-    addPartMesh(p, true);
-  });
+  newParts.forEach(p => { UNIT.parts.push(p); addPartMesh(p, true); });
 
   const newGid = `grp_${Date.now()}`;
-  const dupCount = UNIT.groups.filter(g => g.name.startsWith(group.name)).length + 1;
+  const dupCount = (UNIT.groups || []).filter(g => g.name.startsWith(group.name)).length + 1;
+  if (!UNIT.groups) UNIT.groups = [];
   UNIT.groups.push({ id: newGid, name: `${group.name} (${dupCount})`, partIds: newParts.map(p => p.id) });
 
   recomputeEnvelope();
   updateCustomSummaryBar();
   renderCustomPartsList();
-  renderCutList();
   autoSave();
-  showToast(`Duplicated group "${group.name}"`);
+  showToast(`"${group.name}" duplicated — drag to place`);
 }
 
 function deleteGroup(gid) {
@@ -4709,15 +4995,16 @@ function setMobileTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
   if (tab === '3d' && renderer) {
-    // Allow DOM to re-layout before measuring
     requestAnimationFrame(() => {
       const vp = document.getElementById('viewport');
-      const W = vp.clientWidth || window.innerWidth;
-      const H = vp.clientHeight || Math.round(window.innerHeight * 0.55);
+      const W = window.innerWidth;
+      const H = getMobileViewportH();
+      vp.style.height = H + 'px';
       renderer.setSize(W, H, false);
       camera.aspect = W / H;
       camera.updateProjectionMatrix();
       updateOrthoFrustum();
+      resetCamera();
     });
   }
 }

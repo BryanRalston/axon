@@ -1361,6 +1361,9 @@
           <button class="action-btn secondary" style="flex:1;padding:3px 0;font-size:12px" id="btn-rot-x-cw"  title="Tilt forward 90°">↻ X</button>
         </div>
       </div>
+      <div class="prop-row" id="prop-reposition-row">
+        <button class="action-btn secondary" id="btn-reposition" style="flex:1;font-size:12px" title="Re-place this piece with full snap + angle control">⤢ Reposition</button>
+      </div>
     </div>
 
     <!-- CUT LIST TAB -->
@@ -1667,6 +1670,7 @@ let customGhostConfig = null; // { label, material, thickness, width, height, or
 let ghostSnapMode = 'floor'; // 'floor' | 'ceiling' | 'free' | 'angle'
 let angleStartPoint = null;  // THREE.Vector3 — first click in angle mode
 let measureObjects = [];     // THREE.Object3D array for dimension lines
+let repositionPartId = null; // when set, confirmGhostPlacement updates this part instead of creating new
 let selectedPickerType = null;
 let selectedMaterialKey = null; // currently selected material key in custom mode
 let quickStartCollapsed = true;
@@ -2817,6 +2821,9 @@ function updatePropsPane() {
   } else {
     yRow.style.display = 'none';
   }
+
+  const reposRow = document.getElementById('prop-reposition-row');
+  if (reposRow) reposRow.style.display = part.customAssembly ? 'flex' : 'none';
 }
 
 // Props pane changes
@@ -2926,6 +2933,7 @@ document.getElementById('btn-rot-y-ccw').addEventListener('click', () => rotateP
 document.getElementById('btn-rot-y-cw' ).addEventListener('click', () => rotatePart(selectedPartId, 'y',  1));
 document.getElementById('btn-rot-x-ccw').addEventListener('click', () => rotatePart(selectedPartId, 'x', -1));
 document.getElementById('btn-rot-x-cw' ).addEventListener('click', () => rotatePart(selectedPartId, 'x',  1));
+document.getElementById('btn-reposition').addEventListener('click', () => repositionPart());
 
 // ─── SHELF PLACEMENT ─────────────────────────────────────────────────────────
 
@@ -4290,6 +4298,61 @@ document.getElementById('btn-place-piece').addEventListener('click', () => {
   startGhostPlacement();
 });
 
+function repositionPart() {
+  const partId = selectedPartId;
+  if (!partId) return;
+  const part = UNIT.parts.find(p => p.id === partId);
+  if (!part || !part.customAssembly) { showToast('Reposition only available for custom pieces'); return; }
+
+  // Hide the existing mesh while repositioning
+  const mesh = meshMap[partId];
+  if (mesh) mesh.visible = false;
+
+  repositionPartId = partId;
+
+  // Build a ghost config from the part's saved data
+  customGhostConfig = {
+    label: part.label,
+    material: part.material || 'plywood_34',
+    thickness: part.dims.t,
+    width: part.dims.w,
+    height: part.dims.h,
+    orientation: 'vertical',
+    type: part.type,
+    matCategory: 'sheet',
+    matThick: part.dims.t,
+    matWidth: null
+  };
+
+  cancelGhostPlacement();
+  ghostSnapMode = 'floor';
+  angleStartPoint = null;
+  const snapBtn = document.getElementById('ghost-snap-btn');
+  if (snapBtn) snapBtn.textContent = '⬆ Floor';
+  const instr = document.getElementById('ghost-hud-instruction');
+  if (instr) instr.textContent = 'Click to place';
+  if (window.innerWidth <= 768) setMobileTab('3d');
+
+  const { gw, gh, gd } = ghostDims(customGhostConfig);
+  const geo = new THREE.BoxGeometry(gw, gh, gd);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x22D3EE, transparent: true, opacity: 0.45, roughness: 0.5, depthWrite: false
+  });
+  ghostMesh = new THREE.Mesh(geo, mat);
+  ghostMesh.position.copy(new THREE.Vector3(part.pos.x, part.pos.y, part.pos.z));
+  scene.add(ghostMesh);
+
+  const edgesGeo = new THREE.EdgesGeometry(geo);
+  const edgesMat = new THREE.LineBasicMaterial({ color: 0x22D3EE, transparent: false });
+  ghostWireframe = new THREE.LineSegments(edgesGeo, edgesMat);
+  ghostMesh.add(ghostWireframe);
+
+  isGhostPlacing = true;
+  controls.enabled = false;
+  document.getElementById('ghost-hud').classList.add('visible');
+  renderer.domElement.addEventListener('contextmenu', onGhostRightClick);
+}
+
 function startGhostPlacement() {
   cancelGhostPlacement();
   ghostSnapMode = 'floor';
@@ -4469,6 +4532,12 @@ function onGhostRightClick(e) {
 }
 
 function cancelGhostPlacement() {
+  // If cancelling a reposition, restore the original mesh visibility
+  if (repositionPartId) {
+    const mesh = meshMap[repositionPartId];
+    if (mesh) mesh.visible = true;
+    repositionPartId = null;
+  }
   if (ghostMesh) {
     scene.remove(ghostMesh);
     ghostMesh.geometry.dispose();
@@ -4641,6 +4710,30 @@ function confirmGhostPlacement() {
     const dy = pos.y - angleStartPoint.y;
     finalW = Math.sqrt(dx * dx + dy * dy);
     rotZ = Math.atan2(dy, dx);
+  }
+
+  if (repositionPartId) {
+    const existingPart = UNIT.parts.find(p => p.id === repositionPartId);
+    if (existingPart) {
+      pushUndo();
+      existingPart.dims = { w: finalW, h: finalH, t: gd };
+      existingPart.pos = { x: pos.x, y: pos.y, z: pos.z };
+      existingPart.rotation = 0;
+      existingPart.rotationZ = rotZ;
+      cancelGhostPlacement(); // clears repositionPartId after this
+      removeMeshFor(existingPart.id);
+      addPartMesh(existingPart, false);
+      selectPart(existingPart.id);
+      recomputeEnvelope();
+      updateCustomSummaryBar();
+      renderCustomPartsList();
+      renderCutList();
+      autoSave();
+      showToast('Repositioned');
+    } else {
+      cancelGhostPlacement();
+    }
+    return;
   }
 
   const newPart = {

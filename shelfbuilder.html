@@ -1188,6 +1188,205 @@
     padding: 0 4px 4px;
   }
   #quickstart-body.hidden { display: none; }
+
+  /* ─── BUY LIST TAB ─── */
+  #buylist-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  #buylist-pane::-webkit-scrollbar { width: 4px; }
+  #buylist-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .bl-section { margin-bottom: 14px; }
+  .bl-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+    font-family: 'Inter', sans-serif;
+  }
+  .bl-row { color: var(--text); margin-bottom: 2px; }
+  .bl-sub { color: var(--text-muted); padding-left: 14px; font-size: 11px; }
+  .bl-cost { color: var(--accent); font-weight: 600; margin-top: 2px; padding-left: 14px; font-size: 11px; }
+  .bl-waste { color: var(--warn); font-size: 10px; }
+  .bl-empty { color: var(--text-dim); font-size: 11px; padding: 16px 4px; font-family: 'Inter', sans-serif; }
+  .buylist-btns {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .buylist-btns .action-btn { flex: 1; text-align: center; }
+
+  /* ─── WALKTHROUGH OVERLAY ─── */
+  #walkthrough-overlay {
+    position: fixed;
+    inset: 0;
+    background: #09090B;
+    z-index: 1000;
+    display: none;
+    flex-direction: row;
+  }
+  #walkthrough-overlay.open { display: flex; }
+  .wt-sidebar {
+    width: 350px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .wt-sidebar::-webkit-scrollbar { width: 4px; }
+  .wt-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .wt-viewport { flex: 1; position: relative; overflow: hidden; }
+  .wt-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+  }
+  .wt-step-num {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .wt-step-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .wt-parts {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  .wt-parts-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    font-family: 'Inter', sans-serif;
+  }
+  .wt-part-row {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 2px;
+  }
+  .wt-instruction {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  .wt-fastener {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 10px;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+  }
+  .wt-fastener-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 3px;
+  }
+  .wt-nav {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    flex-shrink: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .wt-nav-btn {
+    flex: 1;
+    min-height: 44px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .wt-nav-btn:hover:not(:disabled) { border-color: var(--border-glow); color: var(--text); }
+  .wt-nav-btn:disabled { opacity: 0.35; cursor: default; }
+  .wt-nav-btn.primary { background: var(--accent-bg); border-color: var(--accent-dim); color: var(--accent); }
+  .wt-nav-btn.primary:hover { background: rgba(34,211,238,0.15); }
+  .wt-close-btn {
+    min-height: 44px;
+    padding: 0 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .wt-close-btn:hover { color: var(--danger); border-color: rgba(239,68,68,0.4); }
+  .wt-counter {
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .wt-print-btn {
+    width: 100%;
+    padding: 8px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .wt-print-btn:hover { color: var(--text); border-color: var(--border-glow); }
+
+  @media print {
+    #walkthrough-overlay { display: none !important; }
+    #walkthrough-overlay.open.print-mode { display: block !important; }
+    #walkthrough-overlay.open.print-mode .wt-viewport { display: none !important; }
+    #walkthrough-overlay.open.print-mode .wt-sidebar { width: 100%; border: none; }
+  }
 </style>
 </head>
 <body>
@@ -1221,6 +1420,8 @@
   <div class="toolbar-sep tb-3d-only"></div>
   <button class="tb-btn tb-3d-only" id="btn-ortho">⊡ Ortho</button>
   <button class="tb-btn tb-3d-only" id="btn-frame-sel" style="display:none">⊙ Focus</button>
+  <div class="toolbar-sep"></div>
+  <button class="tb-btn" id="btn-walkthrough">Build Guide</button>
 </div>
 
 <!-- MAIN APP -->
@@ -1354,6 +1555,7 @@
     <div class="panel-tabs">
       <div class="panel-tab active" data-tab="cutlist">Cut List</div>
       <div class="panel-tab" data-tab="drill">Drill Template</div>
+      <div class="panel-tab" data-tab="buylist">Buy List</div>
     </div>
 
     <!-- Selected piece props (appears above tab content) -->
@@ -1447,6 +1649,9 @@
         <button class="action-btn" id="btn-print-cutlist" style="text-align:center">Print</button>
         <button class="action-btn secondary" id="btn-export-csv" style="text-align:center">CSV</button>
         <button class="action-btn" id="btn-export-buildplan" style="text-align:center">BuildPlan</button>
+        <button class="action-btn secondary" id="btn-save-json" style="text-align:center">Save</button>
+        <button class="action-btn secondary" id="btn-load-json" style="text-align:center">Load</button>
+        <input type="file" id="file-load-input" accept=".json,.shelf.json" style="display:none">
       </div>
     </div>
 
@@ -1460,6 +1665,16 @@
           Highlighted holes = current shelf positions.
         </div>
         <button class="action-btn" id="btn-print-drill">Print at Scale</button>
+      </div>
+    </div>
+
+    <!-- BUY LIST TAB -->
+    <div class="tab-content" id="tab-buylist">
+      <div id="buylist-pane">
+        <div class="bl-empty">No parts yet. Add parts to generate a buy list.</div>
+      </div>
+      <div class="buylist-btns">
+        <button class="action-btn" id="btn-print-buylist" style="text-align:center">Print Buy List</button>
       </div>
     </div>
   </div>
@@ -1587,6 +1802,32 @@
     <button class="action-btn" id="btn-copy-export" style="text-align:center;width:100%">Copy to Clipboard</button>
     <button class="action-btn secondary" id="btn-close-export" style="text-align:center;width:100%;margin-top:6px">Close</button>
   </div>
+</div>
+
+<!-- WALKTHROUGH OVERLAY -->
+<div id="walkthrough-overlay">
+  <div class="wt-sidebar" id="wt-sidebar">
+    <div class="wt-title">Assembly Guide</div>
+    <div class="wt-step-num" id="wt-step-num">Step 1 of 1</div>
+    <div class="wt-step-title" id="wt-step-title">—</div>
+    <div class="wt-parts" id="wt-parts">
+      <div class="wt-parts-label">Parts in this step</div>
+      <div id="wt-parts-list"></div>
+    </div>
+    <div class="wt-instruction" id="wt-instruction"></div>
+    <div class="wt-fastener" id="wt-fastener-wrap">
+      <div class="wt-fastener-label">Fasteners</div>
+      <div id="wt-fastener"></div>
+    </div>
+    <button class="wt-print-btn" id="btn-wt-print">Print Walkthrough</button>
+    <div class="wt-nav">
+      <button class="wt-nav-btn" id="btn-wt-prev">Prev</button>
+      <button class="wt-nav-btn primary" id="btn-wt-next">Next</button>
+      <button class="wt-close-btn" id="btn-wt-close">Close</button>
+    </div>
+    <div class="wt-counter" id="wt-counter"></div>
+  </div>
+  <div class="wt-viewport" id="walkthrough-viewport"></div>
 </div>
 
 <!-- TOAST -->
@@ -5520,6 +5761,462 @@ renderer.domElement.addEventListener('touchend', (e) => {
   if (isPlacingUpright) { confirmUprightPlacement(); return; }
   if (isGhostPlacing && ghostMesh) { confirmGhostPlacement(); return; }
 }, { passive: true });
+
+// ─── FEATURE 1: SAVE / LOAD JSON ─────────────────────────────────────────────
+
+function rebuildScene() {
+  Object.keys(meshMap).forEach(id => removeMeshFor(id));
+  UNIT.parts.forEach(p => addPartMesh(p, false));
+  updateSelectionHighlight();
+}
+
+document.getElementById('btn-save-json').addEventListener('click', () => {
+  const json = JSON.stringify(UNIT, null, 2);
+  const fname = (UNIT.name || 'shelf').replace(/\s+/g, '-') + '.shelf.json';
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Saved: ' + fname);
+});
+
+document.getElementById('btn-load-json').addEventListener('click', () => {
+  document.getElementById('file-load-input').click();
+});
+
+document.getElementById('file-load-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (!parsed || !Array.isArray(parsed.parts)) {
+        showToast('Invalid .shelf.json file — missing parts array.');
+        return;
+      }
+      UNIT = parsed;
+      if (!UNIT.mode) UNIT.mode = 'guided';
+      if (!UNIT.groups) UNIT.groups = [];
+      document.getElementById('unit-name-input').value = UNIT.name || 'My Shelf';
+      if (UNIT.material) {
+        const matSel = document.getElementById('tb-material');
+        if (matSel) matSel.value = UNIT.material;
+      }
+      rebuildEnvelopeGhost();
+      rebuildScene();
+      renderCutList();
+      renderPartsList();
+      renderBuyList();
+      autoSave();
+      selectedPartId = null;
+      showToast('Loaded: ' + (UNIT.name || 'shelf'));
+    } catch (err) {
+      showToast('Failed to parse file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  // Reset so same file can be loaded again
+  e.target.value = '';
+});
+
+// ─── FEATURE 2: BUY LIST ─────────────────────────────────────────────────────
+
+function fmtFt(inches) {
+  const ft = Math.floor(inches / 12);
+  const i = inches % 12;
+  if (ft === 0) return i + '"';
+  if (i === 0) return ft + "'";
+  return ft + "'" + i + '"';
+}
+
+function renderBuyList() {
+  const pane = document.getElementById('buylist-pane');
+  if (!pane) return;
+  if (!UNIT.parts || !UNIT.parts.length) {
+    pane.innerHTML = '<div class="bl-empty">No parts yet. Add parts to generate a buy list.</div>';
+    return;
+  }
+
+  // Group parts by material key
+  const byMat = {};
+  UNIT.parts.forEach(p => {
+    const key = p.material || UNIT.material || 'plywood';
+    if (!byMat[key]) byMat[key] = [];
+    byMat[key].push(p);
+  });
+
+  let html = '';
+
+  Object.entries(byMat).forEach(([matKey, parts]) => {
+    const db = MATERIALS_DB[matKey];
+    if (!db) {
+      html += `<div class="bl-section"><div class="bl-section-title">${matKey}</div><div class="bl-row">${parts.length} piece(s) — material not in database</div></div>`;
+      return;
+    }
+
+    if (db.category === 'sheet') {
+      // Sheet goods: count area
+      let totalSqin = 0;
+      parts.forEach(p => { totalSqin += p.dims.w * p.dims.h; });
+      const sheetW = db.sheetW || 48, sheetH = db.sheetH || 96;
+      const sheetSqin = sheetW * sheetH;
+      const sheetsNeeded = Math.ceil(totalSqin / sheetSqin);
+      const cost = sheetsNeeded * (db.pricePerSheet || 0);
+      html += `<div class="bl-section">`;
+      html += `<div class="bl-section-title">${db.name}</div>`;
+      html += `<div class="bl-row">${sheetsNeeded}&times; ${sheetW / 12}'&times;${sheetH / 12}' sheets of ${db.name}</div>`;
+      html += `<div class="bl-cost">Est. cost: $${cost.toFixed(2)}</div>`;
+      html += `</div>`;
+
+    } else if (db.category === 'lumber' || db.category === 'hardwood') {
+      // Lumber: bin-pack into standard lengths
+      const KERF = 0.125;
+      const STD_LENGTHS = [72, 96, 120, 144, 168, 192]; // inches (6'–16')
+
+      // Collect piece lengths (w = long dimension for lumber)
+      const pieceLengths = parts.map(p => p.dims.w).sort((a, b) => b - a); // FFD: largest first
+
+      // Bin-pack
+      const boards = []; // { stdLen, cuts, remaining }
+
+      pieceLengths.forEach(len => {
+        // Try to fit in existing board
+        let placed = false;
+        for (const board of boards) {
+          if (board.remaining >= len + (board.cuts.length > 0 ? KERF : 0)) {
+            const kerfCost = board.cuts.length > 0 ? KERF : 0;
+            board.remaining -= (len + kerfCost);
+            board.cuts.push(len);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          // Open new board — shortest standard length >= piece length
+          const stdLen = STD_LENGTHS.find(l => l >= len) || STD_LENGTHS[STD_LENGTHS.length - 1];
+          const board = { stdLen, cuts: [len], remaining: stdLen - len };
+          boards.push(board);
+        }
+      });
+
+      // Group boards by standard length for summary
+      const boardCounts = {};
+      boards.forEach(b => {
+        boardCounts[b.stdLen] = (boardCounts[b.stdLen] || 0) + 1;
+      });
+
+      html += `<div class="bl-section">`;
+      html += `<div class="bl-section-title">${db.name}</div>`;
+
+      boards.forEach((b, i) => {
+        const usedLen = b.stdLen - b.remaining;
+        const wasteLen = b.remaining;
+        const wastePct = Math.round((wasteLen / b.stdLen) * 100);
+        const cutsStr = b.cuts.map(c => fmtFt(c)).join(', ');
+        html += `<div class="bl-row">Board ${i + 1} (${fmtFt(b.stdLen)}): ${cutsStr} <span class="bl-waste">${wastePct}% waste</span></div>`;
+      });
+
+      // Buy summary
+      let buySum = Object.entries(boardCounts).map(([len, cnt]) => `${cnt}&times; ${fmtFt(parseInt(len))} ${db.name}`).join(', ');
+      html += `<div class="bl-sub">Buy: ${buySum}</div>`;
+
+      // Cost estimate
+      let totalCost = 0;
+      if (db.pricePerLinFt) {
+        boards.forEach(b => { totalCost += (b.stdLen / 12) * db.pricePerLinFt; });
+        html += `<div class="bl-cost">Est. cost: $${totalCost.toFixed(2)}</div>`;
+      } else if (db.pricePerBdFt) {
+        // board foot = (thickness × width × length) / 144
+        let totalBdFt = 0;
+        parts.forEach(p => { totalBdFt += (p.dims.t * p.dims.h * p.dims.w) / 144; });
+        totalCost = totalBdFt * db.pricePerBdFt;
+        html += `<div class="bl-cost">Est. cost: $${totalCost.toFixed(2)} (${totalBdFt.toFixed(2)} bd.ft)</div>`;
+      }
+      html += `</div>`;
+    } else {
+      html += `<div class="bl-section"><div class="bl-section-title">${db.name}</div><div class="bl-row">${parts.length} piece(s)</div></div>`;
+    }
+  });
+
+  pane.innerHTML = html || '<div class="bl-empty">No recognizable materials found.</div>';
+}
+
+document.getElementById('btn-print-buylist').addEventListener('click', () => {
+  const content = document.getElementById('buylist-pane').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Buy List — ${UNIT.name}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; }
+    h1 { font-size: 18px; margin-bottom: 8px; }
+    .bl-section { margin-bottom: 14px; }
+    .bl-section-title { font-weight: 700; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 6px; }
+    .bl-row { margin-bottom: 3px; }
+    .bl-sub { padding-left: 14px; color: #555; }
+    .bl-cost { padding-left: 14px; font-weight: 600; color: #1a6; }
+    .bl-waste { color: #c80; font-size: 11px; }
+    .bl-empty { color: #999; }
+  </style></head><body>
+  <h1>Buy List — ${UNIT.name}</h1>
+  <div>${content}</div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.close();
+});
+
+// ─── FEATURE 3: ASSEMBLY WALKTHROUGH ─────────────────────────────────────────
+
+let wtSteps = [];
+let wtCurrentStep = 0;
+
+function buildWalkthroughSteps() {
+  const parts = UNIT.parts;
+  const envW = UNIT.envelope ? UNIT.envelope.w : 48;
+
+  const buckets = [
+    { title: 'Lay Bottom',        types: ['bottom'],                      filter: p => p.type === 'bottom' },
+    { title: 'Left Side Panel',   types: ['side'],                        filter: p => p.type === 'side' && (p.id === 'ls' || p.pos.x < envW / 2) },
+    { title: 'Right Side Panel',  types: ['side'],                        filter: p => p.type === 'side' && !(p.id === 'ls' || p.pos.x < envW / 2) },
+    { title: 'Add Top',           types: ['top'],                         filter: p => p.type === 'top' },
+    { title: 'Back Panel',        types: ['back'],                        filter: p => p.type === 'back' },
+    { title: 'Toe Kick',          types: ['toekick'],                     filter: p => p.type === 'toekick' },
+    { title: 'Uprights and Dividers', types: ['upright','divider'],       filter: p => p.type === 'upright' || p.type === 'divider' },
+    { title: 'Shelves',           types: ['shelf'],                       filter: p => p.type === 'shelf' },
+    { title: 'Face Frame Stiles', types: ['stile'],                       filter: p => p.type === 'stile' },
+    { title: 'Face Frame Rails',  types: ['rail'],                        filter: p => p.type === 'rail' },
+    { title: 'Custom Pieces',     types: ['custom'],                      filter: p => p.customAssembly === true },
+  ];
+
+  const instructions = {
+    bottom:   'Place the bottom panel on your workbench, good face up.',
+    'side-left':  'Stand the left side panel upright on the bottom panel. Check for square.',
+    'side-right': 'Stand the right side panel upright on the opposite end.',
+    top:      'Set the top panel in place. Clamp and fasten from inside.',
+    back:     'Slide the back panel into the dado or flush to the back edge. Fasten with brad nails.',
+    toekick:  'Attach the toe kick to the front-bottom edge, recessed to match your design.',
+    upright:  'Position the divider panel. Check plumb with a level.',
+    divider:  'Position the divider panel. Check plumb with a level.',
+    shelf:    'Slide the shelf into place at the marked height.',
+    stile:    'Glue and clamp the stile to the face of the carcase, flush with the edge.',
+    rail:     'Fit the rail between the stiles. Glue, clamp, and pin-nail.',
+    custom:   'Position and fasten this piece per your design intent.',
+  };
+
+  const fasteners = {
+    bottom:   'Glue + 1-5/8" screws from outside through side panels.',
+    'side-left':  'Glue + 1-5/8" screws into bottom panel.',
+    'side-right': 'Glue + 1-5/8" screws into bottom panel.',
+    top:      'Glue + 1-5/8" screws from inside.',
+    back:     '1" brad nails every 6" around perimeter.',
+    toekick:  'Glue + finish nails. Optional pocket screws from inside.',
+    upright:  'Glue + 1-5/8" screws through top and bottom into divider ends.',
+    divider:  'Glue + 1-5/8" screws through top and bottom into divider ends.',
+    shelf:    'Shelf pins or glue + 1-5/8" screws from outside.',
+    stile:    'Glue + clamp. Pin-nail from back face.',
+    rail:     'Glue + clamp. Pin-nail from back face.',
+    custom:   'Per design intent.',
+  };
+
+  const steps = [];
+  buckets.forEach(bucket => {
+    const matched = parts.filter(bucket.filter);
+    if (!matched.length) return;
+
+    // Sort uprights/dividers left to right; shelves bottom to top
+    if (bucket.types.includes('upright') || bucket.types.includes('divider')) {
+      matched.sort((a, b) => a.pos.x - b.pos.x);
+    }
+    if (bucket.types.includes('shelf')) {
+      matched.sort((a, b) => a.pos.y - b.pos.y);
+    }
+
+    const firstType = matched[0].type;
+    const isRightSide = bucket.title === 'Right Side Panel';
+    const instrKey = (firstType === 'side') ? (isRightSide ? 'side-right' : 'side-left') : firstType;
+
+    steps.push({
+      title: bucket.title,
+      parts: matched,
+      instruction: instructions[instrKey] || instructions.custom,
+      fastener: fasteners[instrKey] || fasteners.custom,
+      ids: matched.map(p => p.id),
+    });
+  });
+
+  return steps;
+}
+
+function fmtDims(p) {
+  const w = p.dims.w.toFixed(3).replace(/\.?0+$/, '');
+  const h = p.dims.h.toFixed(3).replace(/\.?0+$/, '');
+  const t = p.dims.t.toFixed(3).replace(/\.?0+$/, '');
+  return `${w}" × ${h}" × ${t}"`;
+}
+
+function wtRenderStep() {
+  const step = wtSteps[wtCurrentStep];
+  const total = wtSteps.length;
+
+  document.getElementById('wt-step-num').textContent = `Step ${wtCurrentStep + 1} of ${total}`;
+  document.getElementById('wt-step-title').textContent = step.title;
+  document.getElementById('wt-instruction').textContent = step.instruction;
+  document.getElementById('wt-fastener').textContent = step.fastener;
+  document.getElementById('wt-counter').textContent = `${wtCurrentStep + 1} / ${total}`;
+
+  const list = document.getElementById('wt-parts-list');
+  list.innerHTML = step.parts.map(p =>
+    `<div class="wt-part-row">${p.label} — ${fmtDims(p)}</div>`
+  ).join('');
+
+  // Update mesh visibility and opacity
+  const prevIds = new Set();
+  const currIds = new Set(step.ids);
+  const futureIds = new Set();
+
+  // Determine which parts belong to previous/current/future steps
+  for (let i = 0; i < wtSteps.length; i++) {
+    wtSteps[i].ids.forEach(id => {
+      if (i < wtCurrentStep) prevIds.add(id);
+      else if (i > wtCurrentStep) futureIds.add(id);
+    });
+  }
+
+  Object.entries(meshMap).forEach(([id, mesh]) => {
+    if (futureIds.has(id)) {
+      mesh.visible = false;
+    } else if (currIds.has(id)) {
+      mesh.visible = true;
+      mesh.material.transparent = false;
+      mesh.material.opacity = 1.0;
+      mesh.material.emissive = new THREE.Color(0x22D3EE);
+      mesh.material.emissiveIntensity = 0.35;
+    } else if (prevIds.has(id)) {
+      mesh.visible = true;
+      mesh.material.transparent = true;
+      mesh.material.opacity = 0.15;
+      mesh.material.emissive = new THREE.Color(0x000000);
+      mesh.material.emissiveIntensity = 0;
+    }
+  });
+
+  // Update nav buttons
+  document.getElementById('btn-wt-prev').disabled = wtCurrentStep === 0;
+  document.getElementById('btn-wt-next').disabled = wtCurrentStep === total - 1;
+}
+
+function wtRestoreMeshes() {
+  UNIT.parts.forEach(p => {
+    const mesh = meshMap[p.id];
+    if (!mesh) return;
+    mesh.visible = true;
+    mesh.material.transparent = false;
+    mesh.material.opacity = 1.0;
+    mesh.material.emissive = new THREE.Color(0x000000);
+    mesh.material.emissiveIntensity = 0;
+  });
+  updateSelectionHighlight();
+}
+
+function openWalkthrough() {
+  if (!UNIT.parts || UNIT.parts.length === 0) {
+    showToast('Add parts before opening the Build Guide.');
+    return;
+  }
+  wtSteps = buildWalkthroughSteps();
+  if (!wtSteps.length) {
+    showToast('No assembly steps to show.');
+    return;
+  }
+  wtCurrentStep = 0;
+
+  const overlay = document.getElementById('walkthrough-overlay');
+  overlay.classList.add('open');
+
+  // Move viewport canvas into the walkthrough viewport column
+  const vpEl = document.getElementById('viewport');
+  const wtVp = document.getElementById('walkthrough-viewport');
+  vpEl._wtOrigParent = vpEl.parentNode;
+  vpEl._wtOrigNextSib = vpEl.nextSibling;
+  vpEl._wtOrigStyle = vpEl.getAttribute('style') || '';
+  wtVp.appendChild(vpEl);
+  vpEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;flex:1;';
+
+  resizeRenderer();
+  wtRenderStep();
+}
+
+function closeWalkthrough() {
+  const overlay = document.getElementById('walkthrough-overlay');
+  overlay.classList.remove('overlay-print-mode');
+  overlay.classList.remove('open');
+
+  // Restore viewport to original position
+  const vpEl = document.getElementById('viewport');
+  if (vpEl._wtOrigParent) {
+    if (vpEl._wtOrigNextSib) {
+      vpEl._wtOrigParent.insertBefore(vpEl, vpEl._wtOrigNextSib);
+    } else {
+      vpEl._wtOrigParent.appendChild(vpEl);
+    }
+    vpEl.setAttribute('style', vpEl._wtOrigStyle || '');
+  }
+
+  wtRestoreMeshes();
+  resizeRenderer();
+}
+
+document.getElementById('btn-walkthrough').addEventListener('click', openWalkthrough);
+document.getElementById('btn-wt-close').addEventListener('click', closeWalkthrough);
+
+document.getElementById('btn-wt-prev').addEventListener('click', () => {
+  if (wtCurrentStep > 0) { wtCurrentStep--; wtRenderStep(); }
+});
+document.getElementById('btn-wt-next').addEventListener('click', () => {
+  if (wtCurrentStep < wtSteps.length - 1) { wtCurrentStep++; wtRenderStep(); }
+});
+
+document.getElementById('btn-wt-print').addEventListener('click', () => {
+  // Collect all steps into a print-friendly window
+  const allHtml = wtSteps.map((step, i) => `
+    <div class="step-block">
+      <div class="step-num">Step ${i + 1} of ${wtSteps.length}</div>
+      <h2>${step.title}</h2>
+      <div class="parts-list">${step.parts.map(p => `<div>${p.label} — ${fmtDims(p)}</div>`).join('')}</div>
+      <p class="instruction">${step.instruction}</p>
+      <div class="fastener"><strong>Fasteners:</strong> ${step.fastener}</div>
+    </div>
+  `).join('<hr>');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Build Guide — ${UNIT.name}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    .step-block { margin-bottom: 24px; page-break-inside: avoid; }
+    .step-num { font-size: 10px; color: #888; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2px; }
+    h2 { font-size: 16px; margin-bottom: 8px; }
+    .parts-list { background: #f5f5f5; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; font-family: monospace; font-size: 12px; }
+    .instruction { margin-bottom: 6px; }
+    .fastener { font-size: 12px; color: #555; }
+    hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+  </style></head><body>
+  <h1>Build Guide — ${UNIT.name}</h1>
+  ${allHtml}
+  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.close();
+});
+
+// ─── HOOK renderBuyList into autoSave ────────────────────────────────────────
+const _origAutoSave = autoSave;
+autoSave = function() {
+  _origAutoSave();
+  renderBuyList();
+};
+
+// Initial render
+renderBuyList();
 
 // Live test hook — serializable state only (no Three.js objects)
 Object.defineProperty(window, '_SB', {

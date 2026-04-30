@@ -1570,13 +1570,18 @@
         <input class="prop-input" id="prop-label" type="text">
       </div>
       <div class="prop-row">
-        <span class="prop-label">Width</span>
+        <span class="prop-label" id="prop-w-label">Width</span>
         <input class="prop-input" id="prop-w" type="number" step="0.125">
         <span class="prop-unit">in</span>
       </div>
       <div class="prop-row">
-        <span class="prop-label">Height</span>
+        <span class="prop-label" id="prop-h-label">Height</span>
         <input class="prop-input" id="prop-h" type="number" step="0.125">
+        <span class="prop-unit">in</span>
+      </div>
+      <div class="prop-row" id="prop-depth-row" style="display:none">
+        <span class="prop-label" id="prop-depth-label">Depth</span>
+        <input class="prop-input" id="prop-t" type="number" step="0.125">
         <span class="prop-unit">in</span>
       </div>
       <div id="prop-y-row" style="margin-bottom:5px">
@@ -3297,6 +3302,37 @@ function updatePropsPane() {
   document.getElementById('prop-w').value = part.dims.w;
   document.getElementById('prop-h').value = part.dims.h;
 
+  // Smart labels + depth row based on material category
+  const m = MATERIALS_DB[part.material];
+  const matCat = m ? (m.category || 'sheet') : 'sheet';
+  const wLbl = document.getElementById('prop-w-label');
+  const hLbl = document.getElementById('prop-h-label');
+  const depthRow = document.getElementById('prop-depth-row');
+  const depthLbl = document.getElementById('prop-depth-label');
+  const propT = document.getElementById('prop-t');
+  if (matCat === 'lumber') {
+    // Detect orientation: which dim is the length (largest)?
+    const { w, h, t } = part.dims;
+    const lLen = Math.max(w, h, t);
+    if (h === lLen) {
+      // Post orientation: h is length
+      wLbl.textContent = '× Width';
+      hLbl.textContent = 'Length';
+      depthLbl.textContent = '× Depth';
+    } else {
+      // Flat or edge: t is length
+      wLbl.textContent = '× Width';
+      hLbl.textContent = '× Height';
+      depthLbl.textContent = 'Length';
+    }
+    depthRow.style.display = 'flex';
+    propT.value = part.dims.t;
+  } else {
+    wLbl.textContent = 'Width';
+    hLbl.textContent = 'Height';
+    depthRow.style.display = 'none';
+  }
+
   const yRow = document.getElementById('prop-y-row');
   yRow.style.display = 'block';
   document.getElementById('prop-y').value = parseFloat((part.shelfY !== undefined ? part.shelfY : part.pos.y).toFixed(4));
@@ -3331,6 +3367,21 @@ document.getElementById('prop-label').addEventListener('change', (e) => {
     renderCutList();
     autoSave();
   });
+});
+
+document.getElementById('prop-t').addEventListener('change', (e) => {
+  if (!selectedPartId) return;
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) return;
+  pushUndo();
+  const val = parseFloat(e.target.value);
+  if (isNaN(val) || val <= 0) return;
+  part.dims.t = val;
+  removeMeshFor(part.id);
+  addPartMesh(part, false);
+  updateSelectionHighlight();
+  renderCutList();
+  autoSave();
 });
 
 document.getElementById('prop-y').addEventListener('change', (e) => {

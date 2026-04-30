@@ -3147,6 +3147,9 @@ function onCanvasDragStart(e) {
   dragUndoPushed_  = false;
   isDraggingPart   = false;
   dragAnchorWorld_ = null;
+  // Cancel any in-progress entry animation so it doesn't fight the drag
+  const hitMesh = meshMap[hitId];
+  if (hitMesh) animating = animating.filter(a => a.mesh !== hitMesh);
 
   // If piece belongs to a group, drag the whole group
   dragGroupId_ = null;

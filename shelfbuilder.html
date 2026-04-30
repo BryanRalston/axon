@@ -818,19 +818,6 @@
     padding: 6px 8px 3px;
     flex-shrink: 0;
   }
-  #btn-group-selected {
-    display: none;
-    padding: 3px 8px;
-    background: var(--accent-bg);
-    border: 1px solid var(--border-glow);
-    border-radius: 4px;
-    color: var(--accent);
-    font-size: 10px;
-    font-family: inherit;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  #btn-group-selected:hover { background: rgba(34,211,238,0.15); }
   .group-header {
     display: flex;
     align-items: center;
@@ -860,6 +847,41 @@
     font-family: inherit;
   }
   .group-dup-btn:hover { color: var(--accent); background: var(--accent-bg); }
+  #group-select-bar {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: rgba(251,191,36,0.08);
+    border: 1px solid rgba(251,191,36,0.25);
+    border-radius: 5px;
+    margin: 2px 0;
+    flex-shrink: 0;
+  }
+  #group-select-bar.active { display: flex; }
+  #gsh-name {
+    flex: 1; min-width: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 11px;
+    font-family: inherit;
+    padding: 2px 6px;
+  }
+  #gsh-count { font-size: 10px; color: #FBBF24; white-space: nowrap; flex-shrink: 0; }
+  #gsh-create {
+    padding: 2px 8px; font-size: 11px;
+    background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.4);
+    color: var(--success); border-radius: 4px; cursor: pointer; font-family: inherit;
+    white-space: nowrap;
+  }
+  #gsh-create:disabled { opacity: 0.4; cursor: default; }
+  #gsh-cancel {
+    padding: 2px 7px; font-size: 13px; line-height: 1;
+    background: none; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 4px; cursor: pointer; font-family: inherit;
+  }
   .group-body { padding-left: 8px; }
   .custom-part-card {
     display: flex;
@@ -1507,7 +1529,13 @@
     <!-- Parts list header (custom mode shows group button) -->
     <div class="custom-parts-header" id="custom-parts-header" style="display:none">
       <span style="font-size:9px;font-weight:600;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;flex:1">Parts</span>
-      <button id="btn-group-selected">Group Selected</button>
+      <button id="btn-new-group" style="padding:3px 8px;background:var(--accent-bg);border:1px solid var(--border-glow);border-radius:4px;color:var(--accent);font-size:10px;font-family:inherit;cursor:pointer;white-space:nowrap">⊕ Group</button>
+    </div>
+    <div id="group-select-bar">
+      <span id="gsh-count">0 selected</span>
+      <input id="gsh-name" type="text" placeholder="Group name…" value="Cabinet Box">
+      <button id="gsh-create" disabled>✓ Create</button>
+      <button id="gsh-cancel">×</button>
     </div>
 
     <div id="parts-list">
@@ -2533,15 +2561,13 @@ function updateSelectionHighlight() {
   Object.entries(meshMap).forEach(([id, mesh]) => {
     const part = UNIT.parts.find(p => p.id === id);
     if (!part) return;
-    // Restore base material if needed
     const baseMat = getMat(part.type, part.material);
-    if (id === selectedPartId) {
-      baseMat.emissive = new THREE.Color(0x22D3EE);
-      baseMat.emissiveIntensity = 0.45;
-    }
     mesh.material.dispose();
     mesh.material = baseMat;
-    if (id === selectedPartId) {
+    if (groupSelectMode && groupSelectSet.has(id)) {
+      mesh.material.emissive = new THREE.Color(0xFBBF24);
+      mesh.material.emissiveIntensity = 0.5;
+    } else if (id === selectedPartId) {
       mesh.material.emissive = new THREE.Color(0x22D3EE);
       mesh.material.emissiveIntensity = 0.45;
     }
@@ -3911,9 +3937,13 @@ function onCanvasClick(e) {
 
   if (hits.length) {
     const partId = hits[0].object.userData.partId;
-    selectPart(partId);
+    if (groupSelectMode) {
+      toggleGroupSelect(partId);
+    } else {
+      selectPart(partId);
+    }
   } else {
-    deselectAll();
+    if (!groupSelectMode) deselectAll();
   }
 }
 
@@ -5456,6 +5486,8 @@ function updateCustomSummaryBar() {
 // ─── CUSTOM PARTS LIST (with checkboxes, groups) ─────────────────────────────
 
 let customChecked = new Set(); // partIds checked
+let groupSelectMode = false;
+let groupSelectSet = new Set();
 
 function renderCustomPartsList() {
   if (UNIT.mode !== 'custom') return;
@@ -5529,7 +5561,11 @@ function renderCustomPartsList() {
   el.querySelectorAll('.custom-part-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.classList.contains('cpc-cb') || e.target.classList.contains('cpc-eye') || e.target.classList.contains('cpc-del')) return;
-      selectPart(card.dataset.id);
+      if (groupSelectMode) {
+        toggleGroupSelect(card.dataset.id);
+      } else {
+        selectPart(card.dataset.id);
+      }
     });
   });
 
@@ -5568,7 +5604,9 @@ function customPartRow(p) {
   const sel = p.id === selectedPartId ? ' selected' : '';
   const matAbbr = customMatAbbr(p.material || UNIT.material);
   const dims = `${fmtIn(p.dims.w)}" × ${fmtIn(p.dims.h)}" × ${fmtIn(p.dims.t)}"`;
-  return `<div class="custom-part-card${sel}" data-id="${p.id}">
+  const inGroupSel = groupSelectMode && groupSelectSet.has(p.id);
+  const groupSelStyle = inGroupSel ? 'border-color:rgba(251,191,36,0.6);background:rgba(251,191,36,0.06)' : '';
+  return `<div class="custom-part-card${sel}" data-id="${p.id}" style="${groupSelStyle}">
     <input type="checkbox" class="cpc-cb" data-id="${p.id}">
     <span class="drag-handle">⠿</span>
     <div class="cpc-info">
@@ -5591,27 +5629,60 @@ function customMatAbbr(matKey) {
   return matKey || '—';
 }
 
-function updateGroupSelectedBtn() {
-  const btn = document.getElementById('btn-group-selected');
-  const count = customChecked.size;
-  btn.style.display = count >= 2 ? 'inline-block' : 'none';
-  btn.textContent = `Group ${count} Selected`;
+function updateGroupSelectedBtn() { /* replaced by group-select-bar */ }
+
+function enterGroupSelectMode() {
+  groupSelectMode = true;
+  groupSelectSet.clear();
+  document.getElementById('group-select-bar').classList.add('active');
+  document.getElementById('custom-parts-header').style.display = 'none';
+  updateGroupSelectBar();
+  updateSelectionHighlight();
+}
+
+function exitGroupSelectMode() {
+  groupSelectMode = false;
+  groupSelectSet.clear();
+  document.getElementById('group-select-bar').classList.remove('active');
+  document.getElementById('custom-parts-header').style.display = 'flex';
+  updateSelectionHighlight();
+  renderCustomPartsList();
+}
+
+function toggleGroupSelect(partId) {
+  if (groupSelectSet.has(partId)) groupSelectSet.delete(partId);
+  else groupSelectSet.add(partId);
+  updateGroupSelectBar();
+  updateSelectionHighlight();
+  renderCustomPartsList();
+}
+
+function updateGroupSelectBar() {
+  const n = groupSelectSet.size;
+  document.getElementById('gsh-count').textContent = n + ' selected';
+  const nameVal = document.getElementById('gsh-name').value.trim();
+  document.getElementById('gsh-create').disabled = n < 2 || !nameVal;
 }
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-document.getElementById('btn-group-selected').addEventListener('click', () => {
-  if (customChecked.size < 2) return;
-  const name = prompt('Group name:', 'Cabinet Box');
+document.getElementById('btn-new-group').addEventListener('click', enterGroupSelectMode);
+
+document.getElementById('gsh-cancel').addEventListener('click', exitGroupSelectMode);
+
+document.getElementById('gsh-name').addEventListener('input', updateGroupSelectBar);
+
+document.getElementById('gsh-create').addEventListener('click', () => {
+  if (groupSelectSet.size < 2) return;
+  const name = document.getElementById('gsh-name').value.trim();
   if (!name) return;
+  pushUndo();
   const gid = `grp_${Date.now()}`;
   if (!UNIT.groups) UNIT.groups = [];
-  UNIT.groups.push({ id: gid, name: name.trim(), partIds: [...customChecked] });
-  customChecked.clear();
-  updateGroupSelectedBtn();
-  renderCustomPartsList();
+  UNIT.groups.push({ id: gid, name, partIds: [...groupSelectSet] });
+  exitGroupSelectMode();
   autoSave();
   showToast(`Group "${name}" created`);
 });

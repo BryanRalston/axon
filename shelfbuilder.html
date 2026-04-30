@@ -1579,12 +1579,13 @@
         <input class="prop-input" id="prop-h" type="number" step="0.125">
         <span class="prop-unit">in</span>
       </div>
-      <div class="prop-row" id="prop-y-row" style="gap:3px">
-        <span class="prop-label" title="Vertical position — distance from floor to center of piece" style="color:var(--accent)">▲ Elev</span>
-        <button class="action-btn secondary" id="btn-y-down" style="padding:2px 7px;font-size:14px;flex-shrink:0" title="Move down 0.25&quot;">−</button>
-        <input class="prop-input" id="prop-y" type="number" step="0.125" title="Type a value and press Enter to move piece up/down" style="text-align:center">
-        <button class="action-btn secondary" id="btn-y-up" style="padding:2px 7px;font-size:14px;flex-shrink:0" title="Move up 0.25&quot;">+</button>
-        <span class="prop-unit">in</span>
+      <div id="prop-y-row" style="margin-bottom:5px">
+        <div style="font-size:10px;color:var(--accent);margin-bottom:3px;letter-spacing:0.04em">▲ ELEVATION (in)</div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="action-btn secondary" id="btn-y-down" style="padding:2px 10px;font-size:16px;flex-shrink:0;min-width:36px" title="Move down 0.25&quot;">−</button>
+          <input class="prop-input" id="prop-y" type="number" step="0.125" title="Type a value and press Enter" style="flex:1;min-width:0;text-align:center">
+          <button class="action-btn secondary" id="btn-y-up" style="padding:2px 10px;font-size:16px;flex-shrink:0;min-width:36px" title="Move up 0.25&quot;">+</button>
+        </div>
       </div>
       <div class="prop-row" id="prop-rot-row">
         <span class="prop-label">Rotate</span>

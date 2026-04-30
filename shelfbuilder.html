@@ -379,6 +379,14 @@
   }
   .prop-input:focus { outline: none; border-color: var(--accent-dim); }
   .prop-unit { font-size: 10px; color: var(--text-dim); width: 16px; flex-shrink: 0; }
+  .paint-swatch {
+    width: 18px; height: 18px; border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.15);
+    cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
+  }
+  .paint-swatch:hover { transform: scale(1.15); }
+  .paint-swatch.active { border: 2px solid var(--accent); transform: scale(1.15); }
+  .paint-swatch.clear { background: var(--bg-card); border: 1px solid var(--border); font-size: 10px; display:flex; align-items:center; justify-content:center; color: var(--text-muted); }
 
   /* Cut list */
   #cutlist-pane {
@@ -1612,6 +1620,20 @@
         <input class="prop-input" id="prop-t" type="number" step="0.125">
         <span class="prop-unit">in</span>
       </div>
+      <div class="prop-row" id="prop-paint-row" style="display:none">
+        <span class="prop-label" style="flex-shrink:0">Paint</span>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1">
+          <div id="paint-swatches" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <select id="paint-finish" class="prop-input" style="flex:1;padding:3px 6px;font-size:11px">
+              <option value="matte">Matte</option>
+              <option value="satin">Satin</option>
+              <option value="gloss">Gloss</option>
+            </select>
+            <input type="color" id="paint-custom" style="width:28px;height:24px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;padding:1px">
+          </div>
+        </div>
+      </div>
       <div id="prop-y-row" style="margin-bottom:5px">
         <div style="font-size:10px;color:var(--accent);margin-bottom:3px;letter-spacing:0.04em">▲ ELEVATION (in)</div>
         <div style="display:flex;gap:4px;align-items:center">
@@ -2315,43 +2337,122 @@ function _applyNoise(ctx, w, h, strength) {
   ctx.putImageData(id, 0, 0);
 }
 
-function _woodTex(key, { base, grain, lines=20, waviness=6, lineW=1.2, lineOp=0.32, noise=14 }) {
+function _woodTex(key, cfg) {
   if (_texCache[key]) return _texCache[key];
-  const W = 512, H = 512;
+  const {
+    base, grain, dark = null, lines = 22, waviness = 7, lineW = 1.4, lineOp = 0.35,
+    noise = 14, pores = 0, ringPeriod = 0, knots = 0, vignette = true
+  } = cfg;
+  const W = 1024, H = 512;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
+
+  // Base fill
   ctx.fillStyle = base; ctx.fillRect(0, 0, W, H);
-  _applyNoise(ctx, W, H, noise);
+
+  // Plank edge vignette — slightly darker at top/bottom edges
+  if (vignette) {
+    const vg = ctx.createLinearGradient(0, 0, 0, H);
+    vg.addColorStop(0,    'rgba(0,0,0,0.18)');
+    vg.addColorStop(0.08, 'rgba(0,0,0,0)');
+    vg.addColorStop(0.92, 'rgba(0,0,0,0)');
+    vg.addColorStop(1,    'rgba(0,0,0,0.18)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+
+  // Annual ring bands — periodic lighter/darker stripes
+  if (ringPeriod > 0) {
+    for (let i = 0; i < lines; i++) {
+      const yBase = (i / lines) * H;
+      const bandH = H / lines;
+      // Earlywood (first 70% of band) = lighter
+      const eg = ctx.createLinearGradient(0, yBase, 0, yBase + bandH);
+      eg.addColorStop(0,    'rgba(255,255,255,0.06)');
+      eg.addColorStop(0.7,  'rgba(255,255,255,0.0)');
+      eg.addColorStop(0.85, 'rgba(0,0,0,0.08)');  // latewood = darker
+      eg.addColorStop(1,    'rgba(0,0,0,0.04)');
+      ctx.fillStyle = eg; ctx.fillRect(0, yBase, W, bandH);
+    }
+  }
+
+  // Primary grain lines — wavy, varying width, turbulence
   ctx.globalAlpha = lineOp;
-  for (let i = 0; i < lines; i++) {
-    const yBase = (i + 0.5 + (Math.random() - 0.5) * 0.3) / lines * H;
-    ctx.strokeStyle = grain;
-    ctx.lineWidth = lineW * (0.6 + Math.random() * 0.8);
+  for (let i = 0; i < lines * 2; i++) {
+    const yBase = ((i + 0.3 + (Math.random() - 0.5) * 0.4) / (lines * 2)) * H;
+    ctx.strokeStyle = dark || grain;
+    const lw = lineW * (0.4 + Math.random() * 1.2);
+    ctx.lineWidth = lw;
     ctx.beginPath();
-    for (let x = 0; x <= W; x += 2) {
+    for (let x = 0; x <= W; x += 3) {
+      // Multi-frequency turbulence for naturalistic curves
       const y = yBase
-        + Math.sin(x / 50 + i * 1.2) * waviness
-        + Math.sin(x / 18 + i * 2.9) * waviness * 0.35
-        + (Math.random() - 0.5) * 0.7;
+        + Math.sin(x / 80  + i * 1.3)  * waviness
+        + Math.sin(x / 30  + i * 2.7)  * waviness * 0.4
+        + Math.sin(x / 140 + i * 0.7)  * waviness * 0.6
+        + (Math.random() - 0.5) * 0.8;
       x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
+
+  // Fine pore lines (open-grain woods like oak)
+  if (pores > 0) {
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = dark || grain;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < pores; i++) {
+      const y = Math.random() * H;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y + (Math.random()-0.5)*10); ctx.stroke();
+    }
+  }
+
+  // Knots (for pine/softwoods)
+  if (knots > 0) {
+    for (let k = 0; k < knots; k++) {
+      const kx = (0.2 + Math.random() * 0.6) * W;
+      const ky = Math.random() * H;
+      const kr = 12 + Math.random() * 20;
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = dark || grain;
+      for (let ring = 0; ring < 5; ring++) {
+        ctx.lineWidth = 1.5 - ring * 0.2;
+        ctx.globalAlpha = 0.5 - ring * 0.08;
+        ctx.beginPath();
+        ctx.ellipse(kx, ky, kr + ring * 4, (kr + ring * 4) * 0.65, Math.PI * 0.15, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
   ctx.globalAlpha = 1;
+  _applyNoise(ctx, W, H, noise);
+
   const tex = new THREE.CanvasTexture(cv);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1.5, 2.5);
+  tex.repeat.set(1.2, 2.0);
   _texCache[key] = tex;
   return tex;
 }
 
 function _mdfTex() {
   if (_texCache['__mdf']) return _texCache['__mdf'];
-  const W = 256, H = 256;
+  const W = 512, H = 512;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
-  ctx.fillStyle = '#BFA882'; ctx.fillRect(0, 0, W, H);
-  _applyNoise(ctx, W, H, 22);
+  // MDF base — warm tan
+  ctx.fillStyle = '#C2A882'; ctx.fillRect(0, 0, W, H);
+  // Pressed fiber lines — very fine horizontal strokes
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = '#7A5830';
+  for (let i = 0; i < 180; i++) {
+    const y = Math.random() * H;
+    const len = 30 + Math.random() * 120;
+    const x0 = Math.random() * W;
+    ctx.lineWidth = 0.5 + Math.random() * 0.8;
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + len, y + (Math.random()-0.5)*2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  _applyNoise(ctx, W, H, 18);
   const tex = new THREE.CanvasTexture(cv);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(2, 2);
@@ -2387,48 +2488,71 @@ function _osbTex() {
 // Material key → { tex fn, roughness, metalness, color (optional override) }
 const MAT_PROFILES = {
   // ── Plywood (birch face) ──────────────────────────────────────────────────
-  'ply34':    { tex: () => _woodTex('birch', { base:'#CBAA72', grain:'#8B6030', lines:26, waviness:4, lineOp:0.28, noise:10 }), roughness:0.78 },
-  'ply12':    { tex: () => _woodTex('birch', { base:'#CBAA72', grain:'#8B6030', lines:26, waviness:4, lineOp:0.28, noise:10 }), roughness:0.80 },
-  'ply14':    { tex: () => _woodTex('birch', { base:'#C8A870', grain:'#886030', lines:24, waviness:3, lineOp:0.25, noise:10 }), roughness:0.82 },
-  'plywood':  { tex: () => _woodTex('birch', { base:'#CBAA72', grain:'#8B6030', lines:26, waviness:4, lineOp:0.28, noise:10 }), roughness:0.78 },
-  'quarter':  { tex: () => _woodTex('birch', { base:'#C8A870', grain:'#886030', lines:24, waviness:3, lineOp:0.25, noise:10 }), roughness:0.82 },
+  'ply34':    { tex: () => _woodTex('birch',   { base:'#D4B47A', grain:'#9A6832', dark:'#7A4C1A', lines:28, waviness:3, lineOp:0.30, noise:8,  ringPeriod:28, pores:0, knots:0 }), roughness:0.76 },
+  'ply12':    { tex: () => _woodTex('birch',   { base:'#D4B47A', grain:'#9A6832', dark:'#7A4C1A', lines:28, waviness:3, lineOp:0.30, noise:8,  ringPeriod:28, pores:0, knots:0 }), roughness:0.78 },
+  'ply14':    { tex: () => _woodTex('birch14', { base:'#CEB078', grain:'#906030', dark:'#703E18', lines:26, waviness:2, lineOp:0.26, noise:8,  ringPeriod:26, pores:0, knots:0 }), roughness:0.80 },
+  'plywood':  { tex: () => _woodTex('birch',   { base:'#D4B47A', grain:'#9A6832', dark:'#7A4C1A', lines:28, waviness:3, lineOp:0.30, noise:8,  ringPeriod:28, pores:0, knots:0 }), roughness:0.76 },
+  'quarter':  { tex: () => _woodTex('birch14', { base:'#CEB078', grain:'#906030', dark:'#703E18', lines:26, waviness:2, lineOp:0.26, noise:8,  ringPeriod:26, pores:0, knots:0 }), roughness:0.80 },
   // ── MDF ──────────────────────────────────────────────────────────────────
-  'mdf34':    { tex: _mdfTex, roughness:0.90, metalness:0 },
-  'mdf12':    { tex: _mdfTex, roughness:0.90, metalness:0 },
-  'mdf':      { tex: _mdfTex, roughness:0.90, metalness:0 },
-  // ── Melamine (smooth white/cream) ─────────────────────────────────────────
-  'melamine': { color:0xEDEAE2, roughness:0.10, metalness:0.04 },
+  'mdf34':    { tex: _mdfTex, roughness:0.92, metalness:0 },
+  'mdf12':    { tex: _mdfTex, roughness:0.92, metalness:0 },
+  'mdf':      { tex: _mdfTex, roughness:0.92, metalness:0 },
+  // ── Melamine (smooth pressed surface) ────────────────────────────────────
+  'melamine': { color:0xEEEBE2, roughness:0.08, metalness:0.03 },
   // ── OSB ──────────────────────────────────────────────────────────────────
-  'osb12':    { tex: _osbTex, roughness:0.95, metalness:0 },
-  'osb716':   { tex: _osbTex, roughness:0.95, metalness:0 },
+  'osb12':    { tex: _osbTex, roughness:0.96, metalness:0 },
+  'osb716':   { tex: _osbTex, roughness:0.96, metalness:0 },
+  'pegboard': { color:0xC8B890, roughness:0.85, metalness:0 },
   // ── Dimensional lumber (pine/SPF) ─────────────────────────────────────────
-  '2x4':  { tex: () => _woodTex('pine', { base:'#D8B872', grain:'#9A7030', lines:15, waviness:11, lineOp:0.40, noise:16 }), roughness:0.88 },
-  '2x6':  { tex: () => _woodTex('pine', { base:'#D8B872', grain:'#9A7030', lines:15, waviness:11, lineOp:0.40, noise:16 }), roughness:0.88 },
-  '2x8':  { tex: () => _woodTex('pine', { base:'#D8B872', grain:'#9A7030', lines:15, waviness:11, lineOp:0.40, noise:16 }), roughness:0.88 },
-  '2x10': { tex: () => _woodTex('pine', { base:'#D8B872', grain:'#9A7030', lines:15, waviness:11, lineOp:0.40, noise:16 }), roughness:0.88 },
-  '2x12': { tex: () => _woodTex('pine', { base:'#D8B872', grain:'#9A7030', lines:15, waviness:11, lineOp:0.40, noise:16 }), roughness:0.88 },
-  '4x4':  { tex: () => _woodTex('pine', { base:'#D4B468', grain:'#987028', lines:13, waviness:12, lineOp:0.42, noise:18 }), roughness:0.90 },
-  '4x6':  { tex: () => _woodTex('pine', { base:'#D4B468', grain:'#987028', lines:13, waviness:12, lineOp:0.42, noise:18 }), roughness:0.90 },
-  '6x6':  { tex: () => _woodTex('pine', { base:'#D4B468', grain:'#987028', lines:13, waviness:12, lineOp:0.42, noise:18 }), roughness:0.90 },
-  '1x2':  { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
-  '1x3':  { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
-  '1x4':  { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
-  '1x6':  { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
-  '1x8':  { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
-  '1x10': { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
-  '1x12': { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
-  'pine': { tex: () => _woodTex('pine1x', { base:'#DCC078', grain:'#9C7232', lines:14, waviness:9, lineOp:0.38, noise:14 }), roughness:0.86 },
+  '2x4':  { tex: () => _woodTex('pine2x4',  { base:'#E0BC70', grain:'#A07830', dark:'#705020', lines:18, waviness:14, lineOp:0.42, noise:18, ringPeriod:18, pores:0, knots:2 }), roughness:0.90 },
+  '2x6':  { tex: () => _woodTex('pine2x6',  { base:'#DDB868', grain:'#9E7628', dark:'#6E4E1E', lines:16, waviness:15, lineOp:0.44, noise:18, ringPeriod:16, pores:0, knots:2 }), roughness:0.90 },
+  '2x8':  { tex: () => _woodTex('pine2x8',  { base:'#DAB462', grain:'#9C7224', dark:'#6C4C1A', lines:14, waviness:16, lineOp:0.46, noise:18, ringPeriod:14, pores:0, knots:3 }), roughness:0.90 },
+  '2x10': { tex: () => _woodTex('pine2x10', { base:'#D8B060', grain:'#9A7020', dark:'#6A4818', lines:12, waviness:16, lineOp:0.46, noise:18, ringPeriod:12, pores:0, knots:3 }), roughness:0.90 },
+  '2x12': { tex: () => _woodTex('pine2x12', { base:'#D6AE5E', grain:'#986E1E', dark:'#684616', lines:10, waviness:17, lineOp:0.48, noise:18, ringPeriod:10, pores:0, knots:3 }), roughness:0.90 },
+  '4x4':  { tex: () => _woodTex('pine4x4',  { base:'#D8B468', grain:'#986428', dark:'#682E10', lines:13, waviness:14, lineOp:0.45, noise:20, ringPeriod:13, pores:0, knots:2 }), roughness:0.92 },
+  '4x6':  { tex: () => _woodTex('pine4x6',  { base:'#D4B060', grain:'#946020', dark:'#642C0E', lines:11, waviness:15, lineOp:0.46, noise:20, ringPeriod:11, pores:0, knots:3 }), roughness:0.92 },
+  '6x6':  { tex: () => _woodTex('pine6x6',  { base:'#D0AC5C', grain:'#905C1C', dark:'#60280C', lines:9,  waviness:16, lineOp:0.48, noise:22, ringPeriod:9,  pores:0, knots:4 }), roughness:0.92 },
+  '1x2':  { tex: () => _woodTex('pine1x2',  { base:'#E4C07C', grain:'#A07C30', dark:'#705228', lines:16, waviness:8,  lineOp:0.36, noise:14, ringPeriod:16, pores:0, knots:1 }), roughness:0.86 },
+  '1x3':  { tex: () => _woodTex('pine1x3',  { base:'#E2BC78', grain:'#9E7A2E', dark:'#6E5026', lines:15, waviness:9,  lineOp:0.37, noise:14, ringPeriod:15, pores:0, knots:1 }), roughness:0.86 },
+  '1x4':  { tex: () => _woodTex('pine1x4',  { base:'#E0BA76', grain:'#9C782C', dark:'#6C4E24', lines:14, waviness:10, lineOp:0.38, noise:14, ringPeriod:14, pores:0, knots:1 }), roughness:0.86 },
+  '1x6':  { tex: () => _woodTex('pine1x6',  { base:'#DEB872', grain:'#9A762A', dark:'#6A4C22', lines:12, waviness:11, lineOp:0.39, noise:14, ringPeriod:12, pores:0, knots:1 }), roughness:0.86 },
+  '1x8':  { tex: () => _woodTex('pine1x8',  { base:'#DCB66E', grain:'#987426', dark:'#684A20', lines:10, waviness:12, lineOp:0.40, noise:14, ringPeriod:10, pores:0, knots:2 }), roughness:0.86 },
+  '1x10': { tex: () => _woodTex('pine1x10', { base:'#DAB46C', grain:'#967220', dark:'#66481E', lines:9,  waviness:13, lineOp:0.41, noise:14, ringPeriod:9,  pores:0, knots:2 }), roughness:0.86 },
+  '1x12': { tex: () => _woodTex('pine1x12', { base:'#D8B268', grain:'#94701E', dark:'#64461C', lines:8,  waviness:14, lineOp:0.42, noise:14, ringPeriod:8,  pores:0, knots:2 }), roughness:0.86 },
+  'pine': { tex: () => _woodTex('pine1x',   { base:'#E2BC78', grain:'#9E7A2E', dark:'#6E5026', lines:15, waviness:9,  lineOp:0.37, noise:14, ringPeriod:15, pores:0, knots:1 }), roughness:0.86 },
   // ── Hardwoods ──────────────────────────────────────────────────────────────
-  'oak44':    { tex: () => _woodTex('oak',    { base:'#C89050', grain:'#7A4A18', lines:22, waviness:7,  lineOp:0.34, noise:12 }), roughness:0.65 },
-  'oak84':    { tex: () => _woodTex('oak',    { base:'#C89050', grain:'#7A4A18', lines:22, waviness:7,  lineOp:0.34, noise:12 }), roughness:0.65 },
-  'oak':      { tex: () => _woodTex('oak',    { base:'#C89050', grain:'#7A4A18', lines:22, waviness:7,  lineOp:0.34, noise:12 }), roughness:0.65 },
-  'maple44':  { tex: () => _woodTex('maple',  { base:'#E8D4A0', grain:'#C0A060', lines:24, waviness:4,  lineOp:0.22, noise:10 }), roughness:0.68 },
-  'maple84':  { tex: () => _woodTex('maple',  { base:'#E8D4A0', grain:'#C0A060', lines:24, waviness:4,  lineOp:0.22, noise:10 }), roughness:0.68 },
-  'maple':    { tex: () => _woodTex('maple',  { base:'#E8D4A0', grain:'#C0A060', lines:24, waviness:4,  lineOp:0.22, noise:10 }), roughness:0.68 },
-  'walnut44': { tex: () => _woodTex('walnut', { base:'#5C3820', grain:'#2E1808', lines:18, waviness:5,  lineOp:0.50, noise:16 }), roughness:0.60 },
-  'cherry44': { tex: () => _woodTex('cherry', { base:'#C06040', grain:'#7A2C18', lines:18, waviness:6,  lineOp:0.38, noise:14 }), roughness:0.62 },
-  'poplar44': { tex: () => _woodTex('poplar', { base:'#B0C890', grain:'#708858', lines:20, waviness:6,  lineOp:0.30, noise:12 }), roughness:0.72 },
+  'oak44':    { tex: () => _woodTex('oak',    { base:'#C89050', grain:'#7A4A18', dark:'#4E2A08', lines:24, waviness:7,  lineOp:0.36, noise:10, ringPeriod:24, pores:60, knots:0 }), roughness:0.62 },
+  'oak84':    { tex: () => _woodTex('oak84',  { base:'#C48A48', grain:'#784818', dark:'#4C2808', lines:22, waviness:7,  lineOp:0.36, noise:10, ringPeriod:22, pores:50, knots:0 }), roughness:0.60 },
+  'oak':      { tex: () => _woodTex('oak',    { base:'#C89050', grain:'#7A4A18', dark:'#4E2A08', lines:24, waviness:7,  lineOp:0.36, noise:10, ringPeriod:24, pores:60, knots:0 }), roughness:0.62 },
+  'maple44':  { tex: () => _woodTex('maple',  { base:'#ECD8A8', grain:'#C0A060', dark:'#907040', lines:26, waviness:4,  lineOp:0.20, noise:9,  ringPeriod:26, pores:0,  knots:0 }), roughness:0.65 },
+  'maple84':  { tex: () => _woodTex('maple84',{ base:'#E8D4A0', grain:'#BC9C5C', dark:'#8C6C3C', lines:24, waviness:4,  lineOp:0.20, noise:9,  ringPeriod:24, pores:0,  knots:0 }), roughness:0.63 },
+  'maple':    { tex: () => _woodTex('maple',  { base:'#ECD8A8', grain:'#C0A060', dark:'#907040', lines:26, waviness:4,  lineOp:0.20, noise:9,  ringPeriod:26, pores:0,  knots:0 }), roughness:0.65 },
+  'walnut44': { tex: () => _woodTex('walnut', { base:'#6A3E22', grain:'#3A1A08', dark:'#2A1005', lines:20, waviness:6,  lineOp:0.55, noise:14, ringPeriod:20, pores:30, knots:0 }), roughness:0.58 },
+  'cherry44': { tex: () => _woodTex('cherry', { base:'#C86848', grain:'#8A3020', dark:'#5A1808', lines:20, waviness:6,  lineOp:0.40, noise:12, ringPeriod:20, pores:20, knots:0 }), roughness:0.60 },
+  'poplar44': { tex: () => _woodTex('poplar', { base:'#B4CC96', grain:'#78946C', dark:'#587050', lines:22, waviness:5,  lineOp:0.28, noise:10, ringPeriod:22, pores:0,  knots:0 }), roughness:0.70 },
 };
+
+function _toRoughnessMap(diffuseTex) {
+  const src = diffuseTex.image;
+  const W = src.width, H = src.height;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+  const id = ctx.getImageData(0, 0, W, H);
+  const d = id.data;
+  // Invert luminance: dark grain lines → high roughness; light base → lower roughness
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114);
+    const rough = 180 + (255 - lum) * 0.3; // subtle variation
+    d[i] = d[i+1] = d[i+2] = Math.min(255, rough);
+    d[i+3] = 255;
+  }
+  ctx.putImageData(id, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.copy(diffuseTex.repeat);
+  return tex;
+}
 
 function matForKey(matKey) {
   const p = MAT_PROFILES[matKey];
@@ -2437,8 +2561,11 @@ function matForKey(matKey) {
   if (p.color !== undefined) {
     m.color.setHex(p.color);
   } else if (p.tex) {
-    m.map = p.tex();
+    const diffTex = p.tex();
+    m.map = diffTex;
     m.color.set(0xffffff);
+    // Apply roughness variation from texture
+    try { m.roughnessMap = _toRoughnessMap(diffTex); } catch(e) {}
   }
   return m;
 }
@@ -2457,7 +2584,15 @@ const MAT = {
   rail:    () => new THREE.MeshStandardMaterial({ color: 0xCA9050, roughness: 0.55, metalness: 0.08 }),
 };
 
-function getMat(type, matKey) {
+function getMat(type, matKey, paint) {
+  if (paint?.color) {
+    const roughMap = { matte: 0.88, satin: 0.38, gloss: 0.06 };
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color(paint.color),
+      roughness: roughMap[paint.finish ?? 'satin'],
+      metalness: paint.finish === 'gloss' ? 0.04 : 0.0,
+    });
+  }
   const fromKey = matKey ? matForKey(matKey) : null;
   if (fromKey) return fromKey;
   // Fall back to UNIT material if set
@@ -2474,7 +2609,7 @@ function addPartMesh(part, animate = false) {
   const { w, h, t } = part.dims;
   // w=width of piece, h=height of piece, t=thickness
   const geo = new THREE.BoxGeometry(w, h, t);
-  const mat = getMat(part.type, part.material);
+  const mat = getMat(part.type, part.material, part.paint);
   const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -2557,11 +2692,19 @@ function rebuildAllMeshes() {
   updateSelectionHighlight();
 }
 
+function rebuildPartMesh(part) {
+  removeMeshFor(part.id);
+  addPartMesh(part, false);
+  updateSelectionHighlight();
+  renderCutList();
+  autoSave();
+}
+
 function updateSelectionHighlight() {
   Object.entries(meshMap).forEach(([id, mesh]) => {
     const part = UNIT.parts.find(p => p.id === id);
     if (!part) return;
-    const baseMat = getMat(part.type, part.material);
+    const baseMat = getMat(part.type, part.material, part.paint);
     mesh.material.dispose();
     mesh.material = baseMat;
     if (groupSelectMode && groupSelectSet.has(id)) {
@@ -3367,6 +3510,39 @@ function updatePropsPane() {
   if (reposRow) reposRow.style.display = 'flex';
   const reposBtn = document.getElementById('btn-reposition');
   if (reposBtn) reposBtn.style.display = part.customAssembly ? '' : 'none';
+
+  // Paint row — show for all parts
+  const paintRow = document.getElementById('prop-paint-row');
+  if (paintRow) {
+    paintRow.style.display = 'flex';
+    const PAINT_SWATCHES = [
+      { label: 'None',     color: null },
+      { label: 'White',    color: '#F5F5F0' },
+      { label: 'Cream',    color: '#F0E8D0' },
+      { label: 'Lt Gray',  color: '#C8C8C4' },
+      { label: 'Charcoal', color: '#484848' },
+      { label: 'Navy',     color: '#1E3A5A' },
+      { label: 'Sage',     color: '#7A9B7A' },
+      { label: 'Black',    color: '#1A1A1A' },
+    ];
+    const swatchContainer = document.getElementById('paint-swatches');
+    swatchContainer.innerHTML = '';
+    const activePaintColor = part.paint?.color ?? null;
+    PAINT_SWATCHES.forEach(sw => {
+      const el = document.createElement('div');
+      el.className = 'paint-swatch' + (sw.color === null ? ' clear' : '');
+      if (sw.color) el.style.background = sw.color;
+      el.dataset.color = sw.color || '';
+      el.title = sw.label;
+      if (sw.color === null) el.textContent = '✕';
+      if (sw.color === activePaintColor) el.classList.add('active');
+      swatchContainer.appendChild(el);
+    });
+    const finishSel = document.getElementById('paint-finish');
+    finishSel.value = part.paint?.finish ?? 'satin';
+    const customInput = document.getElementById('paint-custom');
+    customInput.value = part.paint?.color ?? '#F5F5F0';
+  }
 }
 
 // Props pane changes
@@ -3445,6 +3621,44 @@ document.getElementById('prop-y').addEventListener('change', (e) => {
   recomputeEnvelope();
   renderCutList();
   autoSave();
+});
+
+// ─── PAINT CONTROLS ──────────────────────────────────────────────────────────
+
+// Swatch click — delegated since swatches are rendered dynamically
+document.getElementById('paint-swatches').addEventListener('click', (e) => {
+  const sw = e.target.closest('.paint-swatch');
+  if (!sw || !selectedPartId) return;
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) return;
+  pushUndo();
+  const color = sw.dataset.color || null;
+  if (!color) {
+    part.paint = null;
+  } else {
+    part.paint = { color, finish: part.paint?.finish ?? 'satin' };
+  }
+  rebuildPartMesh(part);
+  updatePropsPane();
+});
+
+document.getElementById('paint-finish').addEventListener('change', (e) => {
+  if (!selectedPartId) return;
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part || !part.paint) return;
+  pushUndo();
+  part.paint.finish = e.target.value;
+  rebuildPartMesh(part);
+});
+
+document.getElementById('paint-custom').addEventListener('input', (e) => {
+  if (!selectedPartId) return;
+  const part = UNIT.parts.find(p => p.id === selectedPartId);
+  if (!part) return;
+  pushUndo();
+  part.paint = { color: e.target.value, finish: part.paint?.finish ?? 'satin' };
+  rebuildPartMesh(part);
+  updatePropsPane();
 });
 
 // ─── PIECE ROTATION ──────────────────────────────────────────────────────────

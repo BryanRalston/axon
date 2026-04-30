@@ -3298,7 +3298,7 @@ function updatePropsPane() {
   document.getElementById('prop-h').value = part.dims.h;
 
   const yRow = document.getElementById('prop-y-row');
-  yRow.style.display = 'flex';
+  yRow.style.display = 'block';
   document.getElementById('prop-y').value = parseFloat((part.shelfY !== undefined ? part.shelfY : part.pos.y).toFixed(4));
 
   const reposRow = document.getElementById('prop-reposition-row');

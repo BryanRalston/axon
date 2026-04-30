@@ -1712,8 +1712,11 @@ let ghostWireframe = null;
 let customGhostConfig = null; // { label, material, thickness, width, height, orientation, type }
 let ghostSnapMode = 'floor'; // 'floor' | 'ceiling' | 'free' | 'angle'
 let angleStartPoint = null;  // THREE.Vector3 — first click in angle mode
+let angleEndPoint   = null;  // THREE.Vector3 — live end position (corner-snapped or free)
+let angleSnapCorner = null;  // THREE.Vector3 — currently highlighted corner
 let measureObjects = [];     // THREE.Object3D array for dimension lines
 let repositionPartId = null; // when set, confirmGhostPlacement updates this part instead of creating new
+let _cornerIndicator = null; // orange sphere shown at snappable corner
 let selectedPickerType = null;
 let selectedMaterialKey = null; // currently selected material key in custom mode
 let quickStartCollapsed = true;
@@ -3577,10 +3580,14 @@ function onCanvasClick(e) {
   }
   if (isGhostPlacing && ghostMesh) {
     if (ghostSnapMode === 'angle' && !angleStartPoint) {
-      // Phase 1: anchor the start point
-      angleStartPoint = ghostMesh.position.clone();
+      // Phase 1: anchor start — prefer snapped corner over ghost center
+      angleStartPoint = (angleSnapCorner || angleEndPoint || ghostMesh.position).clone();
+      angleSnapCorner = null; // reset so end-point corner tracking is fresh
       const instr = document.getElementById('ghost-hud-instruction');
-      if (instr) instr.textContent = 'Click end point';
+      if (instr) {
+        const locked = angleStartPoint ? '⊙ Start locked' : 'Start locked';
+        instr.textContent = locked + ' · Click end point';
+      }
       return;
     }
     confirmGhostPlacement();
@@ -4718,6 +4725,57 @@ function makeTick(cx, cy, cz, axis, size, color = 0xFFD700) {
   makeDimLine({ x: cx - dx, y: cy - dy, z: cz }, { x: cx + dx, y: cy + dy, z: cz }, color);
 }
 
+// ─── CORNER SNAP ─────────────────────────────────────────────────────────────
+
+function getPartCorners(part) {
+  const { w, h, t } = part.dims;
+  const euler = new THREE.Euler(part.rotationX || 0, part.rotation || 0, part.rotationZ || 0);
+  const quat = new THREE.Quaternion().setFromEuler(euler);
+  const corners = [];
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+    const v = new THREE.Vector3(sx * w / 2, sy * h / 2, sz * t / 2);
+    v.applyQuaternion(quat);
+    v.x += part.pos.x; v.y += part.pos.y; v.z += part.pos.z;
+    corners.push(v);
+  }
+  return corners;
+}
+
+function findNearestCorner(pos, threshold = 4) {
+  let nearest = null, nearestDist = threshold;
+  UNIT.parts.forEach(p => {
+    if (repositionPartId && p.id === repositionPartId) return;
+    getPartCorners(p).forEach(corner => {
+      const d = pos.distanceTo(corner);
+      if (d < nearestDist) { nearestDist = d; nearest = corner.clone(); }
+    });
+  });
+  return nearest;
+}
+
+function getCornerIndicator() {
+  if (!_cornerIndicator) {
+    const geo = new THREE.SphereGeometry(0.55, 10, 10);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xFF6B00, depthTest: false, transparent: true, opacity: 0.9 });
+    _cornerIndicator = new THREE.Mesh(geo, mat);
+    _cornerIndicator.renderOrder = 1001;
+    _cornerIndicator.visible = false;
+    scene.add(_cornerIndicator);
+  }
+  return _cornerIndicator;
+}
+
+function showCornerIndicator(pos) {
+  const ind = getCornerIndicator();
+  ind.position.copy(pos);
+  ind.visible = true;
+}
+
+function hideCornerIndicator() {
+  if (_cornerIndicator) _cornerIndicator.visible = false;
+  angleSnapCorner = null;
+}
+
 function updateMeasureDisplay(snapPos, gw, gh, gd) {
   clearMeasureObjects();
   const el = document.getElementById('ghost-measure-hud');
@@ -4823,6 +4881,8 @@ function cancelGhostPlacement() {
   isGhostPlacing = false;
   customGhostConfig = null;
   angleStartPoint = null;
+  angleEndPoint = null;
+  hideCornerIndicator();
   clearMeasureObjects();
   document.getElementById('ghost-measure-hud')?.classList.remove('visible');
   if (controls) controls.enabled = true;
@@ -4923,46 +4983,60 @@ function updateGhostPosition(mouseEvent) {
     if (Math.abs(gFront - pBack)  < SNAP_THRESH) snapPos.z = pBack  + gd / 2;
   });
 
-  ghostMesh.position.copy(snapPos);
+  // ── Angle mode: corner snapping + phase logic ────────────────────────────
+  if (ghostSnapMode === 'angle') {
+    // Always try to snap to a corner
+    const corner = findNearestCorner(snapPos);
+    if (corner) {
+      snapPos = corner;
+      angleSnapCorner = corner;
+      showCornerIndicator(corner);
+    } else {
+      hideCornerIndicator();
+    }
 
-  // ── Angle mode: stretch ghost from start point to current snap position ──
-  if (ghostSnapMode === 'angle' && angleStartPoint) {
-    const dx = snapPos.x - angleStartPoint.x;
-    const dy = snapPos.y - angleStartPoint.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len > 0.25) {
-      const angleZ = Math.atan2(dy, dx);
-      // Rebuild geometry to match exact length
-      ghostMesh.geometry.dispose();
-      ghostMesh.geometry = new THREE.BoxGeometry(len, gh, gd);
-      if (ghostWireframe) {
-        ghostWireframe.geometry.dispose();
-        ghostWireframe.geometry = new THREE.EdgesGeometry(ghostMesh.geometry);
+    angleEndPoint = snapPos.clone();
+    ghostMesh.position.copy(snapPos);
+
+    if (angleStartPoint) {
+      // Phase 2: stretch ghost from start to current (possibly corner-snapped) end
+      const dx = snapPos.x - angleStartPoint.x;
+      const dy = snapPos.y - angleStartPoint.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 0.25) {
+        const angleZ = Math.atan2(dy, dx);
+        ghostMesh.geometry.dispose();
+        ghostMesh.geometry = new THREE.BoxGeometry(len, gh, gd);
+        if (ghostWireframe) {
+          ghostWireframe.geometry.dispose();
+          ghostWireframe.geometry = new THREE.EdgesGeometry(ghostMesh.geometry);
+        }
+        ghostMesh.rotation.set(0, 0, angleZ);
+        ghostMesh.position.set(
+          angleStartPoint.x + dx / 2,
+          angleStartPoint.y + dy / 2,
+          snapPos.z
+        );
+        const deg = (angleZ * 180 / Math.PI).toFixed(1);
+        const compDeg = (90 - Math.abs(parseFloat(deg))).toFixed(1);
+        const el = document.getElementById('ghost-measure-hud');
+        if (el) {
+          const snapLabel = corner ? '⊙ ' : '';
+          el.textContent = `${snapLabel}${fmtIn(len)}"  ·  ${Math.abs(parseFloat(deg))}° from horiz  ·  ${Math.abs(parseFloat(compDeg))}° from vert`;
+          el.classList.add('visible');
+        }
+        clearMeasureObjects();
+        makeDimLine(
+          { x: angleStartPoint.x, y: angleStartPoint.y, z: snapPos.z },
+          { x: snapPos.x, y: snapPos.y, z: snapPos.z },
+          0xFF8C00
+        );
       }
-      ghostMesh.rotation.set(0, 0, angleZ);
-      ghostMesh.position.set(
-        angleStartPoint.x + dx / 2,
-        angleStartPoint.y + dy / 2,
-        snapPos.z
-      );
-      // Show angle and length in measure HUD
-      const deg = (angleZ * 180 / Math.PI).toFixed(1);
-      const compDeg = (90 - Math.abs(parseFloat(deg))).toFixed(1);
-      const el = document.getElementById('ghost-measure-hud');
-      if (el) {
-        el.textContent = `${fmtIn(len)}"  ·  ${Math.abs(parseFloat(deg))}° from horiz  ·  ${Math.abs(parseFloat(compDeg))}° from vert`;
-        el.classList.add('visible');
-      }
-      clearMeasureObjects();
-      // Draw a line showing the span
-      makeDimLine(
-        { x: angleStartPoint.x, y: angleStartPoint.y, z: snapPos.z },
-        { x: snapPos.x, y: snapPos.y, z: snapPos.z },
-        0xFF8C00
-      );
     }
     return;
   }
+
+  ghostMesh.position.copy(snapPos);
 
   // ── Normal modes: show gap measurements ──
   updateMeasureDisplay(snapPos, gw, gh, gd);
@@ -4974,13 +5048,20 @@ function confirmGhostPlacement() {
   const pos = ghostMesh.position.clone();
   const { gw, gh, gd } = ghostDims(cfg);
 
-  // Angle mode: compute actual length and rotation from current ghost state
+  // Angle mode: use stored endpoint (corner-snapped or free) for accurate length
   let finalW = gw, finalH = gh, rotZ = 0;
   if (ghostSnapMode === 'angle' && angleStartPoint) {
-    const dx = pos.x - angleStartPoint.x;
-    const dy = pos.y - angleStartPoint.y;
+    const endPt = angleEndPoint || pos; // angleEndPoint is the real end; pos is midpoint (fallback)
+    const dx = endPt.x - angleStartPoint.x;
+    const dy = endPt.y - angleStartPoint.y;
     finalW = Math.sqrt(dx * dx + dy * dy);
     rotZ = Math.atan2(dy, dx);
+    // Recompute pos as midpoint between true start and end
+    pos.set(
+      angleStartPoint.x + dx / 2,
+      angleStartPoint.y + dy / 2,
+      endPt.z
+    );
   }
 
   if (repositionPartId) {

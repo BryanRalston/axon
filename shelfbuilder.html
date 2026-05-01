@@ -2167,6 +2167,7 @@ let collapsedGroups = {}; // groupId -> bool
 
 let scene, camera, renderer, controls, raycaster, mouse;
 let sceneAmbient, sceneSun, sceneFill, sceneRim;
+let sceneGrid, sceneFloor;
 let meshMap = {};  // partId -> THREE.Mesh
 let frameId = null;
 
@@ -2378,10 +2379,20 @@ function initThree() {
   sceneRim.position.set(0, -100, -300);
   scene.add(sceneRim);
 
-  // Floor grid
-  const grid = new THREE.GridHelper(600, 60, 0x1a1a2e, 0x111122);
-  grid.position.y = -0.5;
-  scene.add(grid);
+  // Floor grid (editing mode only)
+  sceneGrid = new THREE.GridHelper(600, 60, 0x1a1a2e, 0x111122);
+  sceneGrid.position.y = -0.5;
+  scene.add(sceneGrid);
+
+  // Realistic floor (view mode only, hidden by default)
+  const floorGeo = new THREE.PlaneGeometry(2000, 2000);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x1A1A1E, roughness: 0.92, metalness: 0.04 });
+  sceneFloor = new THREE.Mesh(floorGeo, floorMat);
+  sceneFloor.rotation.x = -Math.PI / 2;
+  sceneFloor.position.y = -0.5;
+  sceneFloor.receiveShadow = true;
+  sceneFloor.visible = false;
+  scene.add(sceneFloor);
 
   // Envelope wireframe ghost
   rebuildEnvelopeGhost();
@@ -6302,25 +6313,25 @@ function escHtml(str) {
 }
 
 const BG_PRESETS = {
-  void:      { hex: 0x050508, label: 'Void' },
-  darkgray:  { hex: 0x1C1C22, label: 'Dark Gray' },
-  concrete:  { hex: 0x4A4A52, label: 'Concrete' },
-  lightgray: { hex: 0xCCCCCC, label: 'Light Gray' },
-  white:     { hex: 0xF5F5F5, label: 'White' },
-  warm:      { hex: 0xF2EBD9, label: 'Warm Cream' },
-  sky:       { hex: 0xC5D9EE, label: 'Sky Blue' },
-  sage:      { hex: 0xC2D0BF, label: 'Sage Green' },
-  navy:      { hex: 0x0F1C2E, label: 'Navy' },
-  black:     { hex: 0x000000, label: 'Black' },
-  // gradients
-  sunset:    { grad: ['#FF6B35','#C0392B','#1A0A2E'], label: '— Sunset' },
-  dusk:      { grad: ['#614385','#516395','#0F2027'], label: '— Dusk' },
-  aurora:    { grad: ['#001B10','#003E1F','#1A0533','#0D001A'], label: '— Aurora' },
-  twilight:  { grad: ['#0F0C29','#302B63','#24243E'], label: '— Twilight' },
-  deepocean: { grad: ['#000428','#004E92'], label: '— Deep Ocean' },
-  ember:     { grad: ['#0D0D0D','#3A1A00','#6B2D00'], label: '— Ember' },
-  arctic:    { grad: ['#E8F4F8','#C5DCE8','#8FB8CC'], label: '— Arctic' },
-  overcast:  { grad: ['#606060','#888888','#AAAAAA'], label: '— Overcast' },
+  void:      { hex: 0x050508, floor: 0x0F0F12, label: 'Void' },
+  darkgray:  { hex: 0x1C1C22, floor: 0x141418, label: 'Dark Gray' },
+  concrete:  { hex: 0x4A4A52, floor: 0x3A3A40, label: 'Concrete' },
+  lightgray: { hex: 0xCCCCCC, floor: 0xB0B0B8, label: 'Light Gray' },
+  white:     { hex: 0xF5F5F5, floor: 0xDDDDDD, label: 'White' },
+  warm:      { hex: 0xF2EBD9, floor: 0xD8CCBA, label: 'Warm Cream' },
+  sky:       { hex: 0xC5D9EE, floor: 0xA8C0D8, label: 'Sky Blue' },
+  sage:      { hex: 0xC2D0BF, floor: 0xA0B09C, label: 'Sage Green' },
+  navy:      { hex: 0x0F1C2E, floor: 0x090F18, label: 'Navy' },
+  black:     { hex: 0x000000, floor: 0x080808, label: 'Black' },
+  // gradients — floor uses darkest stop
+  sunset:    { grad: ['#FF6B35','#C0392B','#1A0A2E'], floor: 0x100510, label: '— Sunset' },
+  dusk:      { grad: ['#614385','#516395','#0F2027'], floor: 0x080F14, label: '— Dusk' },
+  aurora:    { grad: ['#001B10','#003E1F','#1A0533','#0D001A'], floor: 0x060010, label: '— Aurora' },
+  twilight:  { grad: ['#0F0C29','#302B63','#24243E'], floor: 0x07051A, label: '— Twilight' },
+  deepocean: { grad: ['#000428','#004E92'], floor: 0x000318, label: '— Deep Ocean' },
+  ember:     { grad: ['#0D0D0D','#3A1A00','#6B2D00'], floor: 0x0A0500, label: '— Ember' },
+  arctic:    { grad: ['#E8F4F8','#C5DCE8','#8FB8CC'], floor: 0x7098B0, label: '— Arctic' },
+  overcast:  { grad: ['#606060','#888888','#AAAAAA'], floor: 0x484848, label: '— Overcast' },
 };
 
 function makeBgGradientTexture(stops) {
@@ -6347,6 +6358,9 @@ function applyBgPreset(name) {
   } else {
     scene.background = new THREE.Color(b.hex);
     if (renderer) renderer.setClearColor(b.hex);
+  }
+  if (sceneFloor && b.floor !== undefined) {
+    sceneFloor.material.color.setHex(b.floor);
   }
 }
 
@@ -6377,6 +6391,8 @@ function enterViewMode() {
   document.getElementById('btn-view-lock').classList.add('active');
   document.getElementById('vhud-lighting').value = 'studio';
   document.getElementById('vhud-bg').value = 'void';
+  if (sceneGrid) sceneGrid.visible = false;
+  if (sceneFloor) sceneFloor.visible = true;
   applyLightPreset('studio');
   applyBgPreset('void');
   if (controls) { controls.enableRotate = true; controls.enableZoom = true; controls.enablePan = false; }
@@ -6388,6 +6404,8 @@ function exitViewMode() {
   document.body.classList.remove('view-mode');
   document.getElementById('btn-view-lock').classList.remove('active');
   document.getElementById('vhud-rotate-btn').classList.remove('active');
+  if (sceneGrid) sceneGrid.visible = true;
+  if (sceneFloor) sceneFloor.visible = false;
   applyLightPreset('default');
   applyBgPreset('void');
   if (controls) { controls.autoRotate = false; controls.enablePan = true; }

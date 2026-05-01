@@ -1556,6 +1556,15 @@
     <option value="sage">Sage Green</option>
     <option value="navy">Navy</option>
     <option value="black">Black</option>
+    <option disabled>──────────</option>
+    <option value="sunset">⬛ Sunset</option>
+    <option value="dusk">⬛ Dusk</option>
+    <option value="aurora">⬛ Aurora</option>
+    <option value="twilight">⬛ Twilight</option>
+    <option value="deepocean">⬛ Deep Ocean</option>
+    <option value="ember">⬛ Ember</option>
+    <option value="arctic">⬛ Arctic</option>
+    <option value="overcast">⬛ Overcast</option>
   </select>
   <button id="vhud-rotate-btn" title="Toggle auto-rotate">↻ Rotate</button>
   <button id="vhud-exit-btn">✕ Exit</button>
@@ -6293,22 +6302,52 @@ function escHtml(str) {
 }
 
 const BG_PRESETS = {
-  void:      { hex: 0x050508, css: '#050508', label: 'Void' },
-  darkgray:  { hex: 0x1C1C22, css: '#1C1C22', label: 'Dark Gray' },
-  concrete:  { hex: 0x4A4A52, css: '#4A4A52', label: 'Concrete' },
-  lightgray: { hex: 0xCCCCCC, css: '#CCCCCC', label: 'Light Gray' },
-  white:     { hex: 0xF5F5F5, css: '#F5F5F5', label: 'White' },
-  warm:      { hex: 0xF2EBD9, css: '#F2EBD9', label: 'Warm Cream' },
-  sky:       { hex: 0xC5D9EE, css: '#C5D9EE', label: 'Sky Blue' },
-  sage:      { hex: 0xC2D0BF, css: '#C2D0BF', label: 'Sage Green' },
-  navy:      { hex: 0x0F1C2E, css: '#0F1C2E', label: 'Navy' },
-  black:     { hex: 0x000000, css: '#000000', label: 'Black' },
+  void:      { hex: 0x050508, label: 'Void' },
+  darkgray:  { hex: 0x1C1C22, label: 'Dark Gray' },
+  concrete:  { hex: 0x4A4A52, label: 'Concrete' },
+  lightgray: { hex: 0xCCCCCC, label: 'Light Gray' },
+  white:     { hex: 0xF5F5F5, label: 'White' },
+  warm:      { hex: 0xF2EBD9, label: 'Warm Cream' },
+  sky:       { hex: 0xC5D9EE, label: 'Sky Blue' },
+  sage:      { hex: 0xC2D0BF, label: 'Sage Green' },
+  navy:      { hex: 0x0F1C2E, label: 'Navy' },
+  black:     { hex: 0x000000, label: 'Black' },
+  // gradients
+  sunset:    { grad: ['#FF6B35','#C0392B','#1A0A2E'], label: '— Sunset' },
+  dusk:      { grad: ['#614385','#516395','#0F2027'], label: '— Dusk' },
+  aurora:    { grad: ['#001B10','#003E1F','#1A0533','#0D001A'], label: '— Aurora' },
+  twilight:  { grad: ['#0F0C29','#302B63','#24243E'], label: '— Twilight' },
+  deepocean: { grad: ['#000428','#004E92'], label: '— Deep Ocean' },
+  ember:     { grad: ['#0D0D0D','#3A1A00','#6B2D00'], label: '— Ember' },
+  arctic:    { grad: ['#E8F4F8','#C5DCE8','#8FB8CC'], label: '— Arctic' },
+  overcast:  { grad: ['#606060','#888888','#AAAAAA'], label: '— Overcast' },
 };
 
+function makeBgGradientTexture(stops) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2; canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 512);
+  stops.forEach((c, i) => grad.addColorStop(i / (stops.length - 1), c));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 2, 512);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+let _bgGradTex = null;
 function applyBgPreset(name) {
   const b = BG_PRESETS[name] || BG_PRESETS.void;
-  if (scene) scene.background = new THREE.Color(b.hex);
-  if (renderer) renderer.setClearColor(b.hex);
+  if (!scene) return;
+  if (_bgGradTex) { _bgGradTex.dispose(); _bgGradTex = null; }
+  if (b.grad) {
+    _bgGradTex = makeBgGradientTexture(b.grad);
+    scene.background = _bgGradTex;
+  } else {
+    scene.background = new THREE.Color(b.hex);
+    if (renderer) renderer.setClearColor(b.hex);
+  }
 }
 
 const LIGHT_PRESETS = {

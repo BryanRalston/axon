@@ -2346,6 +2346,7 @@ function initThree() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
   renderer.setClearColor(0x050508);
 
   scene = new THREE.Scene();
@@ -2402,6 +2403,7 @@ function initThree() {
   controls.dampingFactor = 0.08;
   controls.minDistance = 5;
   controls.maxDistance = 800;
+  controls.addEventListener('change', markNeedsRender);
 
   raycaster = new THREE.Raycaster();
   mouse = new THREE.Vector2();
@@ -2708,6 +2710,7 @@ function _toRoughnessMap(diffuseTex) {
 function matForKey(matKey) {
   const p = MAT_PROFILES[matKey];
   if (!p) return null;
+  return _cachedMat('mk|' + matKey, () => {
   const m = new THREE.MeshStandardMaterial({ roughness: p.roughness ?? 0.78, metalness: p.metalness ?? 0.02 });
   if (p.color !== undefined) {
     m.color.setHex(p.color);
@@ -2719,30 +2722,32 @@ function matForKey(matKey) {
     try { m.roughnessMap = _toRoughnessMap(diffTex); } catch(e) {}
   }
   return m;
+  }); // end _cachedMat
 }
 
 // Three.js materials — fallback for wizard pieces without a material key
 const MAT = {
-  side:    () => new THREE.MeshStandardMaterial({ color: 0xC49A6C, roughness: 0.65, metalness: 0.05 }),
-  top:     () => new THREE.MeshStandardMaterial({ color: 0xBF9060, roughness: 0.65, metalness: 0.05 }),
-  bottom:  () => new THREE.MeshStandardMaterial({ color: 0xBF9060, roughness: 0.65, metalness: 0.05 }),
-  back:    () => new THREE.MeshStandardMaterial({ color: 0x9A7040, roughness: 0.82, metalness: 0.0  }),
-  toekick: () => new THREE.MeshStandardMaterial({ color: 0xB07848, roughness: 0.72, metalness: 0.05 }),
+  side:    () => _cachedMat('t|side',    () => new THREE.MeshStandardMaterial({ color: 0xC49A6C, roughness: 0.65, metalness: 0.05 })),
+  top:     () => _cachedMat('t|top',     () => new THREE.MeshStandardMaterial({ color: 0xBF9060, roughness: 0.65, metalness: 0.05 })),
+  bottom:  () => _cachedMat('t|bottom',  () => new THREE.MeshStandardMaterial({ color: 0xBF9060, roughness: 0.65, metalness: 0.05 })),
+  back:    () => _cachedMat('t|back',    () => new THREE.MeshStandardMaterial({ color: 0x9A7040, roughness: 0.82, metalness: 0.0  })),
+  toekick: () => _cachedMat('t|toekick', () => new THREE.MeshStandardMaterial({ color: 0xB07848, roughness: 0.72, metalness: 0.05 })),
   shelf:   () => new THREE.MeshStandardMaterial({ color: 0xD4AA7D, roughness: 0.62, metalness: 0.05 }),
   upright: () => new THREE.MeshStandardMaterial({ color: 0xC49A6C, roughness: 0.65, metalness: 0.05 }),
-  divider: () => new THREE.MeshStandardMaterial({ color: 0xD0A070, roughness: 0.65, metalness: 0.05 }),
-  stile:   () => new THREE.MeshStandardMaterial({ color: 0xCA9050, roughness: 0.55, metalness: 0.08 }),
-  rail:    () => new THREE.MeshStandardMaterial({ color: 0xCA9050, roughness: 0.55, metalness: 0.08 }),
+  divider: () => _cachedMat('t|divider', () => new THREE.MeshStandardMaterial({ color: 0xD0A070, roughness: 0.65, metalness: 0.05 })),
+  stile:   () => _cachedMat('t|stile',   () => new THREE.MeshStandardMaterial({ color: 0xCA9050, roughness: 0.55, metalness: 0.08 })),
+  rail:    () => _cachedMat('t|rail',    () => new THREE.MeshStandardMaterial({ color: 0xCA9050, roughness: 0.55, metalness: 0.08 })),
 };
 
 function getMat(type, matKey, paint) {
   if (paint?.color) {
     const roughMap = { matte: 0.88, satin: 0.38, gloss: 0.06 };
-    return new THREE.MeshStandardMaterial({
+    const paintKey = `p|${paint.color}|${paint.finish ?? 'satin'}`;
+    return _cachedMat(paintKey, () => new THREE.MeshStandardMaterial({
       color: new THREE.Color(paint.color),
       roughness: roughMap[paint.finish ?? 'satin'],
       metalness: paint.finish === 'gloss' ? 0.04 : 0.0,
-    });
+    }));
   }
   const fromKey = matKey ? matForKey(matKey) : null;
   if (fromKey) return fromKey;
@@ -2788,6 +2793,7 @@ function addPartMesh(part, animate = false) {
   mesh.rotation.z = part.rotationZ || 0;
   scene.add(mesh);
   meshMap[part.id] = mesh;
+  markSceneChanged();
 }
 
 function partWorldPos(part) {
@@ -2827,20 +2833,19 @@ function removeMeshFor(partId) {
   if (m) {
     scene.remove(m);
     m.geometry.dispose();
-    if (Array.isArray(m.material)) m.material.forEach(x => x.dispose());
-    else m.material.dispose();
+    if (Array.isArray(m.material)) m.material.forEach(safeDisposeMat);
+    else safeDisposeMat(m.material);
     delete meshMap[partId];
   }
-  // Remove from animating
   animating = animating.filter(a => a.mesh !== m);
 }
 
 function rebuildAllMeshes() {
-  // Clear existing
   Object.keys(meshMap).forEach(id => removeMeshFor(id));
   animating = [];
   UNIT.parts.forEach(p => addPartMesh(p, false));
   updateSelectionHighlight();
+  markSceneChanged();
 }
 
 function rebuildPartMesh(part) {
@@ -2856,64 +2861,106 @@ function updateSelectionHighlight() {
     const part = UNIT.parts.find(p => p.id === id);
     if (!part) return;
     const baseMat = getMat(part.type, part.material, part.paint);
-    mesh.material.dispose();
-    mesh.material = baseMat;
-    if (groupSelectMode && groupSelectSet.has(id)) {
-      mesh.material.emissive = new THREE.Color(0xFBBF24);
-      mesh.material.emissiveIntensity = 0.5;
-    } else if (paintBrushMode && part.paint?.color) {
-      mesh.material.emissive = new THREE.Color(0xEC4899);
-      mesh.material.emissiveIntensity = 0.2;
-    } else if (id === selectedPartId) {
-      mesh.material.emissive = new THREE.Color(0x22D3EE);
-      mesh.material.emissiveIntensity = 0.45;
+
+    let emissiveHex = null, emissiveI = 0;
+    if (groupSelectMode && groupSelectSet.has(id))  { emissiveHex = 0xFBBF24; emissiveI = 0.5; }
+    else if (paintBrushMode && part.paint?.color)   { emissiveHex = 0xEC4899; emissiveI = 0.2; }
+    else if (id === selectedPartId)                 { emissiveHex = 0x22D3EE; emissiveI = 0.45; }
+
+    if (emissiveHex !== null) {
+      // Use a per-mesh clone so we don't mutate the shared material
+      if (_cachedMats.has(mesh.material)) mesh.material = baseMat.clone();
+      mesh.material.emissive.setHex(emissiveHex);
+      mesh.material.emissiveIntensity = emissiveI;
+    } else {
+      // Revert to shared material — dispose clone if we had one
+      if (!_cachedMats.has(mesh.material)) mesh.material.dispose();
+      mesh.material = baseMat;
     }
   });
+  markNeedsRender();
 }
 
 function highlightHover(partId) {
   Object.entries(meshMap).forEach(([id, mesh]) => {
     const part = UNIT.parts.find(p => p.id === id);
     if (!part) return;
-    if (id === selectedPartId) {
-      mesh.material.emissive = new THREE.Color(0x22D3EE);
-      mesh.material.emissiveIntensity = 0.45;
-    } else if (id === partId) {
-      mesh.material.emissive = new THREE.Color(0x22D3EE);
-      mesh.material.emissiveIntensity = 0.2;
+    const baseMat = getMat(part.type, part.material, part.paint);
+    const needsEmissive = (id === selectedPartId || id === partId);
+    const hex = id === selectedPartId ? 0x22D3EE : 0x22D3EE;
+    const intensity = id === selectedPartId ? 0.45 : (id === partId ? 0.2 : 0);
+    if (needsEmissive) {
+      if (_cachedMats.has(mesh.material)) mesh.material = baseMat.clone();
+      mesh.material.emissive.setHex(hex);
+      mesh.material.emissiveIntensity = intensity;
     } else {
-      mesh.material.emissive = new THREE.Color(0x000000);
-      mesh.material.emissiveIntensity = 0;
+      if (!_cachedMats.has(mesh.material)) mesh.material.dispose();
+      mesh.material = baseMat;
     }
   });
+  markNeedsRender();
+}
+
+// ─── RENDER-ON-DEMAND ────────────────────────────────────────────────────────
+
+let needsRender = true;
+function markNeedsRender() { needsRender = true; }
+function markSceneChanged() {
+  needsRender = true;
+  if (renderer) renderer.shadowMap.needsUpdate = true;
+}
+
+// ─── MATERIAL CACHE ──────────────────────────────────────────────────────────
+
+const _matCache = new Map();
+const _cachedMats = new Set();
+
+function _cachedMat(key, factory) {
+  if (_matCache.has(key)) return _matCache.get(key);
+  const m = factory();
+  _matCache.set(key, m);
+  _cachedMats.add(m);
+  return m;
+}
+function safeDisposeMat(mat) {
+  if (!mat || _cachedMats.has(mat)) return;
+  if (Array.isArray(mat)) { mat.forEach(safeDisposeMat); return; }
+  mat.dispose();
 }
 
 // ─── ANIMATION LOOP ──────────────────────────────────────────────────────────
 
 function animate() {
   frameId = requestAnimationFrame(animate);
-  controls.update();
+  controls.update(); // always needed for damping
 
-  // Process animations
+  // Process drop animations — keep rendering until done
   const now = performance.now();
+  const hadAnim = animating.length > 0;
   animating = animating.filter(a => {
     const t = Math.min(1, (now - a.startTime) / a.duration);
-    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    const ease = 1 - Math.pow(1 - t, 3);
     a.mesh.position.lerpVectors(a.from, a.to, ease);
     return t < 1;
   });
+  if (hadAnim) needsRender = true;
 
   // Ghost shelf
   if (ghostShelf) {
     const y = toSceneUnits(ghostShelfY) + toSceneUnits(UNIT.thickness / 2);
     ghostShelf.position.y = y;
-    // Color feedback
     const conflict = hasShelfConflict(ghostShelfY);
     ghostShelf.material.color.set(conflict ? 0xFF4444 : 0x22D3EE);
     ghostShelf.material.opacity = conflict ? 0.3 : 0.5;
+    needsRender = true;
   }
 
-  renderer.render(scene, activeCamera());
+  if (controls.autoRotate) needsRender = true;
+
+  if (needsRender) {
+    renderer.render(scene, activeCamera());
+    needsRender = false;
+  }
 }
 
 function toSceneUnits(inches) { return inches; } // 1 unit = 1 inch
@@ -4141,6 +4188,7 @@ function onCanvasMouseMove(e) {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  markNeedsRender();
 
   raycaster.setFromCamera(mouse, activeCamera());
   const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
@@ -6362,6 +6410,7 @@ function applyBgPreset(name) {
   if (sceneFloor && b.floor !== undefined) {
     sceneFloor.material.color.setHex(b.floor);
   }
+  markNeedsRender();
 }
 
 const LIGHT_PRESETS = {
@@ -6383,6 +6432,7 @@ function applyLightPreset(name) {
   sceneFill.position.set(...p.fillPos);
   sceneRim.intensity = p.rimI;
   if (p.rimColor) sceneRim.color.setHex(p.rimColor);
+  markSceneChanged();
 }
 
 function enterViewMode() {

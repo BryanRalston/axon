@@ -867,6 +867,78 @@
     flex-shrink: 0;
   }
   #group-select-bar.active { display: flex; }
+  #paint-brush-bar {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px 8px;
+    background: rgba(236,72,153,0.07);
+    border: 1px solid rgba(236,72,153,0.28);
+    border-radius: 5px;
+    margin: 2px 0;
+    flex-shrink: 0;
+  }
+  #paint-brush-bar.active { display: flex; }
+  .pb-top-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .pb-palette { display: flex; flex-direction: column; gap: 4px; }
+  .pb-family { display: flex; flex-direction: column; gap: 2px; }
+  .pb-family-label { font-size: 9px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .pb-family-swatches { display: flex; gap: 3px; flex-wrap: wrap; }
+  .pb-swatch {
+    width: 20px; height: 20px; border-radius: 4px; cursor: pointer;
+    border: 2px solid transparent; flex-shrink: 0;
+    transition: transform .1s, box-shadow .1s;
+  }
+  .pb-swatch:hover { transform: scale(1.15); }
+  .pb-swatch.active { border-color: #EC4899; box-shadow: 0 0 0 1px rgba(236,72,153,0.7); }
+  .pb-custom { width: 24px; height: 24px; border-radius: 4px; cursor: pointer; border: 2px solid var(--border); padding: 0; flex-shrink: 0; }
+  .pb-finish {
+    font-size: 10px; padding: 2px 5px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text); font-family: inherit; cursor: pointer;
+  }
+  .pb-clear-toggle {
+    font-size: 10px; padding: 2px 7px;
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-muted); font-family: inherit; cursor: pointer;
+  }
+  .pb-clear-toggle.active { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.5); color: #EF4444; }
+  .pb-done {
+    font-size: 10px; padding: 2px 8px;
+    background: rgba(236,72,153,0.12); border: 1px solid rgba(236,72,153,0.4);
+    border-radius: 4px; color: #EC4899; font-family: inherit; cursor: pointer;
+  }
+  .pb-hint { font-size: 10px; color: rgba(236,72,153,0.8); }
+  body.paint-brush-active #viewport canvas { cursor: crosshair !important; }
+  body.view-mode #panel-left,
+  body.view-mode #panel-right,
+  body.view-mode #toolbar { display: none !important; }
+  body.view-mode #app { padding: 0; }
+  body.view-mode #viewport { flex: 1; width: 100%; }
+  #view-mode-hud {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(9,9,11,0.88);
+    border: 1px solid rgba(34,211,238,0.25);
+    border-radius: 24px;
+    backdrop-filter: blur(12px);
+  }
+  body.view-mode #view-mode-hud { display: flex; }
+  #view-mode-hud .vhud-label { font-size: 11px; color: var(--text-muted); letter-spacing: .06em; }
+  #view-mode-hud button {
+    font-size: 11px; padding: 3px 12px;
+    background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.35);
+    border-radius: 12px; color: var(--accent); font-family: inherit; cursor: pointer;
+  }
+  #view-mode-hud button:hover { background: rgba(34,211,238,0.2); }
+  #vhud-rotate-btn.active { background: rgba(34,211,238,0.25); border-color: var(--accent); }
   #gsh-name {
     flex: 1; min-width: 0;
     background: var(--bg-card);
@@ -1246,6 +1318,13 @@
   .bl-cost { color: var(--accent); font-weight: 600; margin-top: 2px; padding-left: 14px; font-size: 11px; }
   .bl-waste { color: var(--warn); font-size: 10px; }
   .bl-empty { color: var(--text-dim); font-size: 11px; padding: 16px 4px; font-family: 'Inter', sans-serif; }
+  .bl-section-header { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--text-muted); padding: 6px 0 4px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+  .bl-board-row { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-bottom: 4px; line-height: 1.5; }
+  .bl-mark { font-weight: 700; color: var(--accent); }
+  .bl-hw-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; margin-bottom: 3px; }
+  .bl-hw-desc { font-weight: 500; }
+  .bl-hw-qty { color: var(--accent); font-weight: 600; }
+  .bl-hw-note { color: var(--text-muted); font-size: 11px; }
   .buylist-btns {
     display: flex;
     gap: 6px;
@@ -1452,6 +1531,22 @@
   <button class="tb-btn tb-3d-only" id="btn-frame-sel" style="display:none">⊙ Focus</button>
   <div class="toolbar-sep"></div>
   <button class="tb-btn" id="btn-walkthrough">Build Guide</button>
+  <div class="toolbar-sep tb-3d-only"></div>
+  <button class="tb-btn tb-3d-only" id="btn-view-lock" title="Lock view — full-screen 3D presentation mode">⊠ View</button>
+</div>
+
+<div id="view-mode-hud">
+  <span class="vhud-label">VIEW</span>
+  <select id="vhud-lighting" title="Lighting preset" style="font-size:11px;padding:3px 8px;background:rgba(9,9,11,0.8);border:1px solid rgba(34,211,238,0.25);border-radius:10px;color:var(--accent);font-family:inherit;cursor:pointer">
+    <option value="studio">Studio</option>
+    <option value="showroom">Showroom</option>
+    <option value="golden">Golden Hour</option>
+    <option value="workshop">Workshop</option>
+    <option value="dramatic">Dramatic</option>
+    <option value="default">Default</option>
+  </select>
+  <button id="vhud-rotate-btn" title="Toggle auto-rotate">↻ Rotate</button>
+  <button id="vhud-exit-btn">✕ Exit</button>
 </div>
 
 <!-- MAIN APP -->
@@ -1538,6 +1633,21 @@
     <div class="custom-parts-header" id="custom-parts-header" style="display:none">
       <span style="font-size:9px;font-weight:600;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;flex:1">Parts</span>
       <button id="btn-new-group" style="padding:3px 8px;background:var(--accent-bg);border:1px solid var(--border-glow);border-radius:4px;color:var(--accent);font-size:10px;font-family:inherit;cursor:pointer;white-space:nowrap">⊕ Group</button>
+      <button id="btn-paint-brush" style="padding:3px 8px;background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.3);border-radius:4px;color:#EC4899;font-size:10px;font-family:inherit;cursor:pointer;white-space:nowrap">🖌 Paint</button>
+    </div>
+    <div id="paint-brush-bar">
+      <div class="pb-top-row">
+        <select id="pb-finish" class="pb-finish">
+          <option value="satin">Satin</option>
+          <option value="matte">Matte</option>
+          <option value="gloss">Gloss</option>
+        </select>
+        <input type="color" id="pb-custom" class="pb-custom" value="#FFFFFF" title="Custom color">
+        <button id="pb-clear-toggle" class="pb-clear-toggle" title="Toggle clear mode — click parts to remove paint">✕ Clear</button>
+        <button id="pb-done" class="pb-done">Done</button>
+      </div>
+      <div class="pb-palette" id="pb-palette"></div>
+      <div class="pb-hint" id="pb-hint">Click any piece to paint it</div>
     </div>
     <div id="group-select-bar">
       <span id="gsh-count">0 selected</span>
@@ -1589,9 +1699,9 @@
   <!-- RIGHT PANEL -->
   <div id="panel-right">
     <div class="panel-tabs">
-      <div class="panel-tab active" data-tab="cutlist">Cut List</div>
+      <div class="panel-tab active" data-tab="cutlist">Cut Sheet</div>
       <div class="panel-tab" data-tab="drill">Drill Template</div>
-      <div class="panel-tab" data-tab="buylist">Buy List</div>
+      <div class="panel-tab" data-tab="buylist">Materials</div>
     </div>
 
     <!-- Selected piece props (appears above tab content) -->
@@ -1669,14 +1779,17 @@
         <table class="cutlist-table" id="cl-table">
           <thead>
             <tr>
-              <th>Label</th>
-              <th>Len</th>
-              <th>Wid</th>
-              <th>Thk</th>
+              <th>Mark</th>
+              <th>Qty</th>
+              <th>Part Name</th>
+              <th>Material</th>
+              <th>T"</th>
+              <th>W"</th>
+              <th>L"</th>
             </tr>
           </thead>
           <tbody id="cl-body">
-            <tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:20px">No parts yet</td></tr>
+            <tr><td colspan="7" style="color:var(--text-dim);text-align:center;padding:20px">No parts yet</td></tr>
           </tbody>
         </table>
       </div>
@@ -1702,7 +1815,7 @@
       </div>
 
       <div class="cutlist-btns">
-        <button class="action-btn" id="btn-print-cutlist" style="text-align:center">Print</button>
+        <button class="action-btn" id="btn-print-cutlist" style="text-align:center">Print Plan</button>
         <button class="action-btn secondary" id="btn-export-csv" style="text-align:center">CSV</button>
         <button class="action-btn" id="btn-export-buildplan" style="text-align:center">BuildPlan</button>
         <button class="action-btn secondary" id="btn-save-json" style="text-align:center">Save</button>
@@ -2031,6 +2144,7 @@ let collapsedGroups = {}; // groupId -> bool
 // ─── THREE.JS SETUP ──────────────────────────────────────────────────────────
 
 let scene, camera, renderer, controls, raycaster, mouse;
+let sceneAmbient, sceneSun, sceneFill, sceneRim;
 let meshMap = {};  // partId -> THREE.Mesh
 let frameId = null;
 
@@ -2219,24 +2333,28 @@ function initThree() {
   resetCamera();
 
   // Lights
-  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
-  scene.add(ambient);
+  sceneAmbient = new THREE.AmbientLight(0xffffff, 0.55);
+  scene.add(sceneAmbient);
 
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-  sun.position.set(200, 400, 200);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 2000;
-  sun.shadow.camera.left = -200;
-  sun.shadow.camera.right = 200;
-  sun.shadow.camera.top = 200;
-  sun.shadow.camera.bottom = -200;
-  scene.add(sun);
+  sceneSun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sceneSun.position.set(200, 400, 200);
+  sceneSun.castShadow = true;
+  sceneSun.shadow.mapSize.set(2048, 2048);
+  sceneSun.shadow.camera.near = 1;
+  sceneSun.shadow.camera.far = 2000;
+  sceneSun.shadow.camera.left = -200;
+  sceneSun.shadow.camera.right = 200;
+  sceneSun.shadow.camera.top = 200;
+  sceneSun.shadow.camera.bottom = -200;
+  scene.add(sceneSun);
 
-  const fill = new THREE.DirectionalLight(0x8888ff, 0.25);
-  fill.position.set(-100, 50, -100);
-  scene.add(fill);
+  sceneFill = new THREE.DirectionalLight(0x8888ff, 0.25);
+  sceneFill.position.set(-100, 50, -100);
+  scene.add(sceneFill);
+
+  sceneRim = new THREE.DirectionalLight(0xffffff, 0.0);
+  sceneRim.position.set(0, -100, -300);
+  scene.add(sceneRim);
 
   // Floor grid
   const grid = new THREE.GridHelper(600, 60, 0x1a1a2e, 0x111122);
@@ -2710,6 +2828,9 @@ function updateSelectionHighlight() {
     if (groupSelectMode && groupSelectSet.has(id)) {
       mesh.material.emissive = new THREE.Color(0xFBBF24);
       mesh.material.emissiveIntensity = 0.5;
+    } else if (paintBrushMode && part.paint?.color) {
+      mesh.material.emissive = new THREE.Color(0xEC4899);
+      mesh.material.emissiveIntensity = 0.2;
     } else if (id === selectedPartId) {
       mesh.material.emissive = new THREE.Color(0x22D3EE);
       mesh.material.emissiveIntensity = 0.45;
@@ -4149,15 +4270,18 @@ function onCanvasClick(e) {
   const meshes = UNIT.parts.map(p => meshMap[p.id]).filter(Boolean);
   const hits = raycaster.intersectObjects(meshes);
 
+  if (lockViewMode) return;
   if (hits.length) {
     const partId = hits[0].object.userData.partId;
-    if (groupSelectMode) {
+    if (paintBrushMode) {
+      applyPaintBrush(partId);
+    } else if (groupSelectMode) {
       toggleGroupSelect(partId);
     } else {
       selectPart(partId);
     }
   } else {
-    if (!groupSelectMode) deselectAll();
+    if (!groupSelectMode && !paintBrushMode) deselectAll();
   }
 }
 
@@ -4240,6 +4364,67 @@ function getPartMaterialLabel(part) {
   return guidedMat ? guidedMat.name : '3/4" Sheet Good';
 }
 
+function getPartTWL(p) {
+  const matKey = p.material || UNIT.material;
+  const m = MATERIALS_DB[matKey];
+  const cat = m ? (m.category || 'sheet') : 'sheet';
+  if (cat === 'lumber') {
+    return { t: m ? m.thick : p.dims.t, w: m ? m.width : Math.min(p.dims.h, p.dims.w), l: Math.max(p.dims.w, p.dims.h, p.dims.t), cat };
+  }
+  if (cat === 'hardwood') {
+    return { t: m ? m.thick : p.dims.t, w: p.dims.w, l: Math.max(p.dims.h, p.dims.t), cat };
+  }
+  return { t: m ? m.thick : p.dims.t, w: Math.min(p.dims.w, p.dims.h), l: Math.max(p.dims.w, p.dims.h), cat };
+}
+
+function computePartMarks(parts) {
+  const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const sorted = [...parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+  const keyToGroup = new Map();
+  const partMarkMap = new Map();
+  let markIdx = 0;
+  sorted.forEach(p => {
+    const matKey = p.material || UNIT.material;
+    const { t, w, l } = getPartTWL(p);
+    const key = `${matKey}|${Math.round(t * 8)}|${Math.round(w * 8)}|${Math.round(l * 8)}`;
+    if (!keyToGroup.has(key)) {
+      const mark = LETTERS[markIdx % 26] + (markIdx >= 26 ? String(Math.floor(markIdx / 26)) : '');
+      markIdx++;
+      keyToGroup.set(key, { mark, qty: 0, partIds: [], label: p.label, matKey, t, w, l });
+    }
+    const g = keyToGroup.get(key);
+    g.qty++;
+    g.partIds.push(p.id);
+    partMarkMap.set(p.id, g.mark);
+  });
+  return { keyToGroup, partMarkMap };
+}
+
+function computeHardwareList(parts) {
+  const items = [];
+  const typeSet = new Set(parts.map(p => p.type));
+  const shelfCount = parts.filter(p => p.type === 'shelf' || p.type === 'adjustable-shelf').length;
+  if (shelfCount > 0) items.push({ desc: 'Shelf pins, 5mm', qty: `${Math.ceil(shelfCount * 4 / 50)} pack (50-ct)`, note: `4 per shelf × ${shelfCount}` });
+  if (typeSet.has('stile') || typeSet.has('rail')) items.push({ desc: 'Pocket screws, 1-1/4"', qty: '1 box (100-ct)', note: 'Face frame joinery' });
+  const thinBack = parts.some(p => (p.type === 'back' || p.type === 'back-panel') && p.dims.t <= 0.25);
+  if (thinBack) items.push({ desc: '18-ga. brad nails, 1"', qty: '1 box', note: 'Back panel attachment' });
+  const screwQty = Math.ceil(Math.max(parts.length * 6, 50) / 100) * 100;
+  items.push({ desc: '#8 × 1-5/8" coarse-thread wood screws', qty: `${screwQty} pcs`, note: 'Carcass assembly' });
+  const doorCount = parts.filter(p => p.type === 'door').length;
+  if (doorCount > 0) {
+    items.push({ desc: 'European cup hinges, 35mm', qty: `${doorCount * 2} pcs`, note: `2 per door × ${doorCount}` });
+    items.push({ desc: 'Door pulls', qty: `${doorCount} pcs`, note: '' });
+  }
+  const drawerCount = parts.filter(p => p.type === 'drawer').length;
+  if (drawerCount > 0) {
+    items.push({ desc: 'Full-extension drawer slides', qty: `${drawerCount} pairs`, note: `1 pair × ${drawerCount}` });
+    items.push({ desc: 'Drawer pulls', qty: `${drawerCount} pcs`, note: '' });
+  }
+  items.push({ desc: 'Wood glue (8 oz)', qty: '1 bottle', note: '' });
+  items.push({ desc: 'Sandpaper, 80/120/220 grit assortment', qty: '1 set', note: '' });
+  return items;
+}
+
 function partCutListRow(p) {
   const matKey = p.material || UNIT.material;
   const m = MATERIALS_DB[matKey];
@@ -4277,54 +4462,57 @@ function partCutListRow(p) {
 }
 
 function renderCutList() {
-  // Update table headers based on predominant material category
   const thead = document.querySelector('#cl-table thead tr');
-  if (thead) {
-    const matKey = UNIT.parts.length ? (UNIT.parts[0].material || UNIT.material) : UNIT.material;
-    const m = MATERIALS_DB[matKey];
-    const cat = m ? (m.category || 'sheet') : 'sheet';
-    if (cat === 'lumber') {
-      thead.innerHTML = '<th>Label</th><th>Length</th><th colspan="2">Cross-Section</th>';
-    } else if (cat === 'hardwood') {
-      thead.innerHTML = '<th>Label</th><th>W</th><th>L</th><th>Thk</th>';
-    } else {
-      thead.innerHTML = '<th>Label</th><th>W</th><th>H</th><th>Thk</th>';
-    }
-  }
+  if (thead) thead.innerHTML = '<th>Mark</th><th>Qty</th><th>Part Name</th><th>Material</th><th>T"</th><th>W"</th><th>L"</th>';
 
   const tbody = document.getElementById('cl-body');
   if (!UNIT.parts.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:20px">No parts yet</td></tr>';
-    updateSummary();
-    renderSheetLayout();
-    renderDrillTemplate();
-    return;
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-dim);text-align:center;padding:20px">No parts yet</td></tr>';
+    updateSummary(); renderSheetLayout(); renderDrillTemplate(); return;
   }
 
-  let rows = '';
+  const { keyToGroup, partMarkMap } = computePartMarks(UNIT.parts);
   const groupHeaderStyle = 'background:var(--bg-card);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.06em;padding:5px 8px;text-transform:uppercase';
 
+  let rows = '';
+
   if (cutlistGroupMode === 'material') {
-    const groups = {};
+    const byMat = {};
     UNIT.parts.forEach(p => {
-      const key = getPartMaterialLabel(p);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(p);
+      const lbl = getPartMaterialLabel(p);
+      if (!byMat[lbl]) byMat[lbl] = [];
+      byMat[lbl].push(p);
     });
-    Object.entries(groups).forEach(([matLabel, parts]) => {
-      rows += `<tr><td colspan="4" style="${groupHeaderStyle}">${matLabel}</td></tr>`;
-      parts.forEach(p => { rows += partCutListRow(p); });
+    Object.entries(byMat).forEach(([matLabel, parts]) => {
+      rows += `<tr><td colspan="7" style="${groupHeaderStyle}">${matLabel}</td></tr>`;
+      const seenMarks = new Set();
+      parts.forEach(p => {
+        const mark = partMarkMap.get(p.id);
+        if (seenMarks.has(mark)) return;
+        seenMarks.add(mark);
+        const matKey = p.material || UNIT.material;
+        const { t, w, l } = getPartTWL(p);
+        const g = keyToGroup.get(`${matKey}|${Math.round(t*8)}|${Math.round(w*8)}|${Math.round(l*8)}`);
+        rows += buildCutSheetRow(g, partMarkMap);
+      });
     });
   } else {
     const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
     let lastType = null;
+    const seenMarks = new Set();
     sorted.forEach(p => {
       if (p.type !== lastType) {
-        const typeLabel = p.type.charAt(0).toUpperCase() + p.type.slice(1) + 's';
-        rows += `<tr><td colspan="4" style="${groupHeaderStyle}">${typeLabel}</td></tr>`;
+        const typeLabel = p.type.charAt(0).toUpperCase() + p.type.slice(1).replace(/-/g, ' ') + 's';
+        rows += `<tr><td colspan="7" style="${groupHeaderStyle}">${typeLabel}</td></tr>`;
         lastType = p.type;
       }
-      rows += partCutListRow(p);
+      const mark = partMarkMap.get(p.id);
+      if (seenMarks.has(mark)) return;
+      seenMarks.add(mark);
+      const matKey = p.material || UNIT.material;
+      const { t, w, l } = getPartTWL(p);
+      const g = keyToGroup.get(`${matKey}|${Math.round(t*8)}|${Math.round(w*8)}|${Math.round(l*8)}`);
+      rows += buildCutSheetRow(g, partMarkMap);
     });
   }
 
@@ -4333,9 +4521,23 @@ function renderCutList() {
     row.addEventListener('click', () => selectPart(row.dataset.id));
   });
 
-  updateSummary();
-  renderSheetLayout();
-  renderDrillTemplate();
+  updateSummary(); renderSheetLayout(); renderDrillTemplate();
+}
+
+function buildCutSheetRow(g, partMarkMap) {
+  if (!g) return '';
+  const matDb = MATERIALS_DB[g.matKey];
+  const matName = matDb ? matDb.name : g.matKey;
+  const firstId = g.partIds[0];
+  return `<tr data-id="${firstId}" style="cursor:pointer">
+    <td style="font-weight:700;font-family:monospace;color:var(--accent)">${g.mark}</td>
+    <td style="text-align:center;color:var(--text-muted)">${g.qty}×</td>
+    <td class="td-label">${g.label}</td>
+    <td style="font-size:11px;color:var(--text-muted)">${matName}</td>
+    <td class="td-dim">${fmtIn(g.t)}"</td>
+    <td class="td-dim">${fmtIn(g.w)}"</td>
+    <td class="td-dim" style="font-weight:600">${fmtIn(g.l)}"</td>
+  </tr>`;
 }
 
 function updateSummary() {
@@ -4694,6 +4896,9 @@ document.addEventListener('keydown', (e) => {
     if (isPlacingShelf) cancelShelfPlacement();
     if (isPlacingUpright) cancelUprightPlacement();
     if (isGhostPlacing) cancelGhostPlacement();
+    if (lockViewMode) exitViewMode();
+    if (paintBrushMode) exitPaintBrushMode();
+    if (groupSelectMode) exitGroupSelectMode();
     deselectAll();
   }
   if (e.key === 'Enter') {
@@ -4754,39 +4959,94 @@ document.getElementById('btn-export-buildplan').addEventListener('click', showEx
 // ─── PRINT ───────────────────────────────────────────────────────────────────
 
 function printCutList() {
+  const { keyToGroup, partMarkMap } = computePartMarks(UNIT.parts);
   const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
-  const rows = sorted.map(p => `<tr><td>${p.label}</td><td>${fmtInPlain(p.dims.w)}"</td><td>${fmtInPlain(p.dims.h)}"</td><td>${fmtInPlain(p.dims.t)}"</td></tr>`).join('');
+
+  const seenMarks = new Set();
+  let cutRows = '';
+  sorted.forEach(p => {
+    const mark = partMarkMap.get(p.id);
+    if (seenMarks.has(mark)) return;
+    seenMarks.add(mark);
+    const matKey = p.material || UNIT.material;
+    const { t, w, l } = getPartTWL(p);
+    const key = `${matKey}|${Math.round(t*8)}|${Math.round(w*8)}|${Math.round(l*8)}`;
+    const g = keyToGroup.get(key);
+    const matName = MATERIALS_DB[matKey] ? MATERIALS_DB[matKey].name : matKey;
+    cutRows += `<tr><td style="font-weight:700;font-family:monospace">${g.mark}</td><td style="text-align:center">${g.qty}</td><td>${g.label}</td><td>${matName}</td><td>${fmtInPlain(g.t)}"</td><td>${fmtInPlain(g.w)}"</td><td style="font-weight:600">${fmtInPlain(g.l)}"</td></tr>`;
+  });
+
+  const { partMarkMap: pm2 } = computePartMarks(UNIT.parts);
+  const byMat = {};
+  UNIT.parts.forEach(p => { const k = p.material || UNIT.material; if (!byMat[k]) byMat[k] = []; byMat[k].push(p); });
+  let matHtml = '';
+  Object.entries(byMat).forEach(([matKey, parts]) => {
+    const db = MATERIALS_DB[matKey];
+    if (!db) return;
+    matHtml += `<div class="m-section"><div class="m-title">${db.name}</div>`;
+    if (db.category === 'sheet') {
+      let totalSqin = 0; parts.forEach(p => totalSqin += p.dims.w * p.dims.h);
+      const sheetsNeeded = Math.ceil(totalSqin / ((db.sheetW || 48) * (db.sheetH || 96)));
+      matHtml += `<div class="m-row">Buy: <strong>${sheetsNeeded}× ${(db.sheetW||48)/12}'×${(db.sheetH||96)/12}' sheet${sheetsNeeded>1?'s':''}</strong></div>`;
+      matHtml += `<div class="m-sub">Parts: ${parts.map(p => `[${pm2.get(p.id)}] ${p.label}`).join(', ')}</div>`;
+    } else if (db.category === 'lumber' || db.category === 'hardwood') {
+      const KERF = 0.125; const STD = [72,96,120,144,168,192];
+      const pieces = parts.map(p => ({ len: Math.max(p.dims.w, p.dims.h, p.dims.t), mark: pm2.get(p.id)||'?', label: p.label })).sort((a,b) => b.len-a.len);
+      const boards = [];
+      pieces.forEach(piece => {
+        let placed = false;
+        for (const b of boards) { if (b.remaining >= piece.len + (b.cuts.length?KERF:0)) { b.remaining -= piece.len + (b.cuts.length?KERF:0); b.cuts.push(piece); placed=true; break; } }
+        if (!placed) { const s = STD.find(l=>l>=piece.len)||STD[STD.length-1]; boards.push({stdLen:s,cuts:[piece],remaining:s-piece.len}); }
+      });
+      const bc = {}; boards.forEach(b => { bc[b.stdLen]=(bc[b.stdLen]||0)+1; });
+      matHtml += `<div class="m-row">Buy: <strong>${Object.entries(bc).map(([l,n])=>`${n}× ${fmtFt(+l)} ${db.name}`).join(', ')}</strong></div>`;
+      boards.forEach((b,i) => {
+        const cuts = b.cuts.map(c=>`[${c.mark}] ${fmtFt(c.len)}`).join(' + ');
+        const waste = Math.round((b.remaining/b.stdLen)*100);
+        matHtml += `<div class="m-board">Board ${i+1} (${fmtFt(b.stdLen)}): ${cuts} — ${waste}% waste</div>`;
+      });
+    }
+    matHtml += `</div>`;
+  });
+
+  const hw = computeHardwareList(UNIT.parts);
+  let hwHtml = hw.map(h => `<tr><td>${h.desc}</td><td>${h.qty}</td><td style="color:#666">${h.note||''}</td></tr>`).join('');
 
   let totalCost = 0, totalWeight = 0;
   UNIT.parts.forEach(p => { totalCost += calcPartCost(p); totalWeight += calcPartWeight(p); });
-  const cost = totalCost.toFixed(2);
-  const matDb = MATERIALS_DB[UNIT.material] || {};
-  let totalSqin = 0;
-  UNIT.parts.forEach(p => totalSqin += p.dims.w * p.dims.h);
-  const sheetsNeeded = matDb.sheetW ? Math.ceil(totalSqin / (48*96)) : null;
+  const today = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
 
   const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html><head><title>Cut List — ${UNIT.name}</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; }
-    h1 { font-size: 18px; margin-bottom: 4px; }
-    .meta { color: #666; font-size: 12px; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
-    th { background: #f5f5f5; font-weight: 600; }
-    .summary { margin-top: 16px; font-size: 12px; color: #333; }
-    .summary span { font-weight: 600; }
-  </style></head><body>
-  <h1>Cut List — ${UNIT.name}</h1>
-  <div class="meta">${UNIT.envelope.w}" W × ${UNIT.envelope.h}" H × ${UNIT.envelope.d}" D | ${matDb.name} | ${UNIT.style}</div>
-  <table><thead><tr><th>Label</th><th>Width</th><th>Height</th><th>Thickness</th></tr></thead>
-  <tbody>${rows}</tbody></table>
-  <div class="summary">
-    ${sheetsNeeded ? `<p>Sheet Goods: <span>${(totalSqin/4608).toFixed(2)} → ${sheetsNeeded} sheet${sheetsNeeded!==1?'s':''}</span></p>` : ''}
-    <p>Est. Cost: <span>$${cost}</span></p>
-    <p>Est. Weight: <span>${totalWeight.toFixed(0)} lbs</span></p>
-  </div>
-  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.write(`<!DOCTYPE html><html><head><title>Build Plan — ${UNIT.name}</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 24px 32px; font-size: 12px; color: #111; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 2px; } h2 { font-size: 14px; font-weight: 700; margin: 20px 0 6px; border-bottom: 2px solid #111; padding-bottom: 3px; letter-spacing: .04em; text-transform: uppercase; }
+  .meta { color: #555; font-size: 12px; margin-bottom: 6px; } .summary { display:flex; gap: 24px; font-size:12px; margin-bottom: 16px; } .summary div { } .summary strong { font-size: 14px; display:block; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; } th, td { border: 1px solid #ccc; padding: 5px 9px; text-align: left; font-size: 12px; } th { background: #f0f0f0; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  tr:nth-child(even) td { background: #fafafa; } .mark-col { font-weight: 700; font-family: monospace; text-align: center; } .dim-col { text-align: right; font-family: monospace; }
+  .m-section { margin-bottom: 12px; } .m-title { font-weight: 700; margin-bottom: 4px; } .m-row { margin-bottom: 3px; } .m-sub { color: #555; padding-left: 12px; margin-bottom: 3px; } .m-board { font-family: monospace; font-size: 11px; padding-left: 12px; color: #333; margin-bottom: 2px; }
+  .hw-table th, .hw-table td { font-size: 12px; } .footer { margin-top: 24px; color: #999; font-size: 10px; text-align: center; border-top: 1px solid #eee; padding-top: 8px; }
+  @media print { body { padding: 12px 16px; } @page { margin: 0.5in; } }
+</style></head><body>
+<h1>${UNIT.name}</h1>
+<div class="meta">Build Plan · ${today}</div>
+<div class="summary">
+  <div><strong>${UNIT.envelope.w}" W × ${UNIT.envelope.h}" H × ${UNIT.envelope.d}" D</strong>Overall Dimensions</div>
+  <div><strong>${UNIT.parts.length} piece${UNIT.parts.length>1?'s':''}</strong>Total Parts</div>
+  <div><strong>$${totalCost.toFixed(2)}</strong>Est. Material Cost</div>
+  <div><strong>${totalWeight.toFixed(0)} lbs</strong>Est. Weight</div>
+</div>
+<h2>Cut Sheet</h2>
+<table><thead><tr><th class="mark-col">Mark</th><th style="text-align:center">Qty</th><th>Part Name</th><th>Material</th><th class="dim-col">T"</th><th class="dim-col">W"</th><th class="dim-col">L"</th></tr></thead>
+<tbody>${cutRows}</tbody></table>
+<p style="font-size:11px;color:#666;margin:-6px 0 12px">T = Thickness · W = Width · L = Length (longest dimension, the cut)</p>
+<h2>Materials List</h2>
+${matHtml}
+<h2>Hardware &amp; Supplies</h2>
+<table class="hw-table"><thead><tr><th>Item</th><th>Quantity</th><th>Notes</th></tr></thead>
+<tbody>${hwHtml}</tbody></table>
+<div class="footer">Generated by ShelfBuilder · ${UNIT.name} · ${today}</div>
+<script>window.onload=()=>window.print()<\/script></body></html>`);
   win.document.close();
 }
 
@@ -4808,9 +5068,20 @@ function printDrillTemplate() {
 document.getElementById('btn-print-cutlist').addEventListener('click', printCutList);
 document.getElementById('btn-print-drill').addEventListener('click', printDrillTemplate);
 document.getElementById('btn-export-csv').addEventListener('click', () => {
+  const { keyToGroup, partMarkMap } = computePartMarks(UNIT.parts);
   const sorted = [...UNIT.parts].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
-  const rows = [['Label','Width (in)','Height (in)','Thickness (in)','Material']];
-  sorted.forEach(p => rows.push([p.label, fmtInPlain(p.dims.w), fmtInPlain(p.dims.h), fmtInPlain(p.dims.t), getPartMaterialLabel(p)]));
+  const rows = [['Mark','Qty','Part Name','Material','T (in)','W (in)','L (in)']];
+  const seenMarks = new Set();
+  sorted.forEach(p => {
+    const mark = partMarkMap.get(p.id);
+    if (seenMarks.has(mark)) return;
+    seenMarks.add(mark);
+    const matKey = p.material || UNIT.material;
+    const { t, w, l } = getPartTWL(p);
+    const key = `${matKey}|${Math.round(t*8)}|${Math.round(w*8)}|${Math.round(l*8)}`;
+    const g = keyToGroup.get(key);
+    rows.push([g.mark, g.qty, g.label, getPartMaterialLabel(p), fmtInPlain(g.t), fmtInPlain(g.w), fmtInPlain(g.l)]);
+  });
   const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
@@ -5702,6 +5973,11 @@ function updateCustomSummaryBar() {
 let customChecked = new Set(); // partIds checked
 let groupSelectMode = false;
 let groupSelectSet = new Set();
+let paintBrushMode = false;
+let paintBrushColor = '#FFFFFF';
+let paintBrushFinish = 'satin';
+let paintBrushClear = false;
+let lockViewMode = false;
 
 function renderCustomPartsList() {
   if (UNIT.mode !== 'custom') return;
@@ -5710,9 +5986,15 @@ function renderCustomPartsList() {
   const parts = UNIT.parts;
   const groups = UNIT.groups || [];
 
+  // Defensive cleanup: prune stale partIds and remove now-empty groups
+  const existingIds = new Set(parts.map(p => p.id));
+  groups.forEach(g => { g.partIds = g.partIds.filter(id => existingIds.has(id)); });
+  UNIT.groups = groups.filter(g => g.partIds.length > 0);
+  const cleanGroups = UNIT.groups;
+
   // Determine which partIds are in a group
   const groupedPartIds = new Set();
-  groups.forEach(g => g.partIds.forEach(id => groupedPartIds.add(id)));
+  cleanGroups.forEach(g => g.partIds.forEach(id => groupedPartIds.add(id)));
 
   // Ungrouped parts
   const ungrouped = parts.filter(p => !groupedPartIds.has(p.id));
@@ -5720,9 +6002,10 @@ function renderCustomPartsList() {
   let html = '';
 
   // Groups
-  groups.forEach(g => {
+  cleanGroups.forEach(g => {
     const collapsed = collapsedGroups[g.id];
     const gParts = parts.filter(p => g.partIds.includes(p.id));
+    if (!gParts.length) return;
     html += `
       <div class="group-header" data-gid="${g.id}">
         <span class="group-collapse">${collapsed ? '▶' : '▼'}</span>
@@ -5741,7 +6024,7 @@ function renderCustomPartsList() {
 
   // Ungrouped
   if (ungrouped.length) {
-    if (groups.length) {
+    if (cleanGroups.length) {
       html += `<div class="picker-section-label">Ungrouped</div>`;
     }
     ungrouped.forEach(p => { html += customPartRow(p); });
@@ -5775,7 +6058,9 @@ function renderCustomPartsList() {
   el.querySelectorAll('.custom-part-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.classList.contains('cpc-cb') || e.target.classList.contains('cpc-eye') || e.target.classList.contains('cpc-del')) return;
-      if (groupSelectMode) {
+      if (paintBrushMode) {
+        applyPaintBrush(card.dataset.id);
+      } else if (groupSelectMode) {
         toggleGroupSelect(card.dataset.id);
       } else {
         selectPart(card.dataset.id);
@@ -5878,11 +6163,194 @@ function updateGroupSelectBar() {
   document.getElementById('gsh-create').disabled = n < 2 || !nameVal;
 }
 
+const PAINT_FAMILIES = [
+  { label: 'Whites & Neutrals', swatches: [
+    { c: '#FFFFFF', n: 'White' }, { c: '#FAFAF8', n: 'Off-White' }, { c: '#F5EFE0', n: 'Cream' },
+    { c: '#FAF0E6', n: 'Linen' }, { c: '#F2E6D9', n: 'Antique' }, { c: '#E8D5C0', n: 'Burlap' },
+    { c: '#D4C5B0', n: 'Parchment' }, { c: '#C2B49A', n: 'Wheat' },
+  ]},
+  { label: 'Grays & Black', swatches: [
+    { c: '#E8E8E8', n: 'Light Gray' }, { c: '#C8C8C8', n: 'Silver' }, { c: '#9E9E9E', n: 'Gray' },
+    { c: '#757575', n: 'Warm Gray' }, { c: '#5A5A5A', n: 'Slate' }, { c: '#3D3D3D', n: 'Charcoal' },
+    { c: '#2A2A2A', n: 'Graphite' }, { c: '#1A1A1A', n: 'Black' },
+  ]},
+  { label: 'Blues', swatches: [
+    { c: '#DBEAFE', n: 'Ice Blue' }, { c: '#93C5FD', n: 'Sky' }, { c: '#60A5FA', n: 'Cornflower' },
+    { c: '#3B82F6', n: 'Blue' }, { c: '#2563EB', n: 'Cobalt' }, { c: '#1D4ED8', n: 'Royal' },
+    { c: '#1E3A5F', n: 'Navy' }, { c: '#0F1F3D', n: 'Midnight' },
+  ]},
+  { label: 'Greens', swatches: [
+    { c: '#D1FAE5', n: 'Mint' }, { c: '#86EFAC', n: 'Seafoam' }, { c: '#A7C4A0', n: 'Sage' },
+    { c: '#4ADE80', n: 'Lime' }, { c: '#22C55E', n: 'Green' }, { c: '#2D6A4F', n: 'Forest' },
+    { c: '#4A5E3A', n: 'Olive' }, { c: '#1B3A2A', n: 'Hunter' },
+  ]},
+  { label: 'Reds, Pinks & Orange', swatches: [
+    { c: '#FFE4E8', n: 'Blush' }, { c: '#FCA5A5', n: 'Salmon' }, { c: '#F87171', n: 'Coral' },
+    { c: '#EF4444', n: 'Red' }, { c: '#DC2626', n: 'Crimson' }, { c: '#991B1B', n: 'Burgundy' },
+    { c: '#C05E3A', n: 'Terra' }, { c: '#92400E', n: 'Brick' },
+  ]},
+  { label: 'Yellows & Gold', swatches: [
+    { c: '#FEF9C3', n: 'Butter' }, { c: '#FDE68A', n: 'Straw' }, { c: '#FCD34D', n: 'Yellow' },
+    { c: '#F59E0B', n: 'Amber' }, { c: '#D97706', n: 'Mustard' }, { c: '#B45309', n: 'Gold' },
+  ]},
+  { label: 'Browns & Wood Tones', swatches: [
+    { c: '#E8C99A', n: 'Tan' }, { c: '#C9A87C', n: 'Khaki' }, { c: '#A07850', n: 'Caramel' },
+    { c: '#8B5E3C', n: 'Teak' }, { c: '#6B4226', n: 'Walnut' }, { c: '#4E2D1A', n: 'Mahogany' },
+    { c: '#3B1F0F', n: 'Espresso' }, { c: '#1C0D06', n: 'Ebony' },
+  ]},
+];
+
+function enterPaintBrushMode() {
+  paintBrushMode = true;
+  paintBrushClear = false;
+  document.getElementById('paint-brush-bar').classList.add('active');
+  document.getElementById('custom-parts-header').style.display = 'none';
+  document.body.classList.add('paint-brush-active');
+  buildPaintSwatches();
+  updatePaintBrushBar();
+  updateSelectionHighlight();
+}
+
+function exitPaintBrushMode() {
+  paintBrushMode = false;
+  paintBrushClear = false;
+  document.getElementById('paint-brush-bar').classList.remove('active');
+  document.getElementById('custom-parts-header').style.display = 'flex';
+  document.getElementById('pb-clear-toggle').classList.remove('active');
+  document.body.classList.remove('paint-brush-active');
+  updateSelectionHighlight();
+  renderCustomPartsList();
+}
+
+function buildPaintSwatches() {
+  const palette = document.getElementById('pb-palette');
+  palette.innerHTML = '';
+  PAINT_FAMILIES.forEach(family => {
+    const fEl = document.createElement('div');
+    fEl.className = 'pb-family';
+    const lbl = document.createElement('div');
+    lbl.className = 'pb-family-label';
+    lbl.textContent = family.label;
+    fEl.appendChild(lbl);
+    const row = document.createElement('div');
+    row.className = 'pb-family-swatches';
+    family.swatches.forEach(s => {
+      const btn = document.createElement('div');
+      const isLight = s.c === '#FFFFFF' || s.c === '#FAFAF8' || s.c === '#FEF9C3' || s.c === '#FFE4E8' || s.c === '#DBEAFE' || s.c === '#D1FAE5' || s.c === '#FEF9C3';
+      btn.className = 'pb-swatch' + (paintBrushColor === s.c ? ' active' : '');
+      btn.style.background = s.c;
+      btn.style.outline = isLight ? '1px solid rgba(0,0,0,0.15)' : 'none';
+      btn.title = s.n;
+      btn.addEventListener('click', () => {
+        paintBrushColor = s.c;
+        paintBrushClear = false;
+        document.getElementById('pb-clear-toggle').classList.remove('active');
+        document.getElementById('pb-custom').value = s.c;
+        buildPaintSwatches();
+        updatePaintBrushBar();
+      });
+      row.appendChild(btn);
+    });
+    fEl.appendChild(row);
+    palette.appendChild(fEl);
+  });
+}
+
+function updatePaintBrushBar() {
+  const hint = document.getElementById('pb-hint');
+  if (paintBrushClear) {
+    hint.textContent = 'Click parts to remove paint';
+    hint.style.color = 'rgba(239,68,68,0.8)';
+  } else {
+    hint.textContent = 'Click any piece to paint it';
+    hint.style.color = 'rgba(236,72,153,0.8)';
+  }
+}
+
+function applyPaintBrush(partId) {
+  const part = UNIT.parts.find(p => p.id === partId);
+  if (!part) return;
+  pushUndo();
+  if (paintBrushClear) {
+    delete part.paint;
+  } else {
+    part.paint = { color: paintBrushColor, finish: paintBrushFinish };
+  }
+  rebuildPartMesh(part);
+  updateSelectionHighlight();
+  showToast(paintBrushClear ? 'Paint removed' : 'Paint applied');
+}
+
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const LIGHT_PRESETS = {
+  default:  { ambColor: 0xffffff, ambI: 0.55, sunColor: 0xffffff, sunI: 0.9,  sunPos: [200,400,200],   fillColor: 0x8888ff, fillI: 0.25, fillPos: [-100,50,-100], rimI: 0.0 },
+  studio:   { ambColor: 0xFFF8F0, ambI: 0.65, sunColor: 0xFFFAF0, sunI: 1.3,  sunPos: [150,300,200],   fillColor: 0xE0E8FF, fillI: 0.4,  fillPos: [-180,120,80],  rimI: 0.35, rimColor: 0xffffff },
+  showroom: { ambColor: 0xFFF5E0, ambI: 0.5,  sunColor: 0xffffff, sunI: 1.6,  sunPos: [80,500,30],     fillColor: 0xFFD580, fillI: 0.2,  fillPos: [-200,80,-100], rimI: 0.5,  rimColor: 0xFFE8B0 },
+  workshop: { ambColor: 0xF0F4FF, ambI: 0.75, sunColor: 0xF8FFFF, sunI: 0.85, sunPos: [0,400,100],     fillColor: 0xC0D0FF, fillI: 0.35, fillPos: [200,60,-200],  rimI: 0.15, rimColor: 0xCCDDFF },
+  dramatic: { ambColor: 0x1A1A2E, ambI: 0.12, sunColor: 0xffffff, sunI: 2.0,  sunPos: [350,180,0],     fillColor: 0x2A1A4A, fillI: 0.08, fillPos: [-100,50,100],  rimI: 0.6,  rimColor: 0x8844FF },
+  golden:   { ambColor: 0xFFE8C0, ambI: 0.5,  sunColor: 0xFFB347, sunI: 1.4,  sunPos: [-300,120,200],  fillColor: 0xFF8C42, fillI: 0.2,  fillPos: [200,80,-50],   rimI: 0.4,  rimColor: 0xFFD700 },
+};
+
+function applyLightPreset(name) {
+  const p = LIGHT_PRESETS[name] || LIGHT_PRESETS.default;
+  if (!sceneAmbient) return;
+  sceneAmbient.color.setHex(p.ambColor); sceneAmbient.intensity = p.ambI;
+  sceneSun.color.setHex(p.sunColor); sceneSun.intensity = p.sunI;
+  sceneSun.position.set(...p.sunPos);
+  sceneFill.color.setHex(p.fillColor); sceneFill.intensity = p.fillI;
+  sceneFill.position.set(...p.fillPos);
+  sceneRim.intensity = p.rimI;
+  if (p.rimColor) sceneRim.color.setHex(p.rimColor);
+}
+
+function enterViewMode() {
+  lockViewMode = true;
+  document.body.classList.add('view-mode');
+  document.getElementById('btn-view-lock').classList.add('active');
+  document.getElementById('vhud-lighting').value = 'studio';
+  applyLightPreset('studio');
+  if (controls) { controls.enableRotate = true; controls.enableZoom = true; controls.enablePan = false; }
+  resizeRenderer();
+}
+
+function exitViewMode() {
+  lockViewMode = false;
+  document.body.classList.remove('view-mode');
+  document.getElementById('btn-view-lock').classList.remove('active');
+  document.getElementById('vhud-rotate-btn').classList.remove('active');
+  applyLightPreset('default');
+  if (controls) { controls.autoRotate = false; controls.enablePan = true; }
+  resizeRenderer();
+}
+
+document.getElementById('btn-view-lock').addEventListener('click', () => { lockViewMode ? exitViewMode() : enterViewMode(); });
+document.getElementById('vhud-exit-btn').addEventListener('click', exitViewMode);
+document.getElementById('vhud-lighting').addEventListener('change', (e) => applyLightPreset(e.target.value));
+document.getElementById('vhud-rotate-btn').addEventListener('click', () => {
+  if (!controls) return;
+  controls.autoRotate = !controls.autoRotate;
+  controls.autoRotateSpeed = 1.5;
+  document.getElementById('vhud-rotate-btn').classList.toggle('active', controls.autoRotate);
+});
+
 document.getElementById('btn-new-group').addEventListener('click', enterGroupSelectMode);
+document.getElementById('btn-paint-brush').addEventListener('click', enterPaintBrushMode);
+document.getElementById('pb-done').addEventListener('click', exitPaintBrushMode);
+document.getElementById('pb-custom').addEventListener('input', (e) => {
+  paintBrushColor = e.target.value;
+  paintBrushClear = false;
+  document.getElementById('pb-clear-toggle').classList.remove('active');
+  buildPaintSwatches();
+});
+document.getElementById('pb-finish').addEventListener('change', (e) => { paintBrushFinish = e.target.value; });
+document.getElementById('pb-clear-toggle').addEventListener('click', () => {
+  paintBrushClear = !paintBrushClear;
+  document.getElementById('pb-clear-toggle').classList.toggle('active', paintBrushClear);
+  updatePaintBrushBar();
+});
 
 document.getElementById('gsh-cancel').addEventListener('click', exitGroupSelectMode);
 
@@ -6177,11 +6645,12 @@ function renderBuyList() {
   const pane = document.getElementById('buylist-pane');
   if (!pane) return;
   if (!UNIT.parts || !UNIT.parts.length) {
-    pane.innerHTML = '<div class="bl-empty">No parts yet. Add parts to generate a buy list.</div>';
+    pane.innerHTML = '<div class="bl-empty">No parts yet. Add parts to generate a materials list.</div>';
     return;
   }
 
-  // Group parts by material key
+  const { partMarkMap } = computePartMarks(UNIT.parts);
+
   const byMat = {};
   UNIT.parts.forEach(p => {
     const key = p.material || UNIT.material || 'plywood';
@@ -6189,7 +6658,7 @@ function renderBuyList() {
     byMat[key].push(p);
   });
 
-  let html = '';
+  let html = '<div class="bl-section-header">MATERIALS</div>';
 
   Object.entries(byMat).forEach(([matKey, parts]) => {
     const db = MATERIALS_DB[matKey];
@@ -6199,80 +6668,66 @@ function renderBuyList() {
     }
 
     if (db.category === 'sheet') {
-      // Sheet goods: count area
       let totalSqin = 0;
       parts.forEach(p => { totalSqin += p.dims.w * p.dims.h; });
       const sheetW = db.sheetW || 48, sheetH = db.sheetH || 96;
-      const sheetSqin = sheetW * sheetH;
-      const sheetsNeeded = Math.ceil(totalSqin / sheetSqin);
+      const sheetsNeeded = Math.ceil(totalSqin / (sheetW * sheetH));
       const cost = sheetsNeeded * (db.pricePerSheet || 0);
       html += `<div class="bl-section">`;
       html += `<div class="bl-section-title">${db.name}</div>`;
-      html += `<div class="bl-row">${sheetsNeeded}&times; ${sheetW / 12}'&times;${sheetH / 12}' sheets of ${db.name}</div>`;
+      html += `<div class="bl-row"><strong>Buy: ${sheetsNeeded}× ${sheetW / 12}'×${sheetH / 12}' sheet${sheetsNeeded !== 1 ? 's' : ''}</strong></div>`;
+      html += `<div class="bl-sub">Parts: ${parts.map(p => `[${partMarkMap.get(p.id) || '?'}] ${p.label}`).join(', ')}</div>`;
       html += `<div class="bl-cost">Est. cost: $${cost.toFixed(2)}</div>`;
       html += `</div>`;
 
     } else if (db.category === 'lumber' || db.category === 'hardwood') {
-      // Lumber: bin-pack into standard lengths
       const KERF = 0.125;
-      const STD_LENGTHS = [72, 96, 120, 144, 168, 192]; // inches (6'–16')
+      const STD_LENGTHS = [72, 96, 120, 144, 168, 192];
 
-      // Collect piece lengths (w = long dimension for lumber)
-      const pieceLengths = parts.map(p => p.dims.w).sort((a, b) => b - a); // FFD: largest first
+      const pieces = parts.map(p => ({
+        len: Math.max(p.dims.w, p.dims.h, p.dims.t),
+        mark: partMarkMap.get(p.id) || '?',
+        label: p.label
+      })).sort((a, b) => b.len - a.len);
 
-      // Bin-pack
-      const boards = []; // { stdLen, cuts, remaining }
-
-      pieceLengths.forEach(len => {
-        // Try to fit in existing board
+      const boards = [];
+      pieces.forEach(piece => {
         let placed = false;
         for (const board of boards) {
-          if (board.remaining >= len + (board.cuts.length > 0 ? KERF : 0)) {
-            const kerfCost = board.cuts.length > 0 ? KERF : 0;
-            board.remaining -= (len + kerfCost);
-            board.cuts.push(len);
+          const kerfCost = board.cuts.length > 0 ? KERF : 0;
+          if (board.remaining >= piece.len + kerfCost) {
+            board.remaining -= (piece.len + kerfCost);
+            board.cuts.push(piece);
             placed = true;
             break;
           }
         }
         if (!placed) {
-          // Open new board — shortest standard length >= piece length
-          const stdLen = STD_LENGTHS.find(l => l >= len) || STD_LENGTHS[STD_LENGTHS.length - 1];
-          const board = { stdLen, cuts: [len], remaining: stdLen - len };
-          boards.push(board);
+          const stdLen = STD_LENGTHS.find(l => l >= piece.len) || STD_LENGTHS[STD_LENGTHS.length - 1];
+          boards.push({ stdLen, cuts: [piece], remaining: stdLen - piece.len });
         }
       });
 
-      // Group boards by standard length for summary
       const boardCounts = {};
-      boards.forEach(b => {
-        boardCounts[b.stdLen] = (boardCounts[b.stdLen] || 0) + 1;
-      });
+      boards.forEach(b => { boardCounts[b.stdLen] = (boardCounts[b.stdLen] || 0) + 1; });
+      const buySum = Object.entries(boardCounts).map(([len, cnt]) => `${cnt}× ${fmtFt(parseInt(len))} ${db.name}`).join(', ');
 
       html += `<div class="bl-section">`;
       html += `<div class="bl-section-title">${db.name}</div>`;
-
+      html += `<div class="bl-row" style="font-weight:600;margin-bottom:6px">Buy: ${buySum}</div>`;
       boards.forEach((b, i) => {
-        const usedLen = b.stdLen - b.remaining;
-        const wasteLen = b.remaining;
-        const wastePct = Math.round((wasteLen / b.stdLen) * 100);
-        const cutsStr = b.cuts.map(c => fmtFt(c)).join(', ');
-        html += `<div class="bl-row">Board ${i + 1} (${fmtFt(b.stdLen)}): ${cutsStr} <span class="bl-waste">${wastePct}% waste</span></div>`;
+        const wastePct = Math.round((b.remaining / b.stdLen) * 100);
+        const cutsStr = b.cuts.map(c => `<span class="bl-mark">[${c.mark}]</span> ${fmtFt(c.len)}`).join(' + ');
+        html += `<div class="bl-row bl-board-row">Board ${i + 1} — ${fmtFt(b.stdLen)}: ${cutsStr} <span class="bl-waste">${wastePct}% waste</span></div>`;
       });
 
-      // Buy summary
-      let buySum = Object.entries(boardCounts).map(([len, cnt]) => `${cnt}&times; ${fmtFt(parseInt(len))} ${db.name}`).join(', ');
-      html += `<div class="bl-sub">Buy: ${buySum}</div>`;
-
-      // Cost estimate
       let totalCost = 0;
       if (db.pricePerLinFt) {
         boards.forEach(b => { totalCost += (b.stdLen / 12) * db.pricePerLinFt; });
         html += `<div class="bl-cost">Est. cost: $${totalCost.toFixed(2)}</div>`;
       } else if (db.pricePerBdFt) {
-        // board foot = (thickness × width × length) / 144
         let totalBdFt = 0;
-        parts.forEach(p => { totalBdFt += (p.dims.t * p.dims.h * p.dims.w) / 144; });
+        parts.forEach(p => { totalBdFt += (db.thick * db.width * Math.max(p.dims.w, p.dims.h, p.dims.t)) / 144; });
         totalCost = totalBdFt * db.pricePerBdFt;
         html += `<div class="bl-cost">Est. cost: $${totalCost.toFixed(2)} (${totalBdFt.toFixed(2)} bd.ft)</div>`;
       }
@@ -6281,6 +6736,16 @@ function renderBuyList() {
       html += `<div class="bl-section"><div class="bl-section-title">${db.name}</div><div class="bl-row">${parts.length} piece(s)</div></div>`;
     }
   });
+
+  const hwItems = computeHardwareList(UNIT.parts);
+  if (hwItems.length) {
+    html += `<div class="bl-section-header" style="margin-top:14px">HARDWARE &amp; SUPPLIES</div>`;
+    html += `<div class="bl-section">`;
+    hwItems.forEach(hw => {
+      html += `<div class="bl-row bl-hw-row"><span class="bl-hw-desc">${hw.desc}</span><span class="bl-hw-qty">${hw.qty}</span>${hw.note ? `<span class="bl-hw-note"> — ${hw.note}</span>` : ''}</div>`;
+    });
+    html += `</div>`;
+  }
 
   pane.innerHTML = html || '<div class="bl-empty">No recognizable materials found.</div>';
 }

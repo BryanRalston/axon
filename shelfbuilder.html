@@ -1545,6 +1545,18 @@
     <option value="dramatic">Dramatic</option>
     <option value="default">Default</option>
   </select>
+  <select id="vhud-bg" title="Background" style="font-size:11px;padding:3px 8px;background:rgba(9,9,11,0.8);border:1px solid rgba(34,211,238,0.25);border-radius:10px;color:var(--accent);font-family:inherit;cursor:pointer">
+    <option value="void">Void</option>
+    <option value="darkgray">Dark Gray</option>
+    <option value="concrete">Concrete</option>
+    <option value="lightgray">Light Gray</option>
+    <option value="white">White</option>
+    <option value="warm">Warm Cream</option>
+    <option value="sky">Sky Blue</option>
+    <option value="sage">Sage Green</option>
+    <option value="navy">Navy</option>
+    <option value="black">Black</option>
+  </select>
   <button id="vhud-rotate-btn" title="Toggle auto-rotate">↻ Rotate</button>
   <button id="vhud-exit-btn">✕ Exit</button>
 </div>
@@ -1843,7 +1855,8 @@
         <div class="bl-empty">No parts yet. Add parts to generate a buy list.</div>
       </div>
       <div class="buylist-btns">
-        <button class="action-btn" id="btn-print-buylist" style="text-align:center">Print Buy List</button>
+        <button class="action-btn" id="btn-generate-guide" style="text-align:center">📋 Build Guide</button>
+        <button class="action-btn secondary" id="btn-print-buylist" style="text-align:center">Print Materials</button>
       </div>
     </div>
   </div>
@@ -4990,17 +5003,11 @@ function printCutList() {
       matHtml += `<div class="m-row">Buy: <strong>${sheetsNeeded}× ${(db.sheetW||48)/12}'×${(db.sheetH||96)/12}' sheet${sheetsNeeded>1?'s':''}</strong></div>`;
       matHtml += `<div class="m-sub">Parts: ${parts.map(p => `[${pm2.get(p.id)}] ${p.label}`).join(', ')}</div>`;
     } else if (db.category === 'lumber' || db.category === 'hardwood') {
-      const KERF = 0.125; const STD = [72,96,120,144,168,192];
-      const pieces = parts.map(p => ({ len: Math.max(p.dims.w, p.dims.h, p.dims.t), mark: pm2.get(p.id)||'?', label: p.label })).sort((a,b) => b.len-a.len);
-      const boards = [];
-      pieces.forEach(piece => {
-        let placed = false;
-        for (const b of boards) { if (b.remaining >= piece.len + (b.cuts.length?KERF:0)) { b.remaining -= piece.len + (b.cuts.length?KERF:0); b.cuts.push(piece); placed=true; break; } }
-        if (!placed) { const s = STD.find(l=>l>=piece.len)||STD[STD.length-1]; boards.push({stdLen:s,cuts:[piece],remaining:s-piece.len}); }
-      });
+      const pieces = parts.map(p => ({ len: Math.max(p.dims.w, p.dims.h, p.dims.t), mark: pm2.get(p.id)||'?', label: p.label }));
+      const boards = lumberBinPack(pieces);
       const bc = {}; boards.forEach(b => { bc[b.stdLen]=(bc[b.stdLen]||0)+1; });
-      matHtml += `<div class="m-row">Buy: <strong>${Object.entries(bc).map(([l,n])=>`${n}× ${fmtFt(+l)} ${db.name}`).join(', ')}</strong></div>`;
-      boards.forEach((b,i) => {
+      matHtml += `<div class="m-row">Buy: <strong>${Object.entries(bc).sort(([a],[b])=>+a-+b).map(([l,n])=>`${n}× ${fmtFt(+l)} ${db.name}`).join(', ')}</strong></div>`;
+      boards.sort((a,b)=>b.stdLen-a.stdLen).forEach((b,i) => {
         const cuts = b.cuts.map(c=>`[${c.mark}] ${fmtFt(c.len)}`).join(' + ');
         const waste = Math.round((b.remaining/b.stdLen)*100);
         matHtml += `<div class="m-board">Board ${i+1} (${fmtFt(b.stdLen)}): ${cuts} — ${waste}% waste</div>`;
@@ -6285,6 +6292,25 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const BG_PRESETS = {
+  void:      { hex: 0x050508, css: '#050508', label: 'Void' },
+  darkgray:  { hex: 0x1C1C22, css: '#1C1C22', label: 'Dark Gray' },
+  concrete:  { hex: 0x4A4A52, css: '#4A4A52', label: 'Concrete' },
+  lightgray: { hex: 0xCCCCCC, css: '#CCCCCC', label: 'Light Gray' },
+  white:     { hex: 0xF5F5F5, css: '#F5F5F5', label: 'White' },
+  warm:      { hex: 0xF2EBD9, css: '#F2EBD9', label: 'Warm Cream' },
+  sky:       { hex: 0xC5D9EE, css: '#C5D9EE', label: 'Sky Blue' },
+  sage:      { hex: 0xC2D0BF, css: '#C2D0BF', label: 'Sage Green' },
+  navy:      { hex: 0x0F1C2E, css: '#0F1C2E', label: 'Navy' },
+  black:     { hex: 0x000000, css: '#000000', label: 'Black' },
+};
+
+function applyBgPreset(name) {
+  const b = BG_PRESETS[name] || BG_PRESETS.void;
+  if (scene) scene.background = new THREE.Color(b.hex);
+  if (renderer) renderer.setClearColor(b.hex);
+}
+
 const LIGHT_PRESETS = {
   default:  { ambColor: 0xffffff, ambI: 0.55, sunColor: 0xffffff, sunI: 0.9,  sunPos: [200,400,200],   fillColor: 0x8888ff, fillI: 0.25, fillPos: [-100,50,-100], rimI: 0.0 },
   studio:   { ambColor: 0xFFF8F0, ambI: 0.65, sunColor: 0xFFFAF0, sunI: 1.3,  sunPos: [150,300,200],   fillColor: 0xE0E8FF, fillI: 0.4,  fillPos: [-180,120,80],  rimI: 0.35, rimColor: 0xffffff },
@@ -6311,7 +6337,9 @@ function enterViewMode() {
   document.body.classList.add('view-mode');
   document.getElementById('btn-view-lock').classList.add('active');
   document.getElementById('vhud-lighting').value = 'studio';
+  document.getElementById('vhud-bg').value = 'void';
   applyLightPreset('studio');
+  applyBgPreset('void');
   if (controls) { controls.enableRotate = true; controls.enableZoom = true; controls.enablePan = false; }
   resizeRenderer();
 }
@@ -6322,6 +6350,7 @@ function exitViewMode() {
   document.getElementById('btn-view-lock').classList.remove('active');
   document.getElementById('vhud-rotate-btn').classList.remove('active');
   applyLightPreset('default');
+  applyBgPreset('void');
   if (controls) { controls.autoRotate = false; controls.enablePan = true; }
   resizeRenderer();
 }
@@ -6329,6 +6358,7 @@ function exitViewMode() {
 document.getElementById('btn-view-lock').addEventListener('click', () => { lockViewMode ? exitViewMode() : enterViewMode(); });
 document.getElementById('vhud-exit-btn').addEventListener('click', exitViewMode);
 document.getElementById('vhud-lighting').addEventListener('change', (e) => applyLightPreset(e.target.value));
+document.getElementById('vhud-bg').addEventListener('change', (e) => applyBgPreset(e.target.value));
 document.getElementById('vhud-rotate-btn').addEventListener('click', () => {
   if (!controls) return;
   controls.autoRotate = !controls.autoRotate;
@@ -6641,6 +6671,138 @@ function fmtFt(inches) {
   return ft + "'" + i + '"';
 }
 
+function lumberBinPack(pieces) {
+  const KERF = 0.125;
+  const STD = [72, 96, 120, 144, 168, 192];
+  function shortestFit(n) { return STD.find(s => s >= n) || null; }
+  function usedLen(cuts) {
+    if (!cuts.length) return 0;
+    return cuts.reduce((s, c) => s + c.len, 0) + (cuts.length - 1) * KERF;
+  }
+
+  // Pass 1: First-Fit Decreasing
+  const sorted = [...pieces].sort((a, b) => b.len - a.len);
+  const boards = [];
+  for (const p of sorted) {
+    let placed = false;
+    for (const b of boards) {
+      const needKerf = b.cuts.length > 0 ? KERF : 0;
+      if (b.remaining >= p.len + needKerf) {
+        b.remaining -= (p.len + needKerf);
+        b.cuts.push(p);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      const sl = shortestFit(p.len);
+      boards.push({ stdLen: sl, cuts: [p], remaining: sl - p.len });
+    }
+  }
+
+  // Pass 2: Merge-Eliminate — try to remove the most-wasteful board
+  // by redistributing its cuts onto other boards
+  let improved = true;
+  while (improved) {
+    improved = false;
+    boards.sort((a, b) => (b.remaining / b.stdLen) - (a.remaining / a.stdLen));
+    for (let i = 0; i < boards.length; i++) {
+      const victim = boards[i];
+      const rest = boards.filter((_, k) => k !== i)
+        .map(b => ({ stdLen: b.stdLen, cuts: [...b.cuts], remaining: b.remaining }));
+      let allFit = true;
+      for (const cut of victim.cuts) {
+        let placed = false;
+        for (const rb of rest) {
+          const needKerf = rb.cuts.length > 0 ? KERF : 0;
+          if (rb.remaining >= cut.len + needKerf) {
+            rb.remaining -= (cut.len + needKerf);
+            rb.cuts.push(cut);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) { allFit = false; break; }
+      }
+      if (allFit) {
+        boards.splice(i, 1);
+        for (let k = 0; k < boards.length; k++) {
+          boards[k].cuts = rest[k].cuts;
+          boards[k].remaining = rest[k].remaining;
+        }
+        improved = true;
+        break;
+      }
+    }
+  }
+
+  // Pass 3: Smart Upgrade — upgrade a board to the next standard length
+  // only when it lets us pull a cut from another board that then becomes empty-able
+  let upImproved = true;
+  while (upImproved) {
+    upImproved = false;
+    const sortedBoards = [...boards].sort((a, b) => a.remaining - b.remaining);
+    outer: for (const receiver of sortedBoards) {
+      for (const newStd of STD.filter(s => s > receiver.stdLen)) {
+        const donors = boards.filter(b => b !== receiver)
+          .sort((a, b) => (b.remaining / b.stdLen) - (a.remaining / a.stdLen));
+        for (const donor of donors) {
+          for (const cut of donor.cuts) {
+            const needKerf = receiver.cuts.length > 0 ? KERF : 0;
+            const newRemaining = newStd - usedLen(receiver.cuts) - needKerf - cut.len;
+            if (newRemaining >= 0 && cut.len + needKerf > receiver.remaining) {
+              receiver.stdLen = newStd;
+              receiver.cuts.push(cut);
+              receiver.remaining = newRemaining;
+              donor.cuts = donor.cuts.filter(c => c !== cut);
+              donor.remaining = donor.stdLen - usedLen(donor.cuts);
+              upImproved = true;
+              break outer;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Final merge pass
+  improved = true;
+  while (improved) {
+    improved = false;
+    boards.sort((a, b) => (b.remaining / b.stdLen) - (a.remaining / a.stdLen));
+    for (let i = 0; i < boards.length; i++) {
+      const victim = boards[i];
+      const rest = boards.filter((_, k) => k !== i)
+        .map(b => ({ stdLen: b.stdLen, cuts: [...b.cuts], remaining: b.remaining }));
+      let allFit = true;
+      for (const cut of victim.cuts) {
+        let placed = false;
+        for (const rb of rest) {
+          const needKerf = rb.cuts.length > 0 ? KERF : 0;
+          if (rb.remaining >= cut.len + needKerf) {
+            rb.remaining -= (cut.len + needKerf);
+            rb.cuts.push(cut);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) { allFit = false; break; }
+      }
+      if (allFit) {
+        boards.splice(i, 1);
+        for (let k = 0; k < boards.length; k++) {
+          boards[k].cuts = rest[k].cuts;
+          boards[k].remaining = rest[k].remaining;
+        }
+        improved = true;
+        break;
+      }
+    }
+  }
+
+  return boards.filter(b => b.cuts.length > 0);
+}
+
 function renderBuyList() {
   const pane = document.getElementById('buylist-pane');
   if (!pane) return;
@@ -6681,53 +6843,41 @@ function renderBuyList() {
       html += `</div>`;
 
     } else if (db.category === 'lumber' || db.category === 'hardwood') {
-      const KERF = 0.125;
-      const STD_LENGTHS = [72, 96, 120, 144, 168, 192];
-
       const pieces = parts.map(p => ({
         len: Math.max(p.dims.w, p.dims.h, p.dims.t),
         mark: partMarkMap.get(p.id) || '?',
         label: p.label
-      })).sort((a, b) => b.len - a.len);
+      }));
 
-      const boards = [];
-      pieces.forEach(piece => {
-        let placed = false;
-        for (const board of boards) {
-          const kerfCost = board.cuts.length > 0 ? KERF : 0;
-          if (board.remaining >= piece.len + kerfCost) {
-            board.remaining -= (piece.len + kerfCost);
-            board.cuts.push(piece);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) {
-          const stdLen = STD_LENGTHS.find(l => l >= piece.len) || STD_LENGTHS[STD_LENGTHS.length - 1];
-          boards.push({ stdLen, cuts: [piece], remaining: stdLen - piece.len });
-        }
-      });
+      const boards = lumberBinPack(pieces);
 
       const boardCounts = {};
       boards.forEach(b => { boardCounts[b.stdLen] = (boardCounts[b.stdLen] || 0) + 1; });
-      const buySum = Object.entries(boardCounts).map(([len, cnt]) => `${cnt}× ${fmtFt(parseInt(len))} ${db.name}`).join(', ');
+      const buySum = Object.entries(boardCounts).sort(([a],[b]) => +a - +b)
+        .map(([len, cnt]) => `${cnt}× ${fmtFt(parseInt(len))} ${db.name}`).join(', ');
+      const totalWaste = boards.reduce((s, b) => s + b.remaining, 0);
+      const totalPurchased = boards.reduce((s, b) => s + b.stdLen, 0);
+      const wastePct = Math.round(totalWaste / totalPurchased * 100);
 
       html += `<div class="bl-section">`;
       html += `<div class="bl-section-title">${db.name}</div>`;
       html += `<div class="bl-row" style="font-weight:600;margin-bottom:6px">Buy: ${buySum}</div>`;
-      boards.forEach((b, i) => {
-        const wastePct = Math.round((b.remaining / b.stdLen) * 100);
+      boards.sort((a, b) => b.stdLen - a.stdLen).forEach((b, i) => {
+        const waste = Math.round((b.remaining / b.stdLen) * 100);
         const cutsStr = b.cuts.map(c => `<span class="bl-mark">[${c.mark}]</span> ${fmtFt(c.len)}`).join(' + ');
-        html += `<div class="bl-row bl-board-row">Board ${i + 1} — ${fmtFt(b.stdLen)}: ${cutsStr} <span class="bl-waste">${wastePct}% waste</span></div>`;
+        html += `<div class="bl-row bl-board-row">Board ${i + 1} — ${fmtFt(b.stdLen)}: ${cutsStr} <span class="bl-waste">${waste}% waste</span></div>`;
       });
 
       let totalCost = 0;
       if (db.pricePerLinFt) {
         boards.forEach(b => { totalCost += (b.stdLen / 12) * db.pricePerLinFt; });
-        html += `<div class="bl-cost">Est. cost: $${totalCost.toFixed(2)}</div>`;
+        html += `<div class="bl-cost">Est. cost: $${totalCost.toFixed(2)} · ${(totalPurchased/12).toFixed(0)} linear ft · ${wastePct}% waste</div>`;
       } else if (db.pricePerBdFt) {
         let totalBdFt = 0;
-        parts.forEach(p => { totalBdFt += (db.thick * db.width * Math.max(p.dims.w, p.dims.h, p.dims.t)) / 144; });
+        parts.forEach(p => {
+          const db2 = MATERIALS_DB[p.material || UNIT.material];
+          if (db2) totalBdFt += (db2.thick * db2.width * Math.max(p.dims.w, p.dims.h, p.dims.t)) / 144;
+        });
         totalCost = totalBdFt * db.pricePerBdFt;
         html += `<div class="bl-cost">Est. cost: $${totalCost.toFixed(2)} (${totalBdFt.toFixed(2)} bd.ft)</div>`;
       }
